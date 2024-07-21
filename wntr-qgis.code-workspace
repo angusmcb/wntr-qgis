@@ -1,0 +1,63 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "editor.formatOnSave": true,
+        "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff",
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": "explicit",
+                "source.fixAll": "explicit"
+            }
+        },
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": [
+            "test"
+        ],
+        "python.testing.unittestEnabled": false
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.flake8",
+            "ms-python.mypy-type-checker",
+            "charliermarsh.ruff",
+            "editorconfig.editorconfig"
+        ]
+    },
+    "launch": {
+        "configurations": [
+            {
+                "name": "QGIS debugpy",
+                "type": "debugpy",
+                "request": "attach",
+                "connect": {
+                    "host": "localhost",
+                    "port": 5678
+                },
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}/wntrqgis",
+                        "remoteRoot": "${env:APPDATA}/QGIS/QGIS3/profiles/default/python/plugins/wntrqgis"
+                    }
+                ]
+            },
+            {
+                "name": "Debug Tests",
+                "type": "debugpy",
+                "request": "launch",
+                "purpose": [
+                    "debug-test"
+                ],
+                "console": "integratedTerminal",
+                "justMyCode": false,
+                "env": {
+                    "PYTEST_ADDOPTS": "--no-cov"
+                }
+            }
+        ],
+    }
+}

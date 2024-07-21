@@ -1,0 +1,20 @@
+# Debugging
+debugpy
+
+# Dependency maintenance
+pip-tools
+
+# Testing
+pytest
+pytest-cov
+pytest-qgis
+
+# Linting and formatting
+pre-commit
+mypy
+ruff
+flake8
+flake8-qgis
+
+# Stubs
+PyQt5-stubs

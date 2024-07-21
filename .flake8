@@ -1,0 +1,3 @@
+[flake8]
+# Flake8 is used only for QGIS rules. Ruff is used for all other rules.
+select = QGS
