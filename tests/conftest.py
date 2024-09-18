@@ -13,3 +13,54 @@ fixtures:
   This should be used with tests that add stuff to QgsProject.
 
 """
+
+from pathlib import Path
+
+import pytest
+from qgis.core import QgsProcessingFeedback
+
+from wntrqgis.wntrqgis_processing.provider import Provider
+
+
+class MyFeedBack(QgsProcessingFeedback):
+    def setProgressText(self, text):
+        print(text)
+
+    def pushInfo(self, info):
+        print(info)
+
+    def pushCommandInfo(self, info):
+        print(info)
+
+    def pushDebugInfo(self, info):
+        print(info)
+
+    def pushConsoleInfo(self, info):
+        print(info)
+
+    def reportError(self, error, fatalError=False):
+        print(error)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def plugin_provider(qgis_app, qgis_processing):
+    provider = Provider()
+
+    qgis_app.processingRegistry().addProvider(provider)
+
+    # test_scripts_path = Path(__file__).parent / "scripts"
+    # scripts_paths = ProcessingConfig.getSetting(RUtils.RSCRIPTS_FOLDER) + ";" + test_scripts_path.as_posix()
+
+    # ProcessingConfig.setSettingValue(RUtils.RSCRIPTS_FOLDER, scripts_paths)
+
+    provider.loadAlgorithms()
+
+    return provider
+
+
+@pytest.fixture
+def get_example():
+    def _(file_name: str):
+        return str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / file_name)
+
+    return _

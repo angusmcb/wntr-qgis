@@ -1,14 +1,18 @@
 from qgis.core import QgsProcessingProvider
+from qgis.PyQt.QtGui import QIcon
 
+from wntrqgis.qgis_plugin_tools.tools.resources import resources_path
+from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.processing_algorithm import ProcessingAlgorithm
+from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
 
 
 class Provider(QgsProcessingProvider):
     def __init__(self) -> None:
         super().__init__()
 
-        self._id = "myprovider"
-        self._name = "My provider"
+        self._id = "wntr"
+        self._name = "WNTR"
 
     def id(self) -> str:
         """The ID of your plugin, used to identify the provider.
@@ -34,7 +38,8 @@ class Provider(QgsProcessingProvider):
         """
         Returns a QIcon which is used for your provider inside the Processing toolbox.
         """
-        return QgsProcessingProvider.icon(self)
+        # return QgsProcessingProvider.icon(self)
+        return QIcon(resources_path("icons", "water_circle.jpg"))
 
     def loadAlgorithms(self) -> None:  # noqa N802
         """
@@ -42,3 +47,5 @@ class Provider(QgsProcessingProvider):
         """
         alg = ProcessingAlgorithm()
         self.addAlgorithm(alg)
+        self.addAlgorithm(RunSimulation())
+        self.addAlgorithm(ImportInp())
