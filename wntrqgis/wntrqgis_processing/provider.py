@@ -2,6 +2,7 @@ from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
 from wntrqgis.qgis_plugin_tools.tools.resources import resources_path
+from wntrqgis.wntrqgis_processing.empty_model import EmptyLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.processing_algorithm import ProcessingAlgorithm
 from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
@@ -49,3 +50,4 @@ class Provider(QgsProcessingProvider):
         self.addAlgorithm(alg)
         self.addAlgorithm(RunSimulation())
         self.addAlgorithm(ImportInp())
+        self.addAlgorithm(EmptyLayers())

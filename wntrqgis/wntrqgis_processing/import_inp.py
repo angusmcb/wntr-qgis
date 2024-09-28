@@ -14,6 +14,7 @@ from pathlib import Path
 from qgis import processing
 from qgis.core import (
     QgsExpressionContextUtils,
+    QgsFeature,
     QgsFeatureSink,
     QgsField,
     QgsFields,
@@ -69,8 +70,13 @@ class ImportInp(QgsProcessingAlgorithm):
 
     INPUT = "INPUT"
     CRS = "CRS"
-    OUTPUTNODES = "OUTPUTNODES"
-    OUTPUTLINKS = "OUTPUTLINKS"
+
+    JUNCTIONS = "JUNCTIONS"
+    TANKS = "TANKS"
+    RESERVOIRS = "RESERVOIRS"
+    PIPES = "PIPES"
+    PUMPS = "PUMPS"
+    VALVES = "VALVES"
 
     def tr(self, string):
         """
@@ -97,11 +103,6 @@ class ImportInp(QgsProcessingAlgorithm):
         return self.tr("Example algorithm short description")
 
     def initAlgorithm(self, config=None):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-
         self.addParameter(
             QgsProcessingParameterFile(
                 self.INPUT,
@@ -111,13 +112,14 @@ class ImportInp(QgsProcessingAlgorithm):
                 defaultValue=None,
             )
         )
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", defaultValue="EPSG:4326"))
+        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS"))
 
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Nodes")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTLINKS, self.tr("Links")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.RESERVOIRS, self.tr("Reservoirs")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.PIPES, self.tr("Pipes")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.PUMPS, self.tr("Pumps")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.VALVES, self.tr("Valves")))
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -141,83 +143,69 @@ class ImportInp(QgsProcessingAlgorithm):
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
-        wn = wntr.network.read_inpfile(source)
-
-        wn_base_dict = wn.to_dict()
-        wn_base_dict.pop("nodes", None)
-        wn_base_dict.pop("links", None)
-        # print(json.dumps(wn_base_dict, sort_keys=True, indent=4))
         try:
+            wn = wntr.network.read_inpfile(source)
             wn_gis = wntr.network.to_gis(wn)
         except ModuleNotFoundError as e:
             raise QgsProcessingException("WNTR dependencies not installed: " + str(e)) from e
+        except Exception as e:
+            raise QgsProcessingException("Error loading model: " + str(e))
+
+        feedback.pushInfo("INP file loaded into WNTR. Found the following:")
+        feedback.pushCommandInfo(str(wn.describe(level=2)))
+
         wn_gis.set_crs(crs.toProj())
         wn_gis.junctions["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
-        nodes = pd.concat([wn_gis.junctions, wn_gis.tanks, wn_gis.reservoirs])
-        links = pd.concat([wn_gis.pipes, wn_gis.pumps, wn_gis.valves])
 
-        nodefieldlist = {
-            "name": QVariant.String,
-            "node_type": QVariant.String,
-            "elevation": QVariant.Double,
-            "base_demand": QVariant.Double,  # Warrrrrnninnng
-            "emitter_coefficient": QVariant.Double,
-            "initial_quality": QVariant.Double,
-            "minimum_pressure": QVariant.Double,
-            "required_pressure": QVariant.Double,
-            "pressure_exponent": QVariant.Double,
-            "tag": QVariant.String,
-            "init_level": QVariant.Double,
-            "min_level": QVariant.Double,
-            "max_level": QVariant.Double,
-            "diameter": QVariant.Double,
-            "min_volvol_curve_name": QVariant.String,
-            "overflow": QVariant.Bool,
-            "mixing_fraction": QVariant.Double,
-            "mixing_model": QVariant.String,
-            "bulk_coeff": QVariant.Double,
-            "base_head": QVariant.Double,
-            "head_pattern_name": QVariant.String,
-        }
-        nodefields = QgsFields()
-        for x, y in nodefieldlist.items():
-            nodefields.append(QgsField(x, y))
+        try:
+            emptylayers = processing.run(
+                "wntr:emptymodel",
+                {
+                    "CRS": crs,
+                    "JUNCTIONS": parameters[self.JUNCTIONS],
+                    "PIPES": parameters[self.PIPES],
+                    "PUMPS": parameters[self.PUMPS],
+                    "RESERVOIRS": parameters[self.RESERVOIRS],
+                    "TANKS": parameters[self.TANKS],
+                    "VALVES": parameters[self.VALVES],
+                },
+                context=context,
+                feedback=None,
+                is_child_algorithm=True,
+            )
+        except:
+            raise QgsProcessingException("Couldn't create template layer")
 
-        (nodessink, nodes_dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUTNODES, context, nodefields, QgsWkbTypes.Point, crs
-        )
-        nodessink.addFeatures(QgsJsonUtils.stringToFeatureList(nodes.to_json(), nodefields), QgsFeatureSink.FastInsert)
+        outputs = {}
 
-        pipeslayer = QgsVectorLayer(links.to_json(), "links", "ogr")
-        (pipessink, pipes_dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUTLINKS, context, pipeslayer.fields(), pipeslayer.wkbType(), crs
-        )
-        pipessink.addFeatures(pipeslayer.getFeatures(), QgsFeatureSink.FastInsert)
+        for i, j in {
+            "JUNCTIONS": wn_gis.junctions,
+            "TANKS": wn_gis.tanks,
+            "RESERVOIRS": wn_gis.reservoirs,
+            "PIPES": wn_gis.pipes,
+            "PUMPS": wn_gis.pumps,
+            "VALVES": wn_gis.valves,
+        }.items():
+            emptylayer = context.getMapLayer(emptylayers[i])
 
-        if context.willLoadLayerOnCompletion(nodes_dest_id):
-            context.layerToLoadOnCompletionDetails(nodes_dest_id).setPostProcessor(InputNodesStyler())
-            feedback.pushInfo("planning to load style")
+            outputs[i] = emptylayers[i]
+            if j.shape[0] > 0:
+                j.reset_index(inplace=True, names="name")
+                for jsonfeature in QgsJsonUtils.stringToFeatureList(
+                    j.to_json(), QgsJsonUtils.stringToFields(j.to_json())
+                ):
+                    newfeature = QgsFeature()
+                    newfeature.setGeometry(jsonfeature.geometry())
+                    newfeature.setFields(emptylayer.fields())
+                    for fieldname in jsonfeature.fields().names():
+                        if fieldname in emptylayer.fields().names():
+                            newfeature[fieldname] = jsonfeature[fieldname]
+                    emptylayer.dataProvider().addFeature(newfeature)
 
         # Save options to project
         try:
-            QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr-options", wn.options.to_dict())
+            QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_options", wn.options.to_dict())
         except Exception:
             feedback.pushInfo("Could not save water network options to project file")
 
-        return {self.OUTPUTNODES: nodes_dest_id, self.OUTPUTLINKS: pipes_dest_id}
-
-
-class InputNodesStyler(QgsProcessingLayerPostProcessorInterface):
-    def postProcessLayer(self, layer, context, feedback):
-        feedback.pushInfo("about to load")
-        if layer.isValid():
-            # layer.loadNamedStyle("C:\\Users\\amcbride\\Downloads\\node-out-style.qml")
-            layer.loadNamedStyle(Path(__file__).parent / "resources" / "styles" / "node-in-style.qml")
-            # layer.loadNamedStyle(
-            #    os.path.join(
-            #        os.path.abspath(os.path.dirname(__file__)),
-            #        'node-in-style.qml'))
-            feedback.pushInfo(
-                "Node style loaded from: "
-                + os.path.join(os.path.abspath(os.path.dirname(__file__)), "node-in-style.qml")
-            )
+        return outputs

@@ -6,8 +6,6 @@ from wntrqgis.qgis_plugin_tools.infrastructure.debugging import (
     setup_ptvsd,  # noqa F401
     setup_pydevd,  # noqa F401
 )
-from wntrqgis.scratch import importinp
-from wntrqgis.utils import to_wn_gis
 
 if TYPE_CHECKING:
     from qgis.gui import QgisInterface

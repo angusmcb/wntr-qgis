@@ -12,37 +12,42 @@
 import logging
 from pathlib import Path
 
-from qgis import processing
 from qgis.core import (
     QgsExpressionContextUtils,
     QgsFeatureSink,
-    QgsJsonExporter,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
     QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
-    QgsProcessingParameterFile,
     QgsProcessingParameterMatrix,
     QgsProcessingParameterVectorLayer,
     QgsProcessingUtils,
     QgsProject,
-    QgsVectorFileWriter,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
 try:
     import wntr
+
+    NOWNTR = False
 except:
     NOWNTR = True
+
+
 try:
     import pandas as pd
+
+    NOPANDAS = False
 except:
     NOPANDAS = True
+
 try:
-    import geopandas
+    import geopandas as gpd
+
+    NOGEOPANDAS = False
 except:
     NOGEOPANDAS = True
 
@@ -52,12 +57,22 @@ class RunSimulation(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
-    INPUT = "INPUT"
+    OPTIONSHYDRAULIC = "OPTIONSHYDRAULIC"
+    OPTIONSTIME = "OPTIONSTIME"
+
     INPUTNODES = "INPUTNODES"
     INPUTLINKS = "INPUTLINKS"
 
+    JUNCTIONS = "JUNCTIONS"
+    TANKS = "TANKS"
+    RESERVOIRS = "RESERVOIRS"
+    PIPES = "PIPES"
+    PUMPS = "PUMPS"
+    VALVES = "VALVES"
+
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
+    post_processors = dict()
 
     def tr(self, string):
         """
@@ -72,7 +87,7 @@ class RunSimulation(QgsProcessingAlgorithm):
         return "run"
 
     def displayName(self):
-        return self.tr("Build and Run Model")
+        return self.tr("Run Simulation")
 
     def group(self):
         return ""
@@ -89,20 +104,55 @@ class RunSimulation(QgsProcessingAlgorithm):
         return self.tr("Example algorithm short description")
 
     def initAlgorithm(self, config=None):
+        default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
+        if default_layers is None:
+            default_layers = {}
+
         self.addParameter(
-            QgsProcessingParameterFile(
-                self.INPUT,
-                "Epanet Input File (.inp)",
-                behavior=QgsProcessingParameterFile.File,
-                extension="inp",
-                defaultValue=None,
+            QgsProcessingParameterVectorLayer(
+                self.JUNCTIONS,
+                "Junctions",
+                types=[QgsProcessing.TypeVectorPoint],
+                defaultValue=default_layers.get("JUNCTIONS"),
+                optional=True,
             )
         )
         self.addParameter(
-            QgsProcessingParameterVectorLayer(self.INPUTNODES, "Input Nodes", types=[QgsProcessing.TypeVectorPoint])
+            QgsProcessingParameterVectorLayer(
+                self.TANKS,
+                "Tanks",
+                types=[QgsProcessing.TypeVectorPoint],
+                defaultValue=default_layers.get("TANKS"),
+                optional=True,
+            )
         )
         self.addParameter(
-            QgsProcessingParameterVectorLayer(self.INPUTLINKS, "Input Links", types=[QgsProcessing.TypeVectorLine])
+            QgsProcessingParameterVectorLayer(
+                self.RESERVOIRS,
+                "Reservoirs",
+                types=[QgsProcessing.TypeVectorPoint],
+                defaultValue=default_layers.get("RESERVOIRS"),
+                optional=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.PIPES,
+                "Pipes",
+                types=[QgsProcessing.TypeVectorLine],
+                defaultValue=default_layers.get("PIPES"),
+                optional=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.PUMPS, "Pumps", defaultValue=default_layers.get("PUMPS"), optional=True
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.VALVES, "Valves", defaultValue=default_layers.get("VALVES"), optional=True
+            )
         )
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Output Nodes")))
@@ -215,7 +265,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             },
             "user": {},
         }
-        options = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr-options")
+        options = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_options")
 
         optionslist = default_options
         if options:
@@ -226,7 +276,7 @@ class RunSimulation(QgsProcessingAlgorithm):
                     optionslist[i].append(y)
 
         param = QgsProcessingParameterMatrix(
-            "time_settings",
+            self.OPTIONSTIME,
             "Time Settings",
             numberRows=1,
             hasFixedNumberRows=True,
@@ -237,7 +287,7 @@ class RunSimulation(QgsProcessingAlgorithm):
         self.addParameter(param)
 
         param = QgsProcessingParameterMatrix(
-            "hydraulic_settings",
+            self.OPTIONSHYDRAULIC,
             "Hydraulic Settings",
             numberRows=1,
             hasFixedNumberRows=True,
@@ -258,94 +308,70 @@ class RunSimulation(QgsProcessingAlgorithm):
         if NOGEOPANDAS:
             raise QgsProcessingException("Geopandas is not installed")
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
-        source = self.parameterAsFile(parameters, self.INPUT, context)
+        options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
+        options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
 
-        inputnodes = self.parameterAsVectorLayer(parameters, self.INPUTNODES, context)
-        inputlinks = self.parameterAsVectorLayer(parameters, self.INPUTLINKS, context)
-
-        # If source was not found, throw an exception to indicate that the
-        # algorithm encountered a fatal error. The exception text can be
-        # any string, but in this case we use the pre-built
-        # invalidSourceError method to return a standard
-        # helper text for when a source cannot be evaluated
-        # if source is None:
-        #   raise QgsProcessingException(self.invalidSourceError(parameters,
-        #       self.INPUT))
-
-        # Prepare Inputs for Water Network Model
-
-        # Convert input qgisvectorlayers into geodataframes
-
-        nodeinputfilename = QgsProcessingUtils.generateTempFilename("nodein.gpkg")
-        QgsVectorFileWriter.writeAsVectorFormatV3(
-            inputnodes,
-            nodeinputfilename,
-            QgsProject.instance().transformContext(),
-            QgsVectorFileWriter.SaveVectorOptions(),
-        )
-
-        inputnodes_df = geopandas.GeoDataFrame.from_file(nodeinputfilename)
-
-        linkinputfilename = QgsProcessingUtils.generateTempFilename("linkin.gpkg")
-        QgsVectorFileWriter.writeAsVectorFormatV3(
-            inputlinks,
-            linkinputfilename,
-            QgsProject.instance().transformContext(),
-            QgsVectorFileWriter.SaveVectorOptions(),
-        )
-
-        inputlinks_df = geopandas.GeoDataFrame.from_file(linkinputfilename)
-        """
-
-        inputnodes_df = geopandas.GeoDataFrame.from_features(
-            inputnodes.getFeatures().__geo_interface__,
-            # columns=['name', 'node_type', 'elevation', 'base_head'] + ['geometry']
-        ).drop(
-            'fid', axis=1, errors='ignore')
-
-        inputlinks_df = geopandas.GeoDataFrame.from_features(
-            jsonexporter.exportFeatures(inputlinks.getFeatures()),
-            columns=inputlinks.fields().names() + ['geometry']).drop(
-            'fid', axis=1, errors='ignore')
-        """
-
-        if len(inputnodes_df) == 0:
-            raise QgsProcessingException(self.tr("The input node layer must contain at least two points."))
-        if len(inputlinks_df) == 0:
-            raise QgsProcessingException(self.tr("The input links layer must contain at least one line."))
-
-        # Split node and link geodataframes into their component parts
-        wn_gis_inputs = {
-            "junctions": inputnodes_df[inputnodes_df["node_type"] == "Junction"],
-            "tanks": inputnodes_df[inputnodes_df["node_type"] == "Tank"],
-            "reservoirs": inputnodes_df[inputnodes_df["node_type"] == "Reservoir"],
-            "pipes": inputlinks_df[inputlinks_df["link_type"] == "Pipe"],
-            "valves": inputlinks_df[inputlinks_df["link_type"] == "Valve"],
-            "pumps": inputlinks_df[inputlinks_df["link_type"] == "Pump"],
+        node_link_types = {
+            "JUNCTIONS": "Junction",
+            "TANKS": "Tank",
+            "RESERVOIRS": "Reservoir",
+            "PIPES": "Pipe",
+            "PUMPS": "Pump",
+            "VALVES": "Valve",
         }
-        feedback.pushInfo(wn_gis_inputs["reservoirs"].info())
-        for n, df in wn_gis_inputs.items():
-            df.set_index("name", inplace=True)
-            df.index.rename(None, inplace=True)
-            feedback.pushInfo(f"Loading into model: {len(df)} {n}")
+        crs = ""
+
+        gdf_inputs = {}
+        for i in ["JUNCTIONS", "TANKS", "RESERVOIRS", "PIPES", "PUMPS", "VALVES"]:
+            lyr = self.parameterAsVectorLayer(parameters, i, context)
+            if lyr is None:
+                feedback.pushInfo("Not adding " + str.lower(i))
+                continue
+            crs = lyr.crs()
+            gdf = gpd.GeoDataFrame.from_features(lyr.getFeatures())
+            gdf.dropna(how="all", axis=1, inplace=True)
+            if len(gdf) == 0:
+                feedback.pushInfo("Not adding " + str.lower(i))
+                continue
+            if i in ("JUNCTIONS", "TANKS", "RESERVOIRS"):
+                gdf["node_type"] = node_link_types[i]
+            else:
+                gdf["link_type"] = node_link_types[i]
+            gdf.set_index("name", inplace=True)
+            gdf.index.rename(None, inplace=True)
+            gdf_inputs[str.lower(i)] = gdf
+            feedback.pushInfo("Adding " + str(len(gdf)) + " " + str.lower(i))
 
         try:
-            wn = wntr.network.from_gis(wn_gis_inputs)
+            wn = wntr.network.from_gis(gdf_inputs)
         except Exception as e:
-            raise QgsProcessingException("Error running model: " + str(e))
+            raise QgsProcessingException("Error loading network: " + str(e)) from e
 
-        # Add all non-spatial settings from base .inp file
-        wn_base = wntr.network.read_inpfile(source)
-        wn_base_dict = wn_base.to_dict()
-        wn_base_dict.pop("nodes", None)
-        wn_base_dict.pop("links", None)
-        wn.from_dict(wn_base_dict)
+        # Add demands!
+        if gdf_inputs.get("junctions") is not None:
+            for junction_name, junction in wn.junctions():
+                try:
+                    base_demand = gdf_inputs["junctions"].at[junction_name, "base_demand"]
+                    if base_demand:
+                        junction.add_demand(base=base_demand, pattern_name="1")
+                        feedback.pushInfo("Added demand to " + junction_name + " - " + str(base_demand))
+                except KeyError:
+                    pass
+
+        options_hydraulic_dict = {}
+        for i in range(0, len(options_hydraulic), 2):
+            options_hydraulic_dict[options_hydraulic[i]] = options_hydraulic[i + 1]
+        wn.options.hydraulic = wntr.network.options.HydraulicOptions(**options_hydraulic_dict)
+
+        options_time_dict = {}
+        for i in range(0, len(options_time), 2):
+            options_time_dict[options_time[i]] = options_time[i + 1]
+        wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
 
         feedback.pushInfo("Model loaded.")
         feedback.pushCommandInfo(str(wn.describe(level=0)))
+
+        wntr.network.write_inpfile(wn, "outputfile.inp")
         # feedback.pushInfo('Model options:\n{}'.format(str(wn.options)))
 
         # wn.options.report.report_filename = 'C:\\Users\\amcbride\\Downloads\\epa-report.txt'
@@ -387,14 +413,22 @@ class RunSimulation(QgsProcessingAlgorithm):
             results_dfs[type]["datetime"] = pd.to_datetime(results_dfs[type]["time"], unit="s")
             feedback.pushDebugInfo(results_dfs[type].info(verbose=True))
 
-        outputnodes_df = pd.merge(inputnodes_df, results_dfs["nodes"], on="name")
-        outputlinks_df = pd.merge(inputlinks_df, results_dfs["links"], on="name")
+        inputnodes_gdf = pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")])
+        inputlinks_gdf = pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")])
+
+        inputlinks_gdf.reset_index(inplace=True, names="name")
+        inputnodes_gdf.reset_index(inplace=True, names="name")
+
+        feedback.pushDebugInfo(inputnodes_gdf.info(verbose=True))
+
+        outputnodes_df = pd.merge(inputnodes_gdf, results_dfs["nodes"], on="name")
+        outputlinks_df = pd.merge(inputlinks_gdf, results_dfs["links"], on="name")
 
         feedback.pushInfo("Finished processing model outputs.")
-        feedback.pushDebugInfo(outputnodes_df.info(verbose=True))
-        feedback.pushDebugInfo(str(outputnodes_df.head(10)))
-        feedback.pushDebugInfo(outputlinks_df.info(verbose=True))
-        feedback.pushDebugInfo(str(outputlinks_df.head(10)))
+        # feedback.pushDebugInfo(outputnodes_df.info(verbose=True))
+        # feedback.pushDebugInfo(str(outputnodes_df.head(10)))
+        # feedback.pushDebugInfo(outputlinks_df.info(verbose=True))
+        # feedback.pushDebugInfo(str(outputlinks_df.head(10)))
         nodeoutputfilename = QgsProcessingUtils.generateTempFilename("nodeout.gpkg")
         linkoutputfilename = QgsProcessingUtils.generateTempFilename("linkout.gpkg")
 
@@ -407,33 +441,41 @@ class RunSimulation(QgsProcessingAlgorithm):
         junctionslayer = QgsVectorLayer(nodeoutputfilename, "nodes", "ogr")
         # junctionslayer = QgsVectorLayer(outputnodes_df.to_json(),"nodes","ogr")
         (junctionssink, junctions_dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUTNODES, context, junctionslayer.fields(), inputnodes.wkbType(), inputnodes.crs()
+            parameters, self.OUTPUTNODES, context, junctionslayer.fields(), junctionslayer.wkbType(), crs
         )
         junctionssink.addFeatures(junctionslayer.getFeatures(), QgsFeatureSink.FastInsert)
 
         pipeslayer = QgsVectorLayer(linkoutputfilename, "links", "ogr")
         (pipessink, pipes_dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUTLINKS, context, pipeslayer.fields(), inputlinks.wkbType(), inputlinks.crs()
+            parameters, self.OUTPUTLINKS, context, pipeslayer.fields(), pipeslayer.wkbType(), crs
         )
         pipessink.addFeatures(pipeslayer.getFeatures(), QgsFeatureSink.FastInsert)
 
-        if context.willLoadLayerOnCompletion(junctions_dest_id):
-            context.layerToLoadOnCompletionDetails(junctions_dest_id).setPostProcessor(NodesStyler())
+        for type, lyr_id in {"NODE": junctions_dest_id, "LINK": pipes_dest_id}.items():
+            if context.willLoadLayerOnCompletion(lyr_id):
+                self.post_processors[lyr_id] = LayerPostProcessor.create(type)
+                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
-        # Return the results of the algorithm. In this case our only result is
-        # the feature sink which contains the processed features, but some
-        # algorithms may return multiple feature sinks, calculated numeric
-        # statistics, etc. These should all be included in the returned
-        # dictionary, with keys matching the feature corresponding parameter
-        # or output names.
         return {self.OUTPUTNODES: junctions_dest_id, self.OUTPUTLINKS: pipes_dest_id}
 
 
-class NodesStyler(QgsProcessingLayerPostProcessorInterface):
+class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+    instance = None
+    layertype = None
+
     def postProcessLayer(self, layer, context, feedback):
-        if layer.isValid():
-            layer.loadNamedStyle(Path(__file__).parent / "resources" / "styles" / "node-out-style.qml")
-            feedback.pushInfo("Node style loaded")
+        print(layer.name())
+        if not isinstance(layer, QgsVectorLayer):
+            return
+        layer.loadNamedStyle(
+            str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + "-RESULTS.qml"))
+        )
+
+    @staticmethod
+    def create(layertype):
+        LayerPostProcessor.instance = LayerPostProcessor()
+        LayerPostProcessor.instance.layertype = layertype
+        return LayerPostProcessor.instance
 
 
 class LoggingHandler(logging.StreamHandler):
