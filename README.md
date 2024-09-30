@@ -29,6 +29,27 @@ The WNTR python package must also be installed into the python environment being
 ```
 pip install wntr
 ```
+## Usage
+
+### Key Principles
+
+1. **Layer Creation** Layers can either be created empty or imported from EPANET files using the tools provided in the processing toolbox (or you can create them manually). All of the layers are optional - only create what you need. 
+	- Nodes:
+		- Junctions
+		- Reservoirs
+		- Tanks
+	- Links:
+		- Pipes
+		- Pumps
+		- Valves
+
+2. **Layer Editing.** The layers are normal QGIS layers and can be edited / modified / processed / styled / automated in the same ways as any other QGIS layer. In particular:
+	- *Snapping tools* can be used when drawing the network to make sure that nodes and links connect.
+	- *Pipe lengths* can be calculated automatically (this expression is added by default to new pipe layers).
+	- *Elevations* can be added to nodes from other sources using either expressions or processing tools..
+	- *External data sources* or any other layers can be used as background maps or data sources for drawing the network.
+  
+3. **Running the model.** The plugin will load your nodes, linkes, patterns, curves and options into WNTR and run the model It will then process the output into a new link and node layer containing all calculated results.
 
 ## Development
 
