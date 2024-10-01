@@ -24,13 +24,9 @@ Compared to other QGIS water network modelling plugins, this plugin aims to be:
 
 Install the plugin in QGIS in the normal way (see the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary).
 
-The WNTR python package must also be installed. A copy of WNTR is included and will be silently installed into the plugin directory if WNTR is not already installed.
+The WNTR python package must also be installed. If it is not already installed, then WNTR will silenetly install a copy into the plugin directory..
 
-WNTR itself has some dependencies. A warning will appear if they are not installed. 
-
-On Windows: All dependencies are included with QGIS. It should just work (unless you have used the advanced installer and not chosen 'qgis-full'
-
-On Linux / Mac: You will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX, and Matplotlib. 
+WNTR itself has some dependencies. A warning will appear if they are not installed. On *Windows* all dependencies are included with QGIS. It should just work (unless you have used the advanced installer and not chosen 'qgis-full'). For *Linux / Mac* You will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX, and Matplotlib. Exactly how to do this depends on your system and how you have installed QGIS.
 
 ## Usage
 
