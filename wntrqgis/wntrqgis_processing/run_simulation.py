@@ -29,28 +29,6 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-try:
-    import wntr
-
-    NOWNTR = False
-except:
-    NOWNTR = True
-
-
-try:
-    import pandas as pd
-
-    NOPANDAS = False
-except:
-    NOPANDAS = True
-
-try:
-    import geopandas as gpd
-
-    NOGEOPANDAS = False
-except:
-    NOGEOPANDAS = True
-
 
 class RunSimulation(QgsProcessingAlgorithm):
     # Constants used to refer to parameters and outputs. They will be
@@ -301,12 +279,16 @@ class RunSimulation(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        if NOWNTR:
+        try:
+            import geopandas as gpd
+        except ImportError:
+            raise QgsProcessingException("Geoandas is not installed")
+        import pandas as pd  # if geopadas installed this should not pose a problem!
+
+        try:
+            import wntr
+        except ImportError:
             raise QgsProcessingException("WNTR is not installed")
-        if NOPANDAS:
-            raise QgsProcessingException("Pandas is not installed")
-        if NOGEOPANDAS:
-            raise QgsProcessingException("Geopandas is not installed")
 
         options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
         options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)

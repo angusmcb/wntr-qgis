@@ -24,8 +24,12 @@ def test_alg_import_inp(qgis_processing):
         {
             "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
             "INPUT": str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.inp"),
-            "OUTPUTLINKS": "TEMPORARY_OUTPUT",
-            "OUTPUTNODES": "TEMPORARY_OUTPUT",
+            "JUNCTIONS": "TEMPORARY_OUTPUT",
+            "PIPES": "TEMPORARY_OUTPUT",
+            "PUMPS": "TEMPORARY_OUTPUT",
+            "RESERVOIRS": "TEMPORARY_OUTPUT",
+            "TANKS": "TEMPORARY_OUTPUT",
+            "VALVES": "TEMPORARY_OUTPUT",
         },
     )
-    assert "OUTPUTLINKS" in result
+    assert "JUNCTIONS" in result

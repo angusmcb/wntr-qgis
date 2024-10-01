@@ -1,23 +1,33 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+
+this_dir = os.path.dirname(os.path.realpath(__file__))
+path = os.path.join(this_dir, "packages")
+sys.path.append(path)
+
+
 from typing import Callable
 
-from qgis.core import QgsApplication
+from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
-from wntrqgis.wntrqgis_processing.provider import Provider
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
+from wntrqgis.wntrqgis_processing.provider import Provider
 
 
 class Plugin:
     """QGIS Plugin Implementation."""
 
     name = plugin_name()
+    missing_deps = []
 
     def __init__(self) -> None:
         setup_logger(Plugin.name)
@@ -32,8 +42,62 @@ class Plugin:
         else:
             pass
 
+        self.check_deps()
+
         self.actions: list[QAction] = []
         self.menu = Plugin.name
+
+    def check_deps(self):
+        missing_deps = []
+        try:
+            import pandas
+        except ImportError:
+            missing_deps.append("pandas")
+        try:
+            import numpy
+        except ImportError:
+            missing_deps.append("numpy")
+        try:
+            import scipy
+        except ImportError:
+            missing_deps.append("scipy")
+        try:
+            import networkx
+        except ImportError:
+            missing_deps.append("networkx")
+        try:
+            import matplotlib
+        except ImportError:
+            missing_deps.append("matplotlib")
+
+        if len(missing_deps) == 0:
+            try:
+                import wntr
+            except ImportError:
+                this_dir = os.path.dirname(os.path.realpath(__file__))
+                wheels = os.path.join(this_dir, "wheels/")
+                scripts = os.path.join(this_dir, "packages/")
+
+                subprocess.run(
+                    [
+                        "python",
+                        "-m",
+                        "pip",
+                        "install",
+                        "--no-index",
+                        "--upgrade",
+                        "--target=" + scripts,
+                        "--no-deps",
+                        "--find-links=" + wheels,
+                        "wntr",
+                    ],
+                    check=False,
+                )
+                try:
+                    import wntr
+                except ImportError:
+                    missing_deps.append("wntr")
+        self.missing_deps = missing_deps
 
     def add_action(
         self,
@@ -108,6 +172,12 @@ class Plugin:
 
     def initGui(self) -> None:  # noqa N802
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
+
+        if len(self.missing_deps):
+            iface.messageBar().pushMessage(
+                "Error", "Missing dependencies " + ", ".join(self.missing_deps), level=Qgis.Warning
+            )
+
         self.add_action(
             "",
             text=Plugin.name,

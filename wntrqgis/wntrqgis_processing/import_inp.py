@@ -9,6 +9,8 @@
 ***************************************************************************
 """
 
+import json
+import os
 from pathlib import Path
 
 from qgis import processing
@@ -32,22 +34,6 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-
-try:
-    import wntr
-
-    NOWNTR = False
-except:
-    NOWNTR = True
-import json
-import os
-
-try:
-    import pandas as pd
-
-    NOPANDAS = False
-except:
-    NOPANDAS = True
 
 
 class ImportInp(QgsProcessingAlgorithm):
@@ -125,21 +111,18 @@ class ImportInp(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        if NOWNTR:
-            raise QgsProcessingException("WNTR is not installed")
-        if NOPANDAS:
+        try:
+            import pandas as pd
+        except ImportError:
             raise QgsProcessingException("Pandas is not installed")
+        try:
+            import wntr
+        except ImportError:
+            raise QgsProcessingException("WNTR is not installed")
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
         source = self.parameterAsFile(parameters, self.INPUT, context)
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
-        # If source was not found, throw an exception to indicate that the algorithm
-        # encountered a fatal error. The exception text can be any string, but in this
-        # case we use the pre-built invalidSourceError method to return a standard
-        # helper text for when a source cannot be evaluated
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
