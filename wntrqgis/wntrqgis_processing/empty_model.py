@@ -13,6 +13,8 @@ from qgis.core import (
     QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterCrs,
     QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterDefinition,
     QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
@@ -39,7 +41,9 @@ class EmptyLayers(QgsProcessingAlgorithm):
     # calling from the QGIS console.
 
     CRS = "CRS"
-
+    PRESSUREDEPENDENT = "PRESSUREDEPENEDENT"
+    QUALITY = "QUALITY"
+    ENERGY = "ENERGY"
     JUNCTIONS = "JUNCTIONS"
     TANKS = "TANKS"
     RESERVOIRS = "RESERVOIRS"
@@ -68,53 +72,32 @@ class EmptyLayers(QgsProcessingAlgorithm):
         return EmptyLayers()
 
     def name(self) -> str:
-        """
-        Returns the algorithm name, used for identifying the algorithm. This
-        string should be fixed for the algorithm, and must not be localised.
-        The name should be unique within each provider. Names should contain
-        lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
         return self._name
 
     def displayName(self) -> str:  # noqa N802
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
         return self.tr(self._display_name)
 
     def groupId(self) -> str:  # noqa N802
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
         return self._group_id
 
     def group(self) -> str:
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
         return self.tr(self._group)
 
     def shortHelpString(self) -> str:  # noqa N802
-        """
-        Returns a localised short helper string for the algorithm. This string
-        should provide a basic description about what the algorithm does and the
-        parameters and outputs associated with it..
-        """
         return self.tr(self._short_help_string)
 
     def initAlgorithm(self, config=None):  # noqa N802
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS"))
+        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", 'ProjectCrs'))
+
+        param = QgsProcessingParameterBoolean(self.QUALITY, 'Create Fields for Water Quality Analysis', optional=True, defaultValue=False)
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param)
+        param = QgsProcessingParameterBoolean(self.PRESSUREDEPENDENT, 'Create Fields for Pressure-Dependent Demand Analysis', optional=True, defaultValue=False)
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param)
+        param = QgsProcessingParameterBoolean(self.ENERGY, 'Create Fields for Energy Analysis', optional=True, defaultValue=False)
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param)
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))
@@ -137,7 +120,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
-        # update by running wntr.network.io.valid_gis_names(True)
+        # derived from running wntr.network.io.valid_gis_names(True)
         fieldnames = {
             "junctions": [
                 "name",
@@ -148,7 +131,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
                 "minimum_pressure",
                 "required_pressure",
                 "pressure_exponent",
-                "tag",
+
             ],
             "tanks": [
                 "name",
@@ -157,15 +140,15 @@ class EmptyLayers(QgsProcessingAlgorithm):
                 "min_level",
                 "max_level",
                 "diameter",
-                "min_volvol_curve_name",
+                "min_vol","vol_curve_name",
                 "overflow",
                 "initial_quality",
                 "mixing_fraction",
                 "mixing_model",
                 "bulk_coeff",
-                "tag",
+
             ],
-            "reservoirs": ["name", "base_head", "head_pattern_name", "initial_quality", "tag"],
+            "reservoirs": ["name", "base_head", "head_pattern_name", "initial_quality"],
             "pipes": [
                 "name",
                 "start_node_name",
@@ -178,7 +161,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
                 "check_valve",
                 "bulk_coeff",
                 "wall_coeff",
-                "tag",
+
             ],
             "pumps": [
                 "name",
@@ -193,7 +176,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
                 "efficiency",
                 "energy_pattern",
                 "energy_price",
-                "tag",
+
             ],
             "valves": [
                 "name",
@@ -204,51 +187,65 @@ class EmptyLayers(QgsProcessingAlgorithm):
                 "minor_loss",
                 "initial_setting",
                 "initial_status",
-                "tag",
+
             ],
         }
 
-        fieldtypes = {
-            "name": QVariant.String,
-            "node_type": QVariant.String,
-            "link_type": QVariant.String,
-            "elevation": QVariant.Double,
-            "base_demand": QVariant.Double,
-            "emitter_coefficient": QVariant.Double,
+        fieldtypes ={
+            'BASE': {
+                "name": QVariant.String,
+                "node_type": QVariant.String,
+                "link_type": QVariant.String,
+                "elevation": QVariant.Double,
+                "base_demand": QVariant.Double,
+                "emitter_coefficient": QVariant.Double,
+                "init_level": QVariant.Double,
+                "min_level": QVariant.Double,
+                "max_level": QVariant.Double,
+                "diameter": QVariant.Double,
+                "min_vol":QVariant.Double,
+                "vol_curve_name": QVariant.String,
+                "overflow": QVariant.Bool,
+                "base_head": QVariant.Double,
+                "head_pattern_name": QVariant.String,
+                "start_node_name": QVariant.String,
+                "end_node_name": QVariant.String,
+                "length": QVariant.Double,
+                "roughness": QVariant.Double,
+                "minor_loss": QVariant.Double,
+                "initial_status": QVariant.String,
+                "check_valve": QVariant.Bool,
+                "pump_type": QVariant.String,
+                "pump_curve_name": QVariant.String,
+                "powerbase_speed": QVariant.Double,
+                "speed_pattern_name": QVariant.String,
+                "initial_setting": QVariant.String,
+                "valve_type": QVariant.String,
+        },
+        self.QUALITY:
+        {
             "initial_quality": QVariant.Double,
-            "minimum_pressure": QVariant.Double,
-            "required_pressure": QVariant.Double,
-            "pressure_exponent": QVariant.Double,
-            "tag": QVariant.String,
-            "init_level": QVariant.Double,
-            "min_level": QVariant.Double,
-            "max_level": QVariant.Double,
-            "diameter": QVariant.Double,
-            "min_volvol_curve_name": QVariant.String,
-            "overflow": QVariant.Bool,
             "mixing_fraction": QVariant.Double,
             "mixing_model": QVariant.String,
             "bulk_coeff": QVariant.Double,
-            "base_head": QVariant.Double,
-            "head_pattern_name": QVariant.String,
-            "start_node_name": QVariant.String,
-            "end_node_name": QVariant.String,
-            "length": QVariant.Double,
-            "roughness": QVariant.Double,
-            "minor_loss": QVariant.Double,
-            "initial_status": QVariant.String,
-            "check_valve": QVariant.Bool,
             "wall_coeff": QVariant.Double,
-            "pump_type": QVariant.String,
-            "pump_curve_name": QVariant.String,
-            "powerbase_speed": QVariant.Double,
-            "speed_pattern_name": QVariant.String,
-            "initial_setting": QVariant.String,
+        },
+        self.PRESSUREDEPENDENT:
+         {
+            "minimum_pressure": QVariant.Double,
+            "required_pressure": QVariant.Double,
+            "pressure_exponent": QVariant.Double,
+        },
+        self.ENERGY: {
             "efficiency": QVariant.Double,
             "energy_pattern": QVariant.String,
             "energy_price": QVariant.Double,
-            "valve_type": QVariant.String,
-        }
+        }}
+
+        fieldstouse = fieldtypes['BASE']
+        for i in [self.QUALITY,self.PRESSUREDEPENDENT,self.ENERGY]:
+            if self.parameterAsBoolean(parameters, i, context):
+                fieldstouse.update(fieldtypes[i])
 
         outputs = {
             "junctions": {"parameter": self.JUNCTIONS, "type": QgsWkbTypes.Point},
@@ -264,7 +261,8 @@ class EmptyLayers(QgsProcessingAlgorithm):
         for i in outputs:
             fields = QgsFields()
             for j in fieldnames[i]:
-                fields.append(QgsField(j, fieldtypes[j]))
+                if j in fieldstouse:
+                    fields.append(QgsField(j, fieldstouse[j]))
 
             (outputs[i]["sink"], dest_id) = self.parameterAsSink(
                 parameters,

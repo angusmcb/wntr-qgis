@@ -98,7 +98,7 @@ class ImportInp(QgsProcessingAlgorithm):
                 defaultValue=None,
             )
         )
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS"))
+        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", 'ProjectCrs'))
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))
@@ -139,6 +139,21 @@ class ImportInp(QgsProcessingAlgorithm):
 
         wn_gis.set_crs(crs.toProj())
         wn_gis.junctions["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
+
+        allcols = []
+        for gdf in wn_gis:
+            allcols.update(gdf.columns)
+        feedback.pushinfo(" and ".join(allcols))
+        extras = {
+            'QUALITY':['initial_quality','mixing_fraction','mixing_model','bulk_coeff','wall_coef'],
+            'PRESSUREDEPENDENT':['minimum_pressure','required_pressure','pressure_exponent'],
+            'ENERGY': ['efficiency','energy_pattern','energy_price'],
+        }
+        extracols =[]
+        for i, j in extras.items():
+            if set(j).issubset(allcols):
+                extracols.append(i)
+                feedback.pushinfo('include cols'+i)
 
         try:
             emptylayers = processing.run(
