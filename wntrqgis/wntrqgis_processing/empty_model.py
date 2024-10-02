@@ -21,6 +21,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
+import wntrqgis.fields
 
 class EmptyLayers(QgsProcessingAlgorithm):
     """
@@ -41,7 +42,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
     # calling from the QGIS console.
 
     CRS = "CRS"
-    PRESSUREDEPENDENT = "PRESSUREDEPENEDENT"
+    PRESSUREDEPENDENT = "PRESSUREDEPENDENT"
     QUALITY = "QUALITY"
     ENERGY = "ENERGY"
     JUNCTIONS = "JUNCTIONS"
@@ -120,132 +121,8 @@ class EmptyLayers(QgsProcessingAlgorithm):
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
-        # derived from running wntr.network.io.valid_gis_names(True)
-        fieldnames = {
-            "junctions": [
-                "name",
-                "elevation",
-                "base_demand",
-                "emitter_coefficient",
-                "initial_quality",
-                "minimum_pressure",
-                "required_pressure",
-                "pressure_exponent",
 
-            ],
-            "tanks": [
-                "name",
-                "elevation",
-                "init_level",
-                "min_level",
-                "max_level",
-                "diameter",
-                "min_vol","vol_curve_name",
-                "overflow",
-                "initial_quality",
-                "mixing_fraction",
-                "mixing_model",
-                "bulk_coeff",
 
-            ],
-            "reservoirs": ["name", "base_head", "head_pattern_name", "initial_quality"],
-            "pipes": [
-                "name",
-                "start_node_name",
-                "end_node_name",
-                "length",
-                "diameter",
-                "roughness",
-                "minor_loss",
-                "initial_status",
-                "check_valve",
-                "bulk_coeff",
-                "wall_coeff",
-
-            ],
-            "pumps": [
-                "name",
-                "start_node_name",
-                "end_node_name",
-                "pump_type",
-                "pump_curve_name",
-                "powerbase_speed",
-                "speed_pattern_name",
-                "initial_status",
-                "initial_setting",
-                "efficiency",
-                "energy_pattern",
-                "energy_price",
-
-            ],
-            "valves": [
-                "name",
-                "start_node_name",
-                "end_node_name",
-                "diameter",
-                "valve_type",
-                "minor_loss",
-                "initial_setting",
-                "initial_status",
-
-            ],
-        }
-
-        fieldtypes ={
-            'BASE': {
-                "name": QVariant.String,
-                "node_type": QVariant.String,
-                "link_type": QVariant.String,
-                "elevation": QVariant.Double,
-                "base_demand": QVariant.Double,
-                "emitter_coefficient": QVariant.Double,
-                "init_level": QVariant.Double,
-                "min_level": QVariant.Double,
-                "max_level": QVariant.Double,
-                "diameter": QVariant.Double,
-                "min_vol":QVariant.Double,
-                "vol_curve_name": QVariant.String,
-                "overflow": QVariant.Bool,
-                "base_head": QVariant.Double,
-                "head_pattern_name": QVariant.String,
-                "start_node_name": QVariant.String,
-                "end_node_name": QVariant.String,
-                "length": QVariant.Double,
-                "roughness": QVariant.Double,
-                "minor_loss": QVariant.Double,
-                "initial_status": QVariant.String,
-                "check_valve": QVariant.Bool,
-                "pump_type": QVariant.String,
-                "pump_curve_name": QVariant.String,
-                "powerbase_speed": QVariant.Double,
-                "speed_pattern_name": QVariant.String,
-                "initial_setting": QVariant.String,
-                "valve_type": QVariant.String,
-        },
-        self.QUALITY:
-        {
-            "initial_quality": QVariant.Double,
-            "mixing_fraction": QVariant.Double,
-            "mixing_model": QVariant.String,
-            "bulk_coeff": QVariant.Double,
-            "wall_coeff": QVariant.Double,
-        },
-        self.PRESSUREDEPENDENT:
-         {
-            "minimum_pressure": QVariant.Double,
-            "required_pressure": QVariant.Double,
-            "pressure_exponent": QVariant.Double,
-        },
-        self.ENERGY: {
-            "efficiency": QVariant.Double,
-            "energy_pattern": QVariant.String,
-            "energy_price": QVariant.Double,
-        }}
-
-        fieldstouse = fieldtypes['BASE']
-        for i in [self.QUALITY,self.PRESSUREDEPENDENT,self.ENERGY]:
-            if self.parameterAsBoolean(parameters, i, context):
-                fieldstouse.update(fieldtypes[i])
 
         outputs = {
             "junctions": {"parameter": self.JUNCTIONS, "type": QgsWkbTypes.Point},
@@ -256,13 +133,13 @@ class EmptyLayers(QgsProcessingAlgorithm):
             "valves": {"parameter": self.VALVES, "type": QgsWkbTypes.LineString},
         }
 
-        returnoutputs = dict()
 
+
+        extra = [i for i in [self.QUALITY,self.PRESSUREDEPENDENT,self.ENERGY] if self.parameterAsBoolean(parameters, i, context)]
+
+        returnoutputs = dict()
         for i in outputs:
-            fields = QgsFields()
-            for j in fieldnames[i]:
-                if j in fieldstouse:
-                    fields.append(QgsField(j, fieldstouse[j]))
+            fields = wntrqgis.fields.getQgsFields(i, extra)
 
             (outputs[i]["sink"], dest_id) = self.parameterAsSink(
                 parameters,

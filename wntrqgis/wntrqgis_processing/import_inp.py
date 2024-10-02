@@ -35,6 +35,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
+import wntrqgis.fields
 
 class ImportInp(QgsProcessingAlgorithm):
     """
@@ -144,11 +145,9 @@ class ImportInp(QgsProcessingAlgorithm):
         for gdf in wn_gis:
             allcols.update(gdf.columns)
         feedback.pushinfo(" and ".join(allcols))
-        extras = {
-            'QUALITY':['initial_quality','mixing_fraction','mixing_model','bulk_coeff','wall_coef'],
-            'PRESSUREDEPENDENT':['minimum_pressure','required_pressure','pressure_exponent'],
-            'ENERGY': ['efficiency','energy_pattern','energy_price'],
-        }
+
+        extras = wntrqgis.fields.namesOfExtra()
+
         extracols =[]
         for i, j in extras.items():
             if set(j).issubset(allcols):
