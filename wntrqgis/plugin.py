@@ -97,6 +97,7 @@ class Plugin:
                             "--find-links=" + wheels,
                             "wntr",
                         ],
+                        shell=True,
                     )
                     try:
                         import wntr # finally, this is the newly installed wntr
