@@ -4,10 +4,6 @@ import os
 import subprocess
 import sys
 
-this_dir = os.path.dirname(os.path.realpath(__file__))
-path = os.path.join(this_dir, "packages")
-sys.path.append(path)
-
 
 from typing import Callable
 
@@ -69,35 +65,50 @@ class Plugin:
             import matplotlib
         except ImportError:
             missing_deps.append("matplotlib")
+        try:
+            import geopandas
+        except ImportError:
+            missing_deps.append("geopandas")
 
         if len(missing_deps) == 0:
             try:
-                import wntr
+                import wntr #this would be a system-installed wntr
             except ImportError:
-                this_dir = os.path.dirname(os.path.realpath(__file__))
-                wheels = os.path.join(this_dir, "wheels/")
-                scripts = os.path.join(this_dir, "packages/")
-
-                subprocess.run(
-                    [
-                        "python",
-                        "-m",
-                        "pip",
-                        "install",
-                        "--no-index",
-                        "--upgrade",
-                        "--target=" + scripts,
-                        "--no-deps",
-                        "--find-links=" + wheels,
-                        "wntr",
-                    ],
-                    check=False,
-                )
                 try:
-                    import wntr
+                    this_dir = os.path.dirname(os.path.realpath(__file__))
+                    path = os.path.join(this_dir, "packages")
+                    sys.path.append(path)
+                    import wntr #this would be a previously plugin installed wntr
                 except ImportError:
-                    missing_deps.append("wntr")
+                    this_dir = os.path.dirname(os.path.realpath(__file__))
+                    wheels = os.path.join(this_dir, "wheels/")
+                    packagedir = os.path.join(this_dir, "packages/")
+
+                    subprocess.run(
+                        [
+                            self.python_command(),
+                            "-m",
+                            "pip",
+                            "install",
+                            "--no-index",
+                            "--upgrade",
+                            "--target=" + packagedir,
+                            "--no-deps",
+                            "--find-links=" + wheels,
+                            "wntr",
+                        ],
+                    )
+                    try:
+                        import wntr # finally, this is the newly installed wntr
+                    except ImportError:
+                        missing_deps.append("wntr")
         self.missing_deps = missing_deps
+
+
+    def python_command(self):
+        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
+        # https://github.com/qgis/QGIS/issues/45646
+        return "python" if os.name == "nt" else sys.executable
 
     def add_action(
         self,
@@ -175,7 +186,7 @@ class Plugin:
 
         if len(self.missing_deps):
             iface.messageBar().pushMessage(
-                "Error", "Missing dependencies " + ", ".join(self.missing_deps), level=Qgis.Warning
+                "Error", "Water Network Tools for Resiliance Plugin has missing dependencies: " + ", ".join(self.missing_deps), level=Qgis.Warning
             )
 
         self.add_action(

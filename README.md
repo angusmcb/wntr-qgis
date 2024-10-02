@@ -26,7 +26,7 @@ Install the plugin in QGIS in the normal way (see the [QGIS Manual](https://docs
 
 The WNTR python package must also be installed. If it is not already installed, then WNTR will silenetly install a copy into the plugin directory..
 
-WNTR itself has some dependencies. A warning will appear if they are not installed. On *Windows* all dependencies are included with QGIS. It should just work (unless you have used the advanced installer and not chosen 'qgis-full'). For *Linux / Mac* You will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX, and Matplotlib. Exactly how to do this depends on your system and how you have installed QGIS.
+WNTR itself has some dependencies. A warning will appear if they are not installed. On *Windows* all dependencies are included with QGIS. It should just work (unless you have used the advanced installer and not chosen 'qgis-full'). For *Linux / Mac* You will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, GeoPandas, NetworkX, and Matplotlib. Exactly how to do this depends on your system and how you have installed QGIS.
 
 ## Usage
 
