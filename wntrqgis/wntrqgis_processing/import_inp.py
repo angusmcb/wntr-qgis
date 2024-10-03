@@ -174,8 +174,8 @@ class ImportInp(QgsProcessingAlgorithm):
 
         allcols = []
         for element in [wn_gis.junctions, wn_gis.tanks, wn_gis.reservoirs, wn_gis.pipes, wn_gis.pumps, wn_gis.valves]:
-            allcols += list(element.columns)
-        feedback.pushInfo(" and ".join(allcols))
+            # Drop any column with all NaN, then add remaining columns to list
+            allcols += list(element.loc[:, ~element.isna().all()].columns)
 
         extras = wntrqgis.fields.namesOfExtra()
 
@@ -184,6 +184,8 @@ class ImportInp(QgsProcessingAlgorithm):
             if set(j).issubset(allcols):
                 extracols.append(i)
                 feedback.pushInfo("include cols" + i)
+
+        # TODO Now include extra columns in request from emptymodel
 
         try:
             emptylayers = processing.run(
