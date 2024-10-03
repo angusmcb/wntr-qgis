@@ -37,6 +37,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 import wntrqgis.fields
 
+
 class ImportInp(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
@@ -99,7 +100,7 @@ class ImportInp(QgsProcessingAlgorithm):
                 defaultValue=None,
             )
         )
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", 'ProjectCrs'))
+        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", "ProjectCrs"))
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))
@@ -139,20 +140,50 @@ class ImportInp(QgsProcessingAlgorithm):
         feedback.pushCommandInfo(str(wn.describe(level=2)))
 
         wn_gis.set_crs(crs.toProj())
+
         wn_gis.junctions["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
+        wn_gis.junctions["demand_pattern"] = wn.query_node_attribute(
+            "demand_timeseries_list", node_type=wntr.network.model.Junction
+        ).apply(
+            lambda dtl: ("[" + ", ".join(map(str, dtl.pattern_list()[0].multipliers)) + "]")
+            if dtl.pattern_list() and dtl.pattern_list()[0]
+            else None
+        )
+
+        if "head_pattern_name" in wn_gis.reservoirs:
+            wn_gis.reservoirs["head_pattern"] = wn_gis.reservoirs["head_pattern_name"].apply(
+                lambda pn: "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]"
+                if wn.get_pattern(pn)
+                else None
+            )
+        if "vol_curve_name" in wn_gis.tanks:
+            wn_gis.tanks["vol_curve"] = wn_gis.tanks["vol_curve_name"].apply(
+                lambda cn: repr(wn.get_curve(cn).points) if wn.get_curve(cn) else None
+            )
+
+        if "pump_curve_name" in wn_gis.pumps:
+            wn_gis.pumps["pump_curve"] = wn_gis.pumps["pump_curve_name"].apply(
+                lambda cn: repr(wn.get_curve(cn).points) if wn.get_curve(cn) else None
+            )
+        if "speed_curve_name" in wn_gis.pumps:
+            wn_gis.pumps["speed_pattern"] = wn_gis.pumps["speed_pattern_name"].apply(
+                lambda pn: "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]"
+                if wn.get_pattern(pn)
+                else None
+            )
 
         allcols = []
-        for gdf in wn_gis:
-            allcols.update(gdf.columns)
-        feedback.pushinfo(" and ".join(allcols))
+        for element in [wn_gis.junctions, wn_gis.tanks, wn_gis.reservoirs, wn_gis.pipes, wn_gis.pumps, wn_gis.valves]:
+            allcols += list(element.columns)
+        feedback.pushInfo(" and ".join(allcols))
 
         extras = wntrqgis.fields.namesOfExtra()
 
-        extracols =[]
+        extracols = []
         for i, j in extras.items():
             if set(j).issubset(allcols):
                 extracols.append(i)
-                feedback.pushinfo('include cols'+i)
+                feedback.pushInfo("include cols" + i)
 
         try:
             emptylayers = processing.run(
@@ -206,3 +237,10 @@ class ImportInp(QgsProcessingAlgorithm):
             feedback.pushInfo("Could not save water network options to project file")
 
         return outputs
+
+
+def curve_to_string(curve):
+    try:
+        return repr(curve.points)
+    except Exception:
+        return []
