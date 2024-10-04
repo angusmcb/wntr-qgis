@@ -15,7 +15,11 @@ from pathlib import Path
 
 from qgis.core import (
     QgsExpressionContextUtils,
+    QgsFeature,
     QgsFeatureSink,
+    QgsField,
+    QgsFields,
+    QgsGeometry,
     QgsJsonUtils,
     QgsProcessing,
     QgsProcessingAlgorithm,
@@ -30,7 +34,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 
 class RunSimulation(QgsProcessingAlgorithm):
@@ -277,6 +281,7 @@ class RunSimulation(QgsProcessingAlgorithm):
         except ImportError as e:
             raise QgsProcessingException("Geopandas is not installed") from e
         import pandas as pd  # if geopadas installed this should not pose a problem!
+        import shapely
 
         try:
             import wntr
@@ -377,10 +382,12 @@ class RunSimulation(QgsProcessingAlgorithm):
                 junction.demand_timeseries_list.clear()
                 try:
                     base_demand = gdf_inputs["junctions"].at[junction_name, "base_demand"]
-                    pattern_name = gdf_inputs["junctions"].at[junction_name, "demand_pattern_name"]
+                    pattern_name = gdf_inputs["junctions"].at[
+                        junction_name, "demand_pattern_name"
+                    ]  # 'None' if no pattern
                     if base_demand:
                         junction.add_demand(base=base_demand, pattern_name=pattern_name)
-                        feedback.pushInfo("Added demand to " + junction_name + " - " + str(base_demand))
+                        # feedback.pushInfo("Added demand to " + junction_name + " - " + str(pattern_name))
                 except KeyError:
                     pass
 
@@ -423,38 +430,90 @@ class RunSimulation(QgsProcessingAlgorithm):
             raise QgsProcessingException("Error running model: " + str(e))
 
         feedback.pushInfo("Model has run. Preparing outputs.")
-        results_dfs = {"nodes": None, "links": None}
+
+        combinedInputGdf = {
+            "nodes": pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]),
+            "links": pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]),
+        }
+        inputParam = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
+        dest_id = {}
         for type, result in {"nodes": results.node, "links": results.link}.items():
+            feedback.pushDebugInfo("Processing results for " + type)
+            resultDf = None
             for param_name in result.keys():
-                feedback.pushInfo("Processing results for " + param_name)
+                feedback.pushDebugInfo("Processing results for " + param_name)
                 param_df = result[param_name].reset_index(names="time")
                 param_long_df = param_df.melt(id_vars="time", var_name="name", value_name=param_name)
                 # merge all our results into one dataframe
-                if results_dfs[type] is not None:
-                    results_dfs[type] = results_dfs[type].merge(param_long_df, on=["name", "time"])
-                else:
-                    # For first parameter, results dataframe will be empty so
-                    # nothing to merge with
-                    results_dfs[type] = param_long_df
+                resultDf = resultDf.merge(param_long_df, on=["name", "time"]) if resultDf is not None else param_long_df
             # Add a column for time from unix epoch (1 jan 1970) for qgis
             # temporal controller
             # results_dfs[type]["datetime"] = pd.to_datetime(results_dfs[type]["time"], unit="s")
-            feedback.pushDebugInfo(results_dfs[type].info(verbose=True))
+            # feedback.pushDebugInfo(results_dfs[type].info(verbose=True))
+            combinedInputGdf[type].reset_index(inplace=True, names="name")
+            mergedGdf = pd.merge(combinedInputGdf[type][["name", "geometry"]], resultDf, on="name")
 
-        inputnodes_gdf = pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")])
-        inputlinks_gdf = pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")])
+            fields = QgsFields()
+            fields.append(QgsField("name", QVariant.String))
+            for c in resultDf.columns:
+                fields.append(QgsField(c, QVariant.Double))
 
-        inputlinks_gdf.reset_index(inplace=True, names="name")
-        inputnodes_gdf.reset_index(inplace=True, names="name")
+            (sink, dest_id[type]) = self.parameterAsSink(
+                parameters,
+                inputParam[type],
+                context,
+                fields,
+                QgsWkbTypes.Point if type == "nodes" else QgsWkbTypes.LineString,
+                crs,
+            )
+            g = QgsGeometry()
+            for row in mergedGdf.itertuples(index=False):
+                g.fromWkb(shapely.to_wkb(row.geometry))
+                f = QgsFeature()
+                f.setGeometry(g)
+                f.setAttributes([row[0], *list(row[2 : len(row)])])
+                sink.addFeature(
+                    f,
+                    QgsFeatureSink.FastInsert,
+                )
+        """
+        inputnodes_gdf = pd.concat(
+            [gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]
+        ).reset_index(inplace=True, names="name")
+        inputlinks_gdf = pd.concat(
+            [gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]
+        ).reset_index(inplace=True, names="name")
 
-        feedback.pushDebugInfo(inputnodes_gdf.info(verbose=True))
-
-        outputnodes_df = pd.merge(inputnodes_gdf, results_dfs["nodes"], on="name")
-        outputlinks_df = pd.merge(inputlinks_gdf, results_dfs["links"], on="name")
+        outputnodes_df = pd.merge(inputnodes_gdf[["name", "geometry"]], results_dfs["nodes"], on="name")
+        outputlinks_df = pd.merge(inputlinks_gdf[["name", "geometry"]], results_dfs["links"], on="name")
 
         feedback.pushInfo("Finished processing model outputs.")
 
-        """
+        nodefields = QgsFields()
+        nodefields.append(QgsField("name", QVariant.String))
+        for c in results_dfs["nodes"].columns:
+            nodefields.append(QgsField(c, QVariant.Double))
+
+        (junctionssink, junctions_dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUTPUTNODES,
+            context,
+            nodefields,
+            QgsWkbTypes.Point,
+            crs,
+        )
+        g = QgsGeometry()
+        for row in outputnodes_df.itertuples(index=False):
+            g.fromWkb(shapely.to_wkb(row.geometry))
+            f = QgsFeature()
+            f.setGeometry(g)
+            f.setAttributes([row[0], *list(row[2 : len(row)])])
+            junctionssink.addFeature(
+                f,
+                QgsFeatureSink.FastInsert,
+            )
+
+
         feedback.pushDebugInfo("about to access json")
         nodejson = outputnodes_df.to_json()
         fields = QgsJsonUtils.stringToFields(nodejson)
@@ -465,23 +524,25 @@ class RunSimulation(QgsProcessingAlgorithm):
         feedback.pushDebugInfo("created sink")
         nodessink.addFeatures(QgsJsonUtils.stringToFeatureList(nodejson, fields))
 
+
+
         """
-        nodeoutputfilename = QgsProcessingUtils.generateTempFilename("nodeout.gpkg")
-        linkoutputfilename = QgsProcessingUtils.generateTempFilename("linkout.gpkg")
+        # nodeoutputfilename = QgsProcessingUtils.generateTempFilename("nodeout.gpkg")
+        # linkoutputfilename = QgsProcessingUtils.generateTempFilename("linkout.gpkg")
 
-        outputnodes_df.to_file(nodeoutputfilename, driver="GPKG")
-        feedback.pushInfo(f"Nodes output to: {nodeoutputfilename}")
+        # outputnodes_df.to_file(nodeoutputfilename, driver="GPKG")
+        # feedback.pushInfo(f"Nodes output to: {nodeoutputfilename}")
 
-        outputlinks_df.to_file(linkoutputfilename, driver="GPKG")
-        feedback.pushInfo(f"Links output to: {linkoutputfilename}")
+        # outputlinks_df.to_file(linkoutputfilename, driver="GPKG")
+        # feedback.pushInfo(f"Links output to: {linkoutputfilename}")
 
-        junctionslayer = QgsVectorLayer(nodeoutputfilename, "nodes", "ogr")
+        # junctionslayer = QgsVectorLayer(nodeoutputfilename, "nodes", "ogr")
         # junctionslayer = QgsVectorLayer(outputnodes_df.to_json(),"nodes","ogr")
-        (junctionssink, junctions_dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUTNODES, context, junctionslayer.fields(), junctionslayer.wkbType(), crs
-        )
-        junctionssink.addFeatures(junctionslayer.getFeatures(), QgsFeatureSink.FastInsert)
-
+        # (junctionssink, junctions_dest_id) = self.parameterAsSink(
+        #    parameters, self.OUTPUTNODES, context, junctionslayer.fields(), junctionslayer.wkbType(), crs
+        # )
+        # junctionssink.addFeatures(junctionslayer.getFeatures(), QgsFeatureSink.FastInsert)
+        """
         pipeslayer = QgsVectorLayer(linkoutputfilename, "links", "ogr")
         (pipessink, pipes_dest_id) = self.parameterAsSink(
             parameters, self.OUTPUTLINKS, context, pipeslayer.fields(), pipeslayer.wkbType(), crs
@@ -492,8 +553,11 @@ class RunSimulation(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(lyr_id):
                 self.post_processors[lyr_id] = LayerPostProcessor.create(type)
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
-
-        return {self.OUTPUTNODES: junctions_dest_id, self.OUTPUTLINKS: pipes_dest_id}
+        """
+        return {
+            self.OUTPUTNODES: dest_id["nodes"],
+            self.OUTPUTLINKS: dest_id["links"],
+        }  # , self.OUTPUTLINKS: pipes_dest_id}
 
 
 class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
