@@ -9,12 +9,14 @@
 ***************************************************************************
 """
 
+import ast
 import logging
 from pathlib import Path
 
 from qgis.core import (
     QgsExpressionContextUtils,
     QgsFeatureSink,
+    QgsJsonUtils,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
@@ -26,15 +28,12 @@ from qgis.core import (
     QgsProcessingUtils,
     QgsProject,
     QgsVectorLayer,
+    QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
 
 class RunSimulation(QgsProcessingAlgorithm):
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
     OPTIONSHYDRAULIC = "OPTIONSHYDRAULIC"
     OPTIONSTIME = "OPTIONSTIME"
 
@@ -51,11 +50,10 @@ class RunSimulation(QgsProcessingAlgorithm):
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
     post_processors = dict()
+    wn = None
+    name_increment = 0
 
     def tr(self, string):
-        """
-        Returns a translatable string with the self.tr() function.
-        """
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
@@ -74,11 +72,6 @@ class RunSimulation(QgsProcessingAlgorithm):
         return ""
 
     def shortHelpString(self):
-        """
-        Returns a localised short helper string for the algorithm. This string
-        should provide a basic description about what the algorithm does and
-        the parameters and outputs associated with it..
-        """
         return self.tr("Example algorithm short description")
 
     def initAlgorithm(self, config=None):
@@ -276,22 +269,24 @@ class RunSimulation(QgsProcessingAlgorithm):
         self.addParameter(param)
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
+        # PREPARE IMPORTS
+
+        # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
         try:
             import geopandas as gpd
-        except ImportError:
-            raise QgsProcessingException("Geoandas is not installed")
+        except ImportError as e:
+            raise QgsProcessingException("Geopandas is not installed") from e
         import pandas as pd  # if geopadas installed this should not pose a problem!
 
         try:
             import wntr
-        except ImportError:
-            raise QgsProcessingException("WNTR is not installed")
+        except ImportError as e:
+            raise QgsProcessingException("WNTR is not installed") from e
 
         options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
         options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
+
+        # PREPARE WN_GIS GEODATAFRAMES
 
         node_link_types = {
             "JUNCTIONS": "Junction",
@@ -324,36 +319,87 @@ class RunSimulation(QgsProcessingAlgorithm):
             gdf_inputs[str.lower(i)] = gdf
             feedback.pushInfo("Adding " + str(len(gdf)) + " " + str.lower(i))
 
+        # START WNTR MODEL
+
+        self.wn = wntr.network.WaterNetworkModel()
+
+        # PREPARE PATTERNS AND CURVES
+        self.name_increment = 0
+
+        def _add_curve(curve_string, curve_type):
+            if curve_string:
+                self.name_increment = self.name_increment + 1
+                name = str(self.name_increment)
+                curvelist = ast.literal_eval(curve_string)
+                self.wn.add_curve(name=name, curve_type=curve_type, xy_tuples_list=curvelist)
+                return name
+            else:
+                return None
+
+        def _add_pattern(pattern_string):
+            if pattern_string:
+                self.name_increment = self.name_increment + 1
+                name = str(self.name_increment)
+                patternlist = ast.literal_eval(pattern_string)
+                self.wn.add_pattern(name=name, pattern=patternlist)
+                return name
+            else:
+                return None
+
+        if "junctions" in gdf_inputs and "demand_pattern" in gdf_inputs["junctions"]:
+            gdf_inputs["junctions"]["demand_pattern_name"] = gdf_inputs["junctions"]["demand_pattern"].apply(
+                _add_pattern
+            )
+        if "reservoirs" in gdf_inputs and "vol_curve" in gdf_inputs["reservoirs"]:
+            gdf_inputs["reservoirs"]["head_pattern_name"] = gdf_inputs["reservoirs"]["head_pattern"].apply(_add_pattern)
+        if "tanks" in gdf_inputs and "vol_curve" in gdf_inputs["tanks"]:
+            gdf_inputs["tanks"]["vol_curve_name"] = gdf_inputs["tanks"]["vol_curve"].apply(
+                _add_curve, curve_type="VOLUME"
+            )
+        if "pumps" in gdf_inputs and "pump_curve" in gdf_inputs["pumps"]:
+            gdf_inputs["pumps"]["pump_curve_name"] = gdf_inputs["pumps"]["pump_curve"].apply(
+                _add_curve, curve_type="HEAD"
+            )
+        if "pumps" in gdf_inputs and "speed_pattern" in gdf_inputs["pumps"]:
+            gdf_inputs["pumps"]["speed_pattern_name"] = gdf_inputs["pumps"]["speed_pattern"].apply(_add_pattern)
+        if "pumps" in gdf_inputs and "energy_pattern" in gdf_inputs["pumps"]:
+            gdf_inputs["pumps"]["energy_pattern_name"] = gdf_inputs["pumps"]["energy_pattern"].apply(_add_pattern)
+
+        # LOAD INTO WNTR
         try:
-            wn = wntr.network.from_gis(gdf_inputs)
+            self.wn.from_gis(gdf_inputs)
         except Exception as e:
             raise QgsProcessingException("Error loading network: " + str(e)) from e
 
-        # Add demands!
+        # ADD DEMANDS - wntr 1.2 doesn't handle this automatically
         if gdf_inputs.get("junctions") is not None:
-            for junction_name, junction in wn.junctions():
+            for junction_name, junction in self.wn.junctions():
+                junction.demand_timeseries_list.clear()
                 try:
                     base_demand = gdf_inputs["junctions"].at[junction_name, "base_demand"]
+                    pattern_name = gdf_inputs["junctions"].at[junction_name, "demand_pattern_name"]
                     if base_demand:
-                        junction.add_demand(base=base_demand, pattern_name="1")
+                        junction.add_demand(base=base_demand, pattern_name=pattern_name)
                         feedback.pushInfo("Added demand to " + junction_name + " - " + str(base_demand))
                 except KeyError:
                     pass
 
+        # ADD OPTIONS
+
         options_hydraulic_dict = {}
         for i in range(0, len(options_hydraulic), 2):
             options_hydraulic_dict[options_hydraulic[i]] = options_hydraulic[i + 1]
-        wn.options.hydraulic = wntr.network.options.HydraulicOptions(**options_hydraulic_dict)
+        self.wn.options.hydraulic = wntr.network.options.HydraulicOptions(**options_hydraulic_dict)
 
         options_time_dict = {}
         for i in range(0, len(options_time), 2):
             options_time_dict[options_time[i]] = options_time[i + 1]
-        wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
+        self.wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
 
         feedback.pushInfo("Model loaded.")
-        feedback.pushCommandInfo(str(wn.describe(level=0)))
+        feedback.pushCommandInfo(str(self.wn.describe(level=0)))
 
-        wntr.network.write_inpfile(wn, "outputfile.inp")
+        wntr.network.write_inpfile(self.wn, "outputfile.inp")
         # feedback.pushInfo('Model options:\n{}'.format(str(wn.options)))
 
         # wn.options.report.report_filename = 'C:\\Users\\amcbride\\Downloads\\epa-report.txt'
@@ -370,7 +416,7 @@ class RunSimulation(QgsProcessingAlgorithm):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-        sim = wntr.sim.EpanetSimulator(wn)
+        sim = wntr.sim.EpanetSimulator(self.wn)
         try:
             results = sim.run_sim()  # by default, this runs EPANET 2.2.0
         except Exception as e:
@@ -392,7 +438,7 @@ class RunSimulation(QgsProcessingAlgorithm):
                     results_dfs[type] = param_long_df
             # Add a column for time from unix epoch (1 jan 1970) for qgis
             # temporal controller
-            results_dfs[type]["datetime"] = pd.to_datetime(results_dfs[type]["time"], unit="s")
+            # results_dfs[type]["datetime"] = pd.to_datetime(results_dfs[type]["time"], unit="s")
             feedback.pushDebugInfo(results_dfs[type].info(verbose=True))
 
         inputnodes_gdf = pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")])
@@ -407,10 +453,19 @@ class RunSimulation(QgsProcessingAlgorithm):
         outputlinks_df = pd.merge(inputlinks_gdf, results_dfs["links"], on="name")
 
         feedback.pushInfo("Finished processing model outputs.")
-        # feedback.pushDebugInfo(outputnodes_df.info(verbose=True))
-        # feedback.pushDebugInfo(str(outputnodes_df.head(10)))
-        # feedback.pushDebugInfo(outputlinks_df.info(verbose=True))
-        # feedback.pushDebugInfo(str(outputlinks_df.head(10)))
+
+        """
+        feedback.pushDebugInfo("about to access json")
+        nodejson = outputnodes_df.to_json()
+        fields = QgsJsonUtils.stringToFields(nodejson)
+        feedback.pushDebugInfo(nodejson)
+        (nodessink, nodes_dest_id) = self.parameterAsSink(
+            parameters, self.OUTPUTNODES, context, fields, QgsWkbTypes.Point, crs
+        )
+        feedback.pushDebugInfo("created sink")
+        nodessink.addFeatures(QgsJsonUtils.stringToFeatureList(nodejson, fields))
+
+        """
         nodeoutputfilename = QgsProcessingUtils.generateTempFilename("nodeout.gpkg")
         linkoutputfilename = QgsProcessingUtils.generateTempFilename("linkout.gpkg")
 

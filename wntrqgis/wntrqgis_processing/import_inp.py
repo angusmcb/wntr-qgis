@@ -141,6 +141,8 @@ class ImportInp(QgsProcessingAlgorithm):
 
         wn_gis.set_crs(crs.toProj())
 
+        feedback.pushInfo("Loading demand and pattern")
+
         wn_gis.junctions["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
         wn_gis.junctions["demand_pattern"] = wn.query_node_attribute(
             "demand_timeseries_list", node_type=wntr.network.model.Junction
@@ -149,6 +151,8 @@ class ImportInp(QgsProcessingAlgorithm):
             if dtl.pattern_list() and dtl.pattern_list()[0]
             else None
         )
+
+        feedback.pushInfo("Loading reservoir  pattern and tank curve")
 
         if "head_pattern_name" in wn_gis.reservoirs:
             wn_gis.reservoirs["head_pattern"] = wn_gis.reservoirs["head_pattern_name"].apply(
@@ -161,16 +165,29 @@ class ImportInp(QgsProcessingAlgorithm):
                 lambda cn: repr(wn.get_curve(cn).points) if wn.get_curve(cn) else None
             )
 
+        feedback.pushInfo("Loading pump curve")
+
+        # not all pumps will have a pump curve (power pumps)!
         if "pump_curve_name" in wn_gis.pumps:
             wn_gis.pumps["pump_curve"] = wn_gis.pumps["pump_curve_name"].apply(
-                lambda cn: repr(wn.get_curve(cn).points) if wn.get_curve(cn) else None
+                lambda cn: repr(wn.get_curve(cn).points) if cn == cn and wn.get_curve(cn) else None
             )
-        if "speed_curve_name" in wn_gis.pumps:
+        feedback.pushInfo("Loading pump pattern")
+        if "speed_pattern_name" in wn_gis.pumps:
             wn_gis.pumps["speed_pattern"] = wn_gis.pumps["speed_pattern_name"].apply(
                 lambda pn: "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]"
                 if wn.get_pattern(pn)
                 else None
             )
+        # 'energy pattern' is not called energy pattern name!
+        if "energy_pattern" in wn_gis.pumps:
+            wn_gis.pumps["energy_pattern"] = wn_gis.pumps["energy_pattern"].apply(
+                lambda pn: "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]"
+                if wn.get_pattern(pn)
+                else None
+            )
+
+        feedback.pushInfo("finished loading extra columns")
 
         allcols = []
         for element in [wn_gis.junctions, wn_gis.tanks, wn_gis.reservoirs, wn_gis.pipes, wn_gis.pumps, wn_gis.valves]:
@@ -181,17 +198,18 @@ class ImportInp(QgsProcessingAlgorithm):
 
         extracols = []
         for i, j in extras.items():
-            if set(j).issubset(allcols):
+            if set(j) & set(allcols):
                 extracols.append(i)
                 feedback.pushInfo("include cols" + i)
-
-        # TODO Now include extra columns in request from emptymodel
 
         try:
             emptylayers = processing.run(
                 "wntr:emptymodel",
                 {
                     "CRS": crs,
+                    "PRESSUREDEPENDENT": "PRESSUREDEPENDENT" in extracols,
+                    "QUALITY": "QUALITY" in extracols,
+                    "ENERGY": "ENERGY" in extracols,
                     "JUNCTIONS": parameters[self.JUNCTIONS],
                     "PIPES": parameters[self.PIPES],
                     "PUMPS": parameters[self.PUMPS],
