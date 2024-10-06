@@ -66,7 +66,6 @@ def checkDependencies():
                     **kwargs,
                 )
                 try:
-                    importlib.invalidate_caches()
                     import wntr  # finally, this is the newly installed wntr
                 except ImportError:
                     missing_deps.append("wntr")
