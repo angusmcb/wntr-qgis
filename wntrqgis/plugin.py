@@ -3,16 +3,15 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-
-
 from typing import Callable
 
-from qgis.core import Qgis, QgsApplication
+from qgis.core import Qgis, QgsApplication, QgsExpression
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
+from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
@@ -72,13 +71,13 @@ class Plugin:
 
         if len(missing_deps) == 0:
             try:
-                import wntr #this would be a system-installed wntr
+                import wntr  # this would be a system-installed wntr
             except ImportError:
                 try:
                     this_dir = os.path.dirname(os.path.realpath(__file__))
                     path = os.path.join(this_dir, "packages")
                     sys.path.append(path)
-                    import wntr #this would be a previously plugin installed wntr
+                    import wntr  # this would be a previously plugin installed wntr
                 except ImportError:
                     this_dir = os.path.dirname(os.path.realpath(__file__))
                     wheels = os.path.join(this_dir, "wheels/")
@@ -98,13 +97,13 @@ class Plugin:
                             "wntr",
                         ],
                         shell=True,
+                        check=False,
                     )
                     try:
-                        import wntr # finally, this is the newly installed wntr
+                        import wntr  # finally, this is the newly installed wntr
                     except ImportError:
                         missing_deps.append("wntr")
         self.missing_deps = missing_deps
-
 
     def python_command(self):
         # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
@@ -187,7 +186,9 @@ class Plugin:
 
         if len(self.missing_deps):
             iface.messageBar().pushMessage(
-                "Error", "Water Network Tools for Resiliance Plugin has missing dependencies: " + ", ".join(self.missing_deps), level=Qgis.Warning
+                "Error",
+                "Water Network Tools for Resiliance Plugin has missing dependencies: " + ", ".join(self.missing_deps),
+                level=Qgis.Warning,
             )
 
         self.add_action(
