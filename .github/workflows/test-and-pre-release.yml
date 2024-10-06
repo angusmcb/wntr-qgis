@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
-        docker_tags: [release-3_34, latest]
+        docker_tags: ['3.38.3', latest]
       fail-fast: false
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -34,7 +34,7 @@ jobs:
         run: >
           docker run --rm --net=host --volume `pwd`:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 qgis/qgis:${{ matrix.docker_tags }} sh -c
           "pip3 install -qr requirements-dev.txt --break-system-packages && xvfb-run -s '+extension GLX -screen 0 1024x768x24'
-          pytest -v --cov=wntrqgis --cov-report=xml"
+          pytest -v --cov=wntrqgis --cov-report=xml tests/"
 
       # Upload coverage report. Will not work if the repo is private
       - name: Upload coverage to Codecov
