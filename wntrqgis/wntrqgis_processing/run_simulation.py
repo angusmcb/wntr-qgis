@@ -11,7 +11,6 @@
 
 import ast
 import logging
-from collections import namedtuple
 from pathlib import Path
 
 from qgis.core import (
@@ -21,7 +20,6 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
-    QgsJsonUtils,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
@@ -36,6 +34,8 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication, QMetaType, QVariant
+
+from wntrqgis.checkDependencies import checkDependencies
 
 
 class RunSimulation(QgsProcessingAlgorithm):
@@ -69,12 +69,6 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Run Simulation")
-
-    def group(self):
-        return ""
-
-    def groupId(self):
-        return ""
 
     def shortHelpString(self):
         return self.tr("Example algorithm short description")
@@ -275,31 +269,30 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
         # PREPARE IMPORTS
-        feedback.setProgressText("Checking dependencies")
         # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
 
-        try:
-            import geopandas as gpd
-        except ImportError as e:
-            raise QgsProcessingException("Geopandas is not installed") from e
-        import pandas as pd  # if geopadas installed this should not pose a problem!
+        feedback.setProgressText("Checking dependencies")
+
+        missing_dependencies = checkDependencies()
+        if len(missing_dependencies):
+            QgsProcessingException(
+                "Missing dependencies: " + ", ".join(missing_dependencies) + "\nSee help for how to install."
+            )
+        import geopandas as gpd
+        import pandas as pd
         import shapely
+        import wntr
 
-        try:
-            import wntr
-
-            feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
-        except ImportError as e:
-            raise QgsProcessingException("WNTR is not installed") from e
-
-        options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
-        options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
+        feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
         # PREPARE WN_GIS GEODATAFRAMES
         if feedback.isCanceled():
             return {}
         feedback.setProgress(5)
         feedback.setProgressText("Creating WNTR model")
+
+        options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
+        options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
 
         node_link_types = {
             "JUNCTIONS": "Junction",
@@ -309,7 +302,10 @@ class RunSimulation(QgsProcessingAlgorithm):
             "PUMPS": "Pump",
             "VALVES": "Valve",
         }
-        crs = ""
+
+        # ! this doesn't seem to be working
+        if self.validateInputCrs(parameters, context) is not True:
+            feedback.pushWarning("Warning - CRS of inputs don't match - this could cause unexpected problems")
 
         gdf_inputs = {}
         for i in ["JUNCTIONS", "TANKS", "RESERVOIRS", "PIPES", "PUMPS", "VALVES"]:

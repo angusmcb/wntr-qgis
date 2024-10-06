@@ -5,42 +5,24 @@ from typing import Any
 
 from qgis.core import (
     QgsExpressionContextUtils,
-    QgsField,
-    QgsFields,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProcessingLayerPostProcessorInterface,
-    QgsProcessingParameterCrs,
-    QgsProcessingParameterFeatureSink,
     QgsProcessingParameterBoolean,
+    QgsProcessingParameterCrs,
     QgsProcessingParameterDefinition,
+    QgsProcessingParameterFeatureSink,
     QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication
 
 import wntrqgis.fields
 
+
 class EmptyLayers(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
     CRS = "CRS"
     PRESSUREDEPENDENT = "PRESSUREDEPENDENT"
     QUALITY = "QUALITY"
@@ -64,9 +46,6 @@ class EmptyLayers(QgsProcessingAlgorithm):
         self._short_help_string = ""
 
     def tr(self, string) -> str:
-        """
-        Returns a translatable string with the self.tr() function.
-        """
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):  # noqa N802
@@ -78,25 +57,28 @@ class EmptyLayers(QgsProcessingAlgorithm):
     def displayName(self) -> str:  # noqa N802
         return self.tr(self._display_name)
 
-    def groupId(self) -> str:  # noqa N802
-        return self._group_id
-
-    def group(self) -> str:
-        return self.tr(self._group)
-
     def shortHelpString(self) -> str:  # noqa N802
         return self.tr(self._short_help_string)
 
     def initAlgorithm(self, config=None):  # noqa N802
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", 'ProjectCrs'))
+        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", "ProjectCrs"))
 
-        param = QgsProcessingParameterBoolean(self.QUALITY, 'Create Fields for Water Quality Analysis', optional=True, defaultValue=False)
+        param = QgsProcessingParameterBoolean(
+            self.QUALITY, "Create Fields for Water Quality Analysis", optional=True, defaultValue=False
+        )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
-        param = QgsProcessingParameterBoolean(self.PRESSUREDEPENDENT, 'Create Fields for Pressure-Dependent Demand Analysis', optional=True, defaultValue=False)
+        param = QgsProcessingParameterBoolean(
+            self.PRESSUREDEPENDENT,
+            "Create Fields for Pressure-Dependent Demand Analysis",
+            optional=True,
+            defaultValue=False,
+        )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
-        param = QgsProcessingParameterBoolean(self.ENERGY, 'Create Fields for Energy Analysis', optional=True, defaultValue=False)
+        param = QgsProcessingParameterBoolean(
+            self.ENERGY, "Create Fields for Energy Analysis", optional=True, defaultValue=False
+        )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
 
@@ -113,17 +95,6 @@ class EmptyLayers(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        """
-        Here is where the processing itself takes place.
-        """
-
-        # Initialize feedback if it is None
-        if feedback is None:
-            feedback = QgsProcessingFeedback()
-
-
-
-
         outputs = {
             "junctions": {"parameter": self.JUNCTIONS, "type": QgsWkbTypes.Point},
             "tanks": {"parameter": self.TANKS, "type": QgsWkbTypes.Point},
@@ -133,11 +104,13 @@ class EmptyLayers(QgsProcessingAlgorithm):
             "valves": {"parameter": self.VALVES, "type": QgsWkbTypes.LineString},
         }
 
+        extra = [
+            i
+            for i in [self.QUALITY, self.PRESSUREDEPENDENT, self.ENERGY]
+            if self.parameterAsBoolean(parameters, i, context)
+        ]
 
-
-        extra = [i for i in [self.QUALITY,self.PRESSUREDEPENDENT,self.ENERGY] if self.parameterAsBoolean(parameters, i, context)]
-
-        returnoutputs = dict()
+        returnoutputs = {}
         for i in outputs:
             fields = wntrqgis.fields.getQgsFields(i, extra)
 

@@ -11,6 +11,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
+from wntrqgis.checkDependencies import checkDependencies
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
@@ -37,78 +38,8 @@ class Plugin:
         else:
             pass
 
-        self.check_deps()
-
         self.actions: list[QAction] = []
         self.menu = Plugin.name
-
-    def check_deps(self):
-        missing_deps = []
-        try:
-            import pandas
-        except ImportError:
-            missing_deps.append("pandas")
-        try:
-            import numpy
-        except ImportError:
-            missing_deps.append("numpy")
-        try:
-            import scipy
-        except ImportError:
-            missing_deps.append("scipy")
-        try:
-            import networkx
-        except ImportError:
-            missing_deps.append("networkx")
-        try:
-            import matplotlib
-        except ImportError:
-            missing_deps.append("matplotlib")
-        try:
-            import geopandas
-        except ImportError:
-            missing_deps.append("geopandas")
-
-        if len(missing_deps) == 0:
-            try:
-                import wntr  # this would be a system-installed wntr
-            except ImportError:
-                try:
-                    this_dir = os.path.dirname(os.path.realpath(__file__))
-                    path = os.path.join(this_dir, "packages")
-                    sys.path.append(path)
-                    import wntr  # this would be a previously plugin installed wntr
-                except ImportError:
-                    this_dir = os.path.dirname(os.path.realpath(__file__))
-                    wheels = os.path.join(this_dir, "wheels/")
-                    packagedir = os.path.join(this_dir, "packages/")
-
-                    subprocess.run(
-                        [
-                            self.python_command(),
-                            "-m",
-                            "pip",
-                            "install",
-                            "--no-index",
-                            "--upgrade",
-                            "--target=" + packagedir,
-                            "--no-deps",
-                            "--find-links=" + wheels,
-                            "wntr",
-                        ],
-                        shell=True,
-                        check=False,
-                    )
-                    try:
-                        import wntr  # finally, this is the newly installed wntr
-                    except ImportError:
-                        missing_deps.append("wntr")
-        self.missing_deps = missing_deps
-
-    def python_command(self):
-        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
-        # https://github.com/qgis/QGIS/issues/45646
-        return "python" if os.name == "nt" else sys.executable
 
     def add_action(
         self,

@@ -24,6 +24,7 @@ from qgis.core import (
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
+    QgsProcessingFeedback,
     QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterCrs,
     QgsProcessingParameterFeatureSink,
@@ -36,26 +37,10 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 import wntrqgis.fields
+from wntrqgis.checkDependencies import checkDependencies
 
 
 class ImportInp(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
     INPUT = "INPUT"
     CRS = "CRS"
 
@@ -67,9 +52,6 @@ class ImportInp(QgsProcessingAlgorithm):
     VALVES = "VALVES"
 
     def tr(self, string):
-        """
-        Returns a translatable string with the self.tr() function.
-        """
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
@@ -80,12 +62,6 @@ class ImportInp(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Import from Epanet INP file")
-
-    def group(self):
-        return ""
-
-    def groupId(self):
-        return ""
 
     def shortHelpString(self):
         return self.tr("Example algorithm short description")
@@ -110,23 +86,32 @@ class ImportInp(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFeatureSink(self.VALVES, self.tr("Valves")))
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
-        try:
-            import pandas as pd
-        except ImportError:
-            raise QgsProcessingException("Pandas is not installed")
-        try:
-            import wntr
-        except ImportError:
-            raise QgsProcessingException("WNTR is not installed")
+        if feedback is None:
+            feedback = QgsProcessingFeedback()
+
+        # PREPARE IMPORTS
+        # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
+        feedback.setProgressText("Checking dependencies")
+
+        missing_dependencies = checkDependencies()
+        if len(missing_dependencies):
+            QgsProcessingException(
+                "Missing dependencies: " + ", ".join(missing_dependencies) + "\nSee help for how to install."
+            )
+
+        import wntr
+
+        feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
+
+        feedback.setProgressText("Checking Inputs")
 
         source = self.parameterAsFile(parameters, self.INPUT, context)
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+
+        feedback.setProgressText("Loading .inp file into WNTR")
 
         try:
             wn = wntr.network.read_inpfile(source)
@@ -136,12 +121,10 @@ class ImportInp(QgsProcessingAlgorithm):
         except Exception as e:
             raise QgsProcessingException("Error loading model: " + str(e))
 
-        feedback.pushInfo("INP file loaded into WNTR. Found the following:")
-        feedback.pushCommandInfo(str(wn.describe(level=2)))
+        feedback.pushInfo("WNTR model created. Model contains:")
+        feedback.pushInfo(str(wn.describe(level=0)))
 
-        wn_gis.set_crs(crs.toProj())
-
-        feedback.pushInfo("Loading demand and pattern")
+        feedback.setProgressText("Preparing patterns and curves")
 
         wn_gis.junctions["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
         wn_gis.junctions["demand_pattern"] = wn.query_node_attribute(
@@ -151,9 +134,6 @@ class ImportInp(QgsProcessingAlgorithm):
             if dtl.pattern_list() and dtl.pattern_list()[0]
             else None
         )
-
-        feedback.pushInfo("Loading reservoir  pattern and tank curve")
-
         if "head_pattern_name" in wn_gis.reservoirs:
             wn_gis.reservoirs["head_pattern"] = wn_gis.reservoirs["head_pattern_name"].apply(
                 lambda pn: "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]"
@@ -164,9 +144,6 @@ class ImportInp(QgsProcessingAlgorithm):
             wn_gis.tanks["vol_curve"] = wn_gis.tanks["vol_curve_name"].apply(
                 lambda cn: repr(wn.get_curve(cn).points) if wn.get_curve(cn) else None
             )
-
-        feedback.pushInfo("Loading pump curve")
-
         # not all pumps will have a pump curve (power pumps)!
         if "pump_curve_name" in wn_gis.pumps:
             wn_gis.pumps["pump_curve"] = wn_gis.pumps["pump_curve_name"].apply(
@@ -187,7 +164,9 @@ class ImportInp(QgsProcessingAlgorithm):
                 else None
             )
 
-        feedback.pushInfo("finished loading extra columns")
+        feedback.setProgressText("Preparing template layers")
+
+        # first check which types of 'extra' fields to add
 
         allcols = []
         for element in [wn_gis.junctions, wn_gis.tanks, wn_gis.reservoirs, wn_gis.pipes, wn_gis.pumps, wn_gis.valves]:
@@ -200,7 +179,7 @@ class ImportInp(QgsProcessingAlgorithm):
         for i, j in extras.items():
             if set(j) & set(allcols):
                 extracols.append(i)
-                feedback.pushInfo("include cols" + i)
+                feedback.pushInfo("Including columns for " + str.lower(i))
 
         try:
             emptylayers = processing.run(
@@ -224,8 +203,9 @@ class ImportInp(QgsProcessingAlgorithm):
         except:
             raise QgsProcessingException("Couldn't create template layer")
 
-        outputs = {}
+        feedback.setProgressText("Filling template layers")
 
+        outputs = {}
         for i, j in {
             "JUNCTIONS": wn_gis.junctions,
             "TANKS": wn_gis.tanks,
@@ -250,17 +230,10 @@ class ImportInp(QgsProcessingAlgorithm):
                             newfeature[fieldname] = jsonfeature[fieldname]
                     emptylayer.dataProvider().addFeature(newfeature)
 
-        # Save options to project
+        feedback.setProgressText("Saving options to project file")
         try:
             QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_options", wn.options.to_dict())
         except Exception:
-            feedback.pushInfo("Could not save water network options to project file")
+            feedback.pushWarning("Could not save water network options to project file")
 
         return outputs
-
-
-def curve_to_string(curve):
-    try:
-        return repr(curve.points)
-    except Exception:
-        return []
