@@ -33,7 +33,7 @@ jobs:
       - name: Run tests
         run: >
           docker run --rm --net=host --volume `pwd`:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 qgis/qgis:${{ matrix.docker_tags }} sh -c
-          "pip3 install -qr requirements-dev.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24'
+          "pip3 install -qr requirements-dev.txt --break-system-packages && xvfb-run -s '+extension GLX -screen 0 1024x768x24'
           pytest -v --cov=wntrqgis --cov-report=xml"
 
       # Upload coverage report. Will not work if the repo is private
