@@ -18,3 +18,8 @@ flake8-qgis
 
 # Stubs
 PyQt5-stubs
+
+# wntr dependencies
+geopandas
+networkx
+scipy

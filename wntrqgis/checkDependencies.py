@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 
 def checkDependencies():
@@ -37,16 +38,20 @@ def checkDependencies():
             try:
                 this_dir = os.path.dirname(os.path.realpath(__file__))
                 path = os.path.join(this_dir, "packages")
+                Path(path).mkdir(parents=True, exist_ok=True)
                 sys.path.append(path)
                 import wntr  # this would be a previously plugin installed wntr
             except ImportError:
                 this_dir = os.path.dirname(os.path.realpath(__file__))
                 wheels = os.path.join(this_dir, "wheels/")
                 packagedir = os.path.join(this_dir, "packages/")
+                kwargs = {}
+                if os.name == "nt":
+                    kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
 
                 subprocess.run(
                     [
-                        _python_command(),
+                        "python" if os.name == "nt" else sys.executable,
                         "-m",
                         "pip",
                         "install",
@@ -57,10 +62,11 @@ def checkDependencies():
                         "--find-links=" + wheels,
                         "wntr",
                     ],
-                    shell=True,
                     check=False,
+                    **kwargs,
                 )
                 try:
+                    importlib.invalidate_caches()
                     import wntr  # finally, this is the newly installed wntr
                 except ImportError:
                     missing_deps.append("wntr")

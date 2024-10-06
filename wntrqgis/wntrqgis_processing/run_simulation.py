@@ -272,16 +272,17 @@ class RunSimulation(QgsProcessingAlgorithm):
         # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
 
         feedback.setProgressText("Checking dependencies")
-
-        missing_dependencies = checkDependencies()
-        if len(missing_dependencies):
-            QgsProcessingException(
-                "Missing dependencies: " + ", ".join(missing_dependencies) + "\nSee help for how to install."
-            )
-        import geopandas as gpd
-        import pandas as pd
+        try:
+            import geopandas as gpd
+        except ImportError as e:
+            raise QgsProcessingException("Geopandas is not installed") from e
+        import pandas as pd  # if geopadas installed this should not pose a problem!
         import shapely
-        import wntr
+
+        try:
+            import wntr
+        except ImportError as e:
+            raise QgsProcessingException("WNTR is not installed") from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 

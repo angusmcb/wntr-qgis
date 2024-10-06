@@ -41,6 +41,8 @@ class Plugin:
         self.actions: list[QAction] = []
         self.menu = Plugin.name
 
+        self.missing_deps = checkDependencies()
+
     def add_action(
         self,
         icon_path: str,
