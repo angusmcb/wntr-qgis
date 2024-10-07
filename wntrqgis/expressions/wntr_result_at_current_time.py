@@ -24,10 +24,11 @@ def wntr_result_at_current_time(column, feature, parent, context):
         return column[0]
     else:
         map_start_time = context.variable("map_start_time").toSecsSinceEpoch()
+        animation_start_time = context.variable("animation_start_time").toSecsSinceEpoch()
 
         report_timestep = 3600
 
-        timestep = map_start_time / report_timestep
+        timestep = ( map_start_time - animation_start_time ) / report_timestep
 
         if timestep < 0 or math.floor(timestep) + 1 > len(column):
             return None
