@@ -411,7 +411,8 @@ class RunSimulation(QgsProcessingAlgorithm):
         feedback.pushInfo("WNTR model created. Model contains:")
         feedback.pushInfo(str(self.wn.describe(level=0)))
 
-        wntr.network.write_inpfile(self.wn, "outputfile.inp")
+        # wntr.network.write_inpfile(self.wn, "outputfile.inp")
+        # wn.options.
 
         # RUN SIMULATION
 
@@ -428,9 +429,12 @@ class RunSimulation(QgsProcessingAlgorithm):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-        sim = wntr.sim.EpanetSimulator(self.wn)
+
+        tempfolder = QgsProcessingUtils.tempFolder() + '/wntr'
+
         try:
-            results = sim.run_sim()  # by default, this runs EPANET 2.2.0
+            sim = wntr.sim.EpanetSimulator(self.wn )
+            results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
         except Exception as e:
             raise QgsProcessingException("Error running model: " + str(e))
 

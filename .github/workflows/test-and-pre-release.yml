@@ -64,8 +64,8 @@ jobs:
         run: |
           $env:PATH="C:\Program Files\QGIS 3.34\bin;$env:PATH"
           $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
-          python-qgis-ltr.bat -m pytest -v
+          python-qgis.bat -m pip install -qr requirements-dev.txt
+          python-qgis.bat -m pytest -v
 
   pre-release:
     name: "Pre Release"
