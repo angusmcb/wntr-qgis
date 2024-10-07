@@ -54,18 +54,21 @@ jobs:
         with:
           submodules: true
 
-      - name: Choco install qgis
-        uses: crazy-max/ghaction-chocolatey@v1
+      - uses: engineerd/configurator@v0.0.1
         with:
-          args: install qgis-ltr -y
+          name: "osgeo4w-setup.exe"
+          url: "https://download.osgeo.org/osgeo4w/v2/osgeo4w-setup.exe"
+      - name: Use OSGeo4W to install QGIS
+        run: |
+            osgeo4w-setup.exe --quiet-mode --download --no-desktop --advanced --arch x86_64 --autoaccept --packages qgis-ltr-full --help
 
       - name: Run tests
         shell: pwsh
         run: |
-          $env:PATH="C:\Program Files\QGIS 3.34\bin;$env:PATH"
+          $env:PATH="C:\OSGeo4W\bin;$env:PATH"
           $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis.bat -m pip install -qr requirements-dev.txt
-          python-qgis.bat -m pytest -v
+          python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
+          python-qgis-ltr.bat -m pytest -v
 
   pre-release:
     name: "Pre Release"
