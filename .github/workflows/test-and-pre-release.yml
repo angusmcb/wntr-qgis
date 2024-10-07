@@ -54,13 +54,13 @@ jobs:
         with:
           submodules: true
 
-      - uses: engineerd/configurator@v0.0.1
+      - uses: engineerd/configurator@v0.0.10
         with:
           name: "osgeo4w-setup.exe"
           url: "https://download.osgeo.org/osgeo4w/v2/osgeo4w-setup.exe"
       - name: Use OSGeo4W to install QGIS
         run: |
-            osgeo4w-setup.exe --quiet-mode --download --no-desktop --advanced --arch x86_64 --autoaccept --packages qgis-ltr-full --help
+            osgeo4w-setup --quiet-mode --download --no-desktop --advanced --arch x86_64 --autoaccept --packages qgis-ltr-full --help
 
       - name: Run tests
         shell: pwsh
