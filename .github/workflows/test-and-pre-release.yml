@@ -54,10 +54,8 @@ jobs:
         with:
           submodules: true
 
-      - name: Install QGIS
+      - run: ./.github/workflows/qgis_deploy_install_upgrade_ltr.ps1
         shell: pwsh
-        run: |
-          qgis_deploy_install_upgrade_ltr.ps1
 
       - name: Run tests
         shell: pwsh
