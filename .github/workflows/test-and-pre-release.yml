@@ -60,7 +60,7 @@ jobs:
           url: "https://download.osgeo.org/osgeo4w/v2/osgeo4w-setup.exe"
       - name: Use OSGeo4W to install QGIS
         run: |
-            osgeo4w-setup --quiet-mode --delete-orphans --upgrade-also --no-desktop --advanced --arch x86_64 --autoaccept --packages qgis-ltr-full
+            osgeo4w-setup --quiet-mode --delete-orphans --upgrade-also --no-desktop --advanced --arch x86_64 --autoaccept --site https://download.osgeo.org/osgeo4w/v2/x86_64/ --packages qgis-ltr-full
 
       - name: Run tests
         shell: pwsh
