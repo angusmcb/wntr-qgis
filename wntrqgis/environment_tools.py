@@ -11,7 +11,7 @@ def add_packages_to_path():
     sys.path.append(path)
 
 
-def install_wntr() -> bool:
+def install_wntr(check=False) -> bool:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     wheels = os.path.join(this_dir, "wheels/")
     packagedir = os.path.join(this_dir, "packages/")
@@ -36,7 +36,7 @@ def install_wntr() -> bool:
             "--find-links=" + wheels,
             "wntr",
         ],
-        check=False,
+        check=check,
         **kwargs,
     )
     try:
