@@ -5,4 +5,5 @@ start_ide.bat
 .vscode
 */.pytest_cache
 __pycache__
-wntrqgis/packages/
+wntrqgis/packages/*
+!wntrqgis/packages/.gitkeep

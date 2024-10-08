@@ -84,15 +84,15 @@ class ImportInp(QgsProcessingAlgorithm):
         # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
         feedback.setProgressText("Checking dependencies")
 
-        try:
-            import wntr
-        except ImportError:
-            try:
-                environment_tools.add_packages_to_path()
-                from wntrqgis.packages import wntr
-            except ModuleNotFoundError as e:
-                msg = "WNTR is not installed"
-                raise QgsProcessingException(msg) from e
+        # ssstry:
+        import wntr
+        # except ImportError:
+        #    try:
+        # environment_tools.add_packages_to_path()
+        # import wntr
+        #    except ModuleNotFoundError as e:
+        #        msg = "WNTR is not installed"
+        #        raise QgsProcessingException(msg) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 

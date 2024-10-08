@@ -20,6 +20,8 @@ from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
 from wntrqgis.wntrqgis_processing.provider import Provider
 
+print("plugin.py imported")
+
 
 class Plugin:
     """QGIS Plugin Implementation."""
@@ -27,6 +29,7 @@ class Plugin:
     name = plugin_name()
 
     def __init__(self) -> None:
+        print("plugin.py __init__ run")
         setup_logger(Plugin.name)
 
         # initialize locale
@@ -48,10 +51,15 @@ class Plugin:
             if find_spec(package) is None
         ]
 
+        # this_dir = os.path.dirname(os.path.realpath(__file__))
+        # path = os.path.join(this_dir, "packages")
+        # sys.path.append(path)
+
+        print(sys.path)
+
         if len(self.missing_deps) == 0 and find_spec("wntr") is None:
-            add_packages_to_path()
-            if find_spec("wntr") is None:
-                install_wntr()
+            print("installing wntr")
+            install_wntr()
 
         # self.missing_deps = checkDependencies()
 
