@@ -62,8 +62,8 @@ jobs:
         run: |
           $env:PATH="C:\Program Files\OSGeo4W_v2\bin;$env:PATH"
           $env:QGIS_PLUGIN_IN_CI=1
-          C:\OSGeo4W\bin\python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
-          C:\OSGeo4W\bin\python-qgis-ltr.bat -m pytest -v
+          python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
+          python-qgis-ltr.bat -m pytest -v
 
   pre-release:
     name: "Pre Release"
