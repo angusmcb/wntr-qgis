@@ -27,8 +27,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-import wntrqgis.environment_tools
 import wntrqgis.fields
+from wntrqgis import environment_tools
 
 
 class ImportInp(QgsProcessingAlgorithm):
@@ -88,8 +88,8 @@ class ImportInp(QgsProcessingAlgorithm):
             import wntr
         except ImportError:
             try:
-                wntrqgis.environment_tools.add_packages_to_path()
-                import wntr
+                environment_tools.add_packages_to_path()
+                from wntrqgis.packages import wntr
             except ModuleNotFoundError as e:
                 msg = "WNTR is not installed"
                 raise QgsProcessingException(msg) from e
