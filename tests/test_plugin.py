@@ -16,8 +16,9 @@ def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG0
 
 
 def test_install_wntr():
-    newplugin = Plugin()
-    assert newplugin._install_wntr()  # noqa SLF001
+    import wntrqgis.environment_tools
+
+    wntrqgis.environment_tools.install_wntr()
 
 
 def test_processing_providers(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG001

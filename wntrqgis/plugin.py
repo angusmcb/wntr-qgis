@@ -13,6 +13,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
+from wntrqgis.environment_tools import add_packages_to_path, install_wntr
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
@@ -48,9 +49,9 @@ class Plugin:
         ]
 
         if len(self.missing_deps) == 0 and find_spec("wntr") is None:
-            self.add_packages_to_path()
+            add_packages_to_path()
             if find_spec("wntr") is None:
-                self._install_wntr()
+                install_wntr()
 
         # self.missing_deps = checkDependencies()
 
@@ -158,42 +159,3 @@ class Plugin:
     def run(self) -> None:
         """Run method that performs all the real work"""
         print("Hello QGIS plugin")  # noqa: T201
-
-    def add_packages_to_path(self):
-        this_dir = os.path.dirname(os.path.realpath(__file__))
-        path = os.path.join(this_dir, "packages")
-        sys.path.append(path)
-
-    def _install_wntr(self) -> bool:
-        this_dir = os.path.dirname(os.path.realpath(__file__))
-        wheels = os.path.join(this_dir, "wheels/")
-        packagedir = os.path.join(this_dir, "packages/")
-        Path(packagedir).mkdir(parents=True, exist_ok=True)
-
-        kwargs: dict[str, Any] = {}
-        if os.name == "nt":
-            kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)  # type: ignore[attr-defined]
-
-        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
-        # https://github.com/qgis/QGIS/issues/45646
-        subprocess.run(
-            [
-                "python" if os.name == "nt" else sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--no-index",
-                "--upgrade",
-                "--target=" + packagedir,
-                "--no-deps",
-                "--find-links=" + wheels,
-                "wntr",
-            ],
-            check=False,
-            **kwargs,
-        )
-        try:
-            import wntr  # noqa F401 finally, this is the newly installed wntr
-        except ImportError:
-            return False
-        return True
