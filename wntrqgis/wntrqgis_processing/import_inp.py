@@ -90,7 +90,7 @@ class ImportInp(QgsProcessingAlgorithm):
             try:
                 wntrqgis.environment_tools.add_packages_to_path()
                 import wntr
-            except ImportError as e:
+            except ModuleNotFoundError as e:
                 msg = "WNTR is not installed"
                 raise QgsProcessingException(msg) from e
 
