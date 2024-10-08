@@ -82,9 +82,12 @@ class ImportInp(QgsProcessingAlgorithm):
 
         try:
             import wntr
-        except ImportError as e:
-            msg = "WNTR  is not installed"
-            raise QgsProcessingException(msg) from e
+        except ImportError:
+            try:
+                from wntrqgis.packages import wntr
+            except ImportError as e:
+                msg = "WNTR  is not installed"
+                raise QgsProcessingException(msg) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
