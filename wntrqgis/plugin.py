@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Callable
 
-from qgis.core import Qgis, QgsApplication, QgsExpression
+from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
 from wntrqgis.checkDependencies import checkDependencies
-from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time
+from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
@@ -20,7 +20,6 @@ class Plugin:
     """QGIS Plugin Implementation."""
 
     name = plugin_name()
-    missing_deps: list[str] = []
 
     def __init__(self) -> None:
         setup_logger(Plugin.name)

@@ -34,7 +34,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
     PUMPS = "PUMPS"
     VALVES = "VALVES"
 
-    post_processors: dict[str, LayerPostProcessor] = {}
+    post_processors: dict[str, LayerPostProcessor]
 
     def __init__(self) -> None:
         super().__init__()
@@ -93,7 +93,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
+        feedback: QgsProcessingFeedback,  # noqa ARG002
     ) -> dict:
         outputs = {
             "junctions": {"parameter": self.JUNCTIONS, "type": QgsWkbTypes.Point},
@@ -141,7 +141,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     instance = None
     layertype = None
 
-    def postProcessLayer(self, layer, context, feedback):
+    def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
         layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))

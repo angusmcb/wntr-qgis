@@ -14,7 +14,7 @@ from __future__ import annotations
 import ast
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any  # noqa F401
 
 from qgis.core import (
     QgsExpressionContextUtils,
@@ -55,26 +55,26 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
-    post_processors: dict[str, Any] = {}
+    post_processors: dict[str, LayerPostProcessor]
     wn = None
     name_increment = 0
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
 
-    def createInstance(self):
+    def createInstance(self):  # noqa N802
         return RunSimulation()
 
     def name(self):
         return "run"
 
-    def displayName(self):
+    def displayName(self):  # noqa N802
         return self.tr("Run Simulation")
 
-    def shortHelpString(self):
+    def shortHelpString(self):  # noqa N802
         return self.tr("Example algorithm short description")
 
-    def initAlgorithm(self, config=None):
+    def initAlgorithm(self, config=None):  # noqa N802
         default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
         if default_layers is None:
             default_layers = {}
@@ -240,7 +240,7 @@ class RunSimulation(QgsProcessingAlgorithm):
 
         optionslist = default_options
         if options:
-            for i in options.keys():
+            for i in options:
                 optionslist[i] = []
                 for x, y in options[i].items():
                     optionslist[i].append(x)
@@ -268,7 +268,7 @@ class RunSimulation(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
 
-    def processAlgorithm(self, parameters, context, feedback):
+    def processAlgorithm(self, parameters, context, feedback):  # noqa N802
         # PREPARE IMPORTS
         # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
 
@@ -276,14 +276,16 @@ class RunSimulation(QgsProcessingAlgorithm):
         try:
             import geopandas as gpd
         except ImportError as e:
-            raise QgsProcessingException("Geopandas is not installed") from e
+            msg = "Geopandas is not installed"
+            raise QgsProcessingException(msg) from e
         import pandas as pd  # if geopadas installed this should not pose a problem!
         import shapely
 
         try:
             import wntr
         except ImportError as e:
-            raise QgsProcessingException("WNTR is not installed") from e
+            msg = "WNTR  is not installed"
+            raise QgsProcessingException(msg) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
@@ -431,7 +433,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             sim = wntr.sim.EpanetSimulator(self.wn)
             results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
         except Exception as e:
-            raise QgsProcessingException("Error running model: " + str(e))
+            raise QgsProcessingException("Error running model: " + str(e)) from e
 
         if feedback.isCanceled():
             return {}
@@ -454,32 +456,32 @@ class RunSimulation(QgsProcessingAlgorithm):
                 "velocity": QMetaType.Double,
             },
         }
-        combinedInputGdf = {
+        combined_input_gdf = {
             "nodes": pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]),
             "links": pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]),
         }
-        inputParam = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
+        input_param = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
 
-        for type, result in {"nodes": results.node, "links": results.link}.items():
-            feedback.setProgressText("Preparing output layer for " + type)
+        for nodeorlink, result in {"nodes": results.node, "links": results.link}.items():
+            feedback.setProgressText("Preparing output layer for " + nodeorlink)
 
-            resultparamstouse = [p for p in result.keys() if p in possibleparams[type].keys()]
+            resultparamstouse = [p for p in result if p in possibleparams[nodeorlink]]
             fields = QgsFields()
             fields.append(QgsField("name", QVariant.String))
             for p in resultparamstouse:
-                fields.append(QgsField(p, QMetaType.QVariantList, subType=possibleparams[type][p]))
+                fields.append(QgsField(p, QMetaType.QVariantList, subType=possibleparams[nodeorlink][p]))
 
-            (sink, outputs[inputParam[type]]) = self.parameterAsSink(
+            (sink, outputs[input_param[nodeorlink]]) = self.parameterAsSink(
                 parameters,
-                inputParam[type],
+                input_param[nodeorlink],
                 context,
                 fields,
-                QgsWkbTypes.Point if type == "nodes" else QgsWkbTypes.LineString,
+                QgsWkbTypes.Point if nodeorlink == "nodes" else QgsWkbTypes.LineString,
                 crs,
             )
             g = QgsGeometry()
-            combinedInputGdf[type].reset_index(inplace=True, names="name")
-            for row in combinedInputGdf[type].itertuples(index=False):
+            combined_input_gdf[nodeorlink].reset_index(inplace=True, names="name")
+            for row in combined_input_gdf[nodeorlink].itertuples(index=False):
                 g.fromWkb(shapely.to_wkb(row.geometry))
                 f = QgsFeature()
                 f.setGeometry(g)
@@ -496,11 +498,11 @@ class RunSimulation(QgsProcessingAlgorithm):
         feedback.setProgressText("Finished layer creation")
         """
 
-        combinedInputGdf = {
+        combined_input_gdf = {
             "nodes": pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]),
             "links": pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]),
         }
-        inputParam = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
+        input_param = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
         dest_id = {}
         for type, result in {"nodes": results.node, "links": results.link}.items():
             feedback.pushDebugInfo("Processing results for " + type)
@@ -515,8 +517,8 @@ class RunSimulation(QgsProcessingAlgorithm):
             # temporal controller
             # results_dfs[type]["datetime"] = pd.to_datetime(results_dfs[type]["time"], unit="s")
             # feedback.pushDebugInfo(results_dfs[type].info(verbose=True))
-            combinedInputGdf[type].reset_index(inplace=True, names="name")
-            mergedGdf = pd.merge(combinedInputGdf[type][["name", "geometry"]], resultDf, on="name")
+            combined_input_gdf[type].reset_index(inplace=True, names="name")
+            mergedGdf = pd.merge(combined_input_gdf[type][["name", "geometry"]], resultDf, on="name")
 
             fields = QgsFields()
             fields.append(QgsField("name", QVariant.String))
@@ -527,7 +529,7 @@ class RunSimulation(QgsProcessingAlgorithm):
 
             (sink, dest_id[type]) = self.parameterAsSink(
                 parameters,
-                inputParam[type],
+                input_param[type],
                 context,
                 fields,
                 QgsWkbTypes.Point if type == "nodes" else QgsWkbTypes.LineString,
@@ -600,9 +602,9 @@ class RunSimulation(QgsProcessingAlgorithm):
 
         # PREPARE TO LOAD LAYER STYLES IN MAIN THREAD ONCE FINISHED
 
-        for type, lyr_id in outputs.items():
+        for outputname, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(type)
+                self.post_processors[lyr_id] = LayerPostProcessor.create(outputname)
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs  # , self.OUTPUTLINKS: pipes_dest_id}
@@ -612,7 +614,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     instance = None
     layertype = None
 
-    def postProcessLayer(self, layer, context, feedback):
+    def postProcessLayer(self, layer, context, feedback):  # noqa N802
         if not isinstance(layer, QgsVectorLayer):
             return
         layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
