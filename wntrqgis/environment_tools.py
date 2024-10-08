@@ -20,7 +20,7 @@ def check_dependencies():
     ]
 
 
-def install_wntr(check=False) -> bool:
+def install_wntr() -> bool:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     wheels = os.path.join(this_dir, "wheels/")
     packagedir = os.path.join(this_dir, "packages/")
@@ -45,7 +45,7 @@ def install_wntr(check=False) -> bool:
             "--find-links=" + wheels,
             "wntr",
         ],
-        check=check,
+        check=False,
         **kwargs,
     )
     try:

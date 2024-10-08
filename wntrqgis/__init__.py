@@ -22,7 +22,6 @@ def classFactory(iface: "QgisInterface"):  # noqa N802
     return Plugin()
 
 
-print("running init")
 this_dir = os.path.dirname(os.path.realpath(__file__))
 path = os.path.join(this_dir, "packages")
 sys.path.append(path)
