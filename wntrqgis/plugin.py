@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
 from typing import Callable
 
 from qgis.core import Qgis, QgsApplication, QgsExpression
@@ -23,7 +20,7 @@ class Plugin:
     """QGIS Plugin Implementation."""
 
     name = plugin_name()
-    missing_deps = []
+    missing_deps: list[str] = []
 
     def __init__(self) -> None:
         setup_logger(Plugin.name)

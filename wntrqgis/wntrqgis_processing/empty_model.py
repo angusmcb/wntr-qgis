@@ -34,7 +34,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
     PUMPS = "PUMPS"
     VALVES = "VALVES"
 
-    post_processors = dict()
+    post_processors: dict[str, LayerPostProcessor] = {}
 
     def __init__(self) -> None:
         super().__init__()

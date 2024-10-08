@@ -9,9 +9,12 @@
 ***************************************************************************
 """
 
+from __future__ import annotations
+
 import ast
 import logging
 from pathlib import Path
+from typing import Any
 
 from qgis.core import (
     QgsExpressionContextUtils,
@@ -35,8 +38,6 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication, QMetaType, QVariant
 
-from wntrqgis.checkDependencies import checkDependencies
-
 
 class RunSimulation(QgsProcessingAlgorithm):
     OPTIONSHYDRAULIC = "OPTIONSHYDRAULIC"
@@ -54,7 +55,7 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
-    post_processors = dict()
+    post_processors: dict[str, Any] = {}
     wn = None
     name_increment = 0
 
@@ -340,8 +341,7 @@ class RunSimulation(QgsProcessingAlgorithm):
                 curvelist = ast.literal_eval(curve_string)
                 self.wn.add_curve(name=name, curve_type=curve_type, xy_tuples_list=curvelist)
                 return name
-            else:
-                return None
+            return None
 
         def _add_pattern(pattern_string):
             if pattern_string:
@@ -350,8 +350,7 @@ class RunSimulation(QgsProcessingAlgorithm):
                 patternlist = ast.literal_eval(pattern_string)
                 self.wn.add_pattern(name=name, pattern=patternlist)
                 return name
-            else:
-                return None
+            return None
 
         if "junctions" in gdf_inputs and "demand_pattern" in gdf_inputs["junctions"]:
             gdf_inputs["junctions"]["demand_pattern_name"] = gdf_inputs["junctions"]["demand_pattern"].apply(
@@ -411,9 +410,6 @@ class RunSimulation(QgsProcessingAlgorithm):
         feedback.pushInfo("WNTR model created. Model contains:")
         feedback.pushInfo(str(self.wn.describe(level=0)))
 
-        # wntr.network.write_inpfile(self.wn, "outputfile.inp")
-        # wn.options.
-
         # RUN SIMULATION
 
         if feedback.isCanceled():
@@ -429,11 +425,10 @@ class RunSimulation(QgsProcessingAlgorithm):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-
-        tempfolder = QgsProcessingUtils.tempFolder() + '/wntr'
+        tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
 
         try:
-            sim = wntr.sim.EpanetSimulator(self.wn )
+            sim = wntr.sim.EpanetSimulator(self.wn)
             results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
         except Exception as e:
             raise QgsProcessingException("Error running model: " + str(e))
