@@ -9,9 +9,6 @@
 ***************************************************************************
 """
 
-import os
-import sys
-
 from qgis import processing
 from qgis.core import (
     QgsExpressionContextUtils,
@@ -84,8 +81,14 @@ class ImportInp(QgsProcessingAlgorithm):
         # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
         feedback.setProgressText("Checking dependencies")
 
-        # ssstry:
-        import wntr
+        if environment_tools.check_dependencies():
+            msg = "Missing Dependencies"
+            raise QgsProcessingException(msg)
+
+        try:
+            import wntr
+        except ImportError as e:
+            raise QgsProcessingException(e) from e
         # except ImportError:
         #    try:
         # environment_tools.add_packages_to_path()

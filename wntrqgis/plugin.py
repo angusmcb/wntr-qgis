@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
 from importlib.util import find_spec
-from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
@@ -13,14 +9,12 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
-from wntrqgis.environment_tools import add_packages_to_path, install_wntr
+from wntrqgis.environment_tools import check_dependencies, install_wntr
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
 from wntrqgis.wntrqgis_processing.provider import Provider
-
-print("plugin.py imported")
 
 
 class Plugin:
@@ -29,7 +23,6 @@ class Plugin:
     name = plugin_name()
 
     def __init__(self) -> None:
-        print("plugin.py __init__ run")
         setup_logger(Plugin.name)
 
         # initialize locale
@@ -45,23 +38,10 @@ class Plugin:
         self.actions: list[QAction] = []
         self.menu = Plugin.name
 
-        self.missing_deps = [
-            package
-            for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib", "geopandas"]
-            if find_spec(package) is None
-        ]
-
-        # this_dir = os.path.dirname(os.path.realpath(__file__))
-        # path = os.path.join(this_dir, "packages")
-        # sys.path.append(path)
-
-        print(sys.path)
+        self.missing_deps = check_dependencies()
 
         if len(self.missing_deps) == 0 and find_spec("wntr") is None:
-            print("installing wntr")
             install_wntr()
-
-        # self.missing_deps = checkDependencies()
 
     def add_action(
         self,

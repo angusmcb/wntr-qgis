@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,14 @@ def add_packages_to_path():
     this_dir = os.path.dirname(os.path.realpath(__file__))
     path = os.path.join(this_dir, "packages")
     sys.path.append(path)
+
+
+def check_dependencies():
+    return [
+        package
+        for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib", "geopandas"]
+        if find_spec(package) is None
+    ]
 
 
 def install_wntr(check=False) -> bool:
