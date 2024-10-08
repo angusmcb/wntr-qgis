@@ -9,35 +9,22 @@
 ***************************************************************************
 """
 
-import json
-import os
-from pathlib import Path
-
 from qgis import processing
 from qgis.core import (
     QgsExpressionContextUtils,
     QgsFeature,
-    QgsFeatureSink,
-    QgsField,
-    QgsFields,
     QgsJsonUtils,
-    QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
     QgsProcessingFeedback,
-    QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterCrs,
     QgsProcessingParameterFeatureSink,
-    QgsProcessingParameterFeatureSource,
     QgsProcessingParameterFile,
     QgsProject,
-    QgsVectorLayer,
-    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication
 
 import wntrqgis.fields
-from wntrqgis.checkDependencies import checkDependencies
 
 
 class ImportInp(QgsProcessingAlgorithm):
@@ -54,19 +41,19 @@ class ImportInp(QgsProcessingAlgorithm):
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
 
-    def createInstance(self):
+    def createInstance(self):  # noqa N802
         return ImportInp()
 
     def name(self):
         return "importinp"
 
-    def displayName(self):
+    def displayName(self):  # noqa N802
         return self.tr("Import from Epanet INP file")
 
-    def shortHelpString(self):
+    def shortHelpString(self):  # noqa N802
         return self.tr("Example algorithm short description")
 
-    def initAlgorithm(self, config=None):
+    def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(
             QgsProcessingParameterFile(
                 self.INPUT,
@@ -85,7 +72,7 @@ class ImportInp(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFeatureSink(self.PUMPS, self.tr("Pumps")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.VALVES, self.tr("Valves")))
 
-    def processAlgorithm(self, parameters, context, feedback):
+    def processAlgorithm(self, parameters, context, feedback):  # noqa N802
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
@@ -94,15 +81,10 @@ class ImportInp(QgsProcessingAlgorithm):
         feedback.setProgressText("Checking dependencies")
 
         try:
-            import geopandas as gpd
-        except ImportError as e:
-            raise QgsProcessingException("Geopandas is not installed") from e
-        import pandas as pd  # if geopadas installed this should not pose a problem!
-
-        try:
             import wntr
         except ImportError as e:
-            raise QgsProcessingException("WNTR is not installed") from e
+            msg = "WNTR  is not installed"
+            raise QgsProcessingException(msg) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
@@ -150,7 +132,9 @@ class ImportInp(QgsProcessingAlgorithm):
         # not all pumps will have a pump curve (power pumps)!
         if "pump_curve_name" in wn_gis.pumps:
             wn_gis.pumps["pump_curve"] = wn_gis.pumps["pump_curve_name"].apply(
-                lambda cn: repr(wn.get_curve(cn).points) if cn == cn and wn.get_curve(cn) else None
+                lambda cn: repr(wn.get_curve(cn).points)
+                if cn == cn and wn.get_curve(cn)  #  noqa PLR0124 checking nan
+                else None
             )
         feedback.pushInfo("Loading pump pattern")
         if "speed_pattern_name" in wn_gis.pumps:
@@ -234,9 +218,7 @@ class ImportInp(QgsProcessingAlgorithm):
                     emptylayer.dataProvider().addFeature(newfeature)
 
         feedback.setProgressText("Saving options to project file")
-        try:
-            QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_options", wn.options.to_dict())
-        except Exception:
-            feedback.pushWarning("Could not save water network options to project file")
+
+        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_options", wn.options.to_dict())
 
         return outputs

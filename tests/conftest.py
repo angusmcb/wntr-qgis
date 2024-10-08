@@ -17,33 +17,12 @@ fixtures:
 from pathlib import Path
 
 import pytest
-from qgis.core import QgsProcessingFeedback
 
 from wntrqgis.wntrqgis_processing.provider import Provider
 
 
-class MyFeedBack(QgsProcessingFeedback):
-    def setProgressText(self, text):
-        print(text)
-
-    def pushInfo(self, info):
-        print(info)
-
-    def pushCommandInfo(self, info):
-        print(info)
-
-    def pushDebugInfo(self, info):
-        print(info)
-
-    def pushConsoleInfo(self, info):
-        print(info)
-
-    def reportError(self, error, fatalError=False):
-        print(error)
-
-
 @pytest.fixture(autouse=True, scope="session")
-def plugin_provider(qgis_app, qgis_processing):
+def plugin_provider(qgis_app, qgis_processing):  # noqa ARG001
     provider = Provider()
 
     qgis_app.processingRegistry().addProvider(provider)

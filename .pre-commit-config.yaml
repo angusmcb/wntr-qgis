@@ -13,10 +13,11 @@ repos:
     hooks:
       - id: mypy
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.11
+    rev: v0.6.9
     hooks:
       # Run the linter.
       - id: ruff
         args: ["--extend-fixable=F841,F401"]
       # Run the formatter.
       - id: ruff-format
+exclude: ^.*\.(inp|INP)$

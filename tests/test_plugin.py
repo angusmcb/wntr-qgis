@@ -13,6 +13,7 @@ from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
 
 def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):
     wntrplugin = Plugin()
+    assert wntrplugin
 
 
 def test_processing_providers(qgis_app, qgis_processing, qgis_new_project):
