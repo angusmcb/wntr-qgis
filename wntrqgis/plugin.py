@@ -48,9 +48,7 @@ class Plugin:
         ]
 
         if len(self.missing_deps) == 0 and find_spec("wntr") is None:
-            this_dir = os.path.dirname(os.path.realpath(__file__))
-            path = os.path.join(this_dir, "packages")
-            sys.path.append(path)
+            self.add_packages_to_path()
             if find_spec("wntr") is None:
                 self._install_wntr()
 
@@ -160,6 +158,11 @@ class Plugin:
     def run(self) -> None:
         """Run method that performs all the real work"""
         print("Hello QGIS plugin")  # noqa: T201
+
+    def add_packages_to_path(self):
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+        path = os.path.join(this_dir, "packages")
+        sys.path.append(path)
 
     def _install_wntr(self) -> bool:
         this_dir = os.path.dirname(os.path.realpath(__file__))
