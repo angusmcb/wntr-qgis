@@ -5,14 +5,14 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 
 
-def namesByLayer(layername, extra=[]):
-    typesToUse = types["BASE"]
+def namesByLayer(layername, extra=[]):  # noqa N802 needs refactor anyway
+    typesToUse = types["BASE"]  # noqa N802
     for i in extra:
         typesToUse.update(types[i])
-    return [name for name in namesPerLayer[layername] if name in typesToUse.keys()]
+    return [name for name in namesPerLayer[layername] if name in typesToUse]
 
 
-def getQgsFields(layername, extra=[]):
+def getQgsFields(layername, extra=[]):  # noqa N802
     fields = QgsFields()
     flattypelist = flatTypes()
     for fieldname in namesByLayer(layername, extra):
@@ -20,14 +20,14 @@ def getQgsFields(layername, extra=[]):
     return fields
 
 
-def flatTypes():
+def flatTypes():  # noqa N802
     output = {}
     for typelist in types.values():
         output.update(typelist)
     return output
 
 
-def namesOfExtra():
+def namesOfExtra():  # noqa N802
     output = {}
     for typecat, typelist in types.items():
         if typecat != "BASE":
@@ -36,7 +36,7 @@ def namesOfExtra():
 
 
 # derived from running wntr.network.io.valid_gis_names(True)
-namesPerLayer = {
+namesPerLayer = {  # noqa N802
     "junctions": [
         "name",
         "elevation",

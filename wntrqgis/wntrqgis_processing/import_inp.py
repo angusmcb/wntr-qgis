@@ -9,6 +9,9 @@
 ***************************************************************************
 """
 
+import os
+import sys
+
 from qgis import processing
 from qgis.core import (
     QgsExpressionContextUtils,
@@ -84,7 +87,10 @@ class ImportInp(QgsProcessingAlgorithm):
             import wntr
         except ImportError:
             try:
-                from wntrqgis.packages import wntr
+                this_dir = os.path.dirname(os.path.realpath(__file__))
+                path = os.path.join(this_dir, "..", "packages")
+                sys.path.append(path)
+                import wntr
             except ImportError as e:
                 msg = "WNTR  is not installed"
                 raise QgsProcessingException(msg) from e
@@ -107,7 +113,7 @@ class ImportInp(QgsProcessingAlgorithm):
         except ModuleNotFoundError as e:
             raise QgsProcessingException("WNTR dependencies not installed: " + str(e)) from e
         except Exception as e:
-            raise QgsProcessingException("Error loading model: " + str(e))
+            raise QgsProcessingException("Error loading model: " + str(e)) from e
 
         feedback.pushInfo("WNTR model created. Model contains:")
         feedback.pushInfo(str(wn.describe(level=0)))
@@ -190,8 +196,8 @@ class ImportInp(QgsProcessingAlgorithm):
                 feedback=None,
                 is_child_algorithm=True,
             )
-        except:
-            raise QgsProcessingException("Couldn't create template layer")
+        except QgsProcessingException as e:
+            raise QgsProcessingException("Couldn't create template layer:" + str(e)) from e
 
         feedback.setProgressText("Filling template layers")
 

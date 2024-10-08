@@ -1,27 +1,26 @@
 from pathlib import Path
 
 import pytest
-import qgis.utils
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 
 from wntrqgis.plugin import Plugin
-from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
+from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name  # noqa F401
 
 # def test_plugin_name():
 #    assert plugin_name() == "Water Network Tools for Resilience (WNTR) Integration"
 
 
-def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):
+def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG001
     wntrplugin = Plugin()
     assert wntrplugin
 
 
-def test_processing_providers(qgis_app, qgis_processing, qgis_new_project):
+def test_processing_providers(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG001
     assert "wntr" in [provider.id() for provider in qgis_app.processingRegistry().providers()]
 
 
 @pytest.mark.qgis_show_map(timeout=10, zoom_to_common_extent=True)
-def test_alg_import_inp(qgis_processing, qgis_iface, qgis_new_project):
+def test_alg_import_inp(qgis_processing, qgis_iface, qgis_new_project):  # noqa ARG001
     from qgis import processing
 
     result = processing.run(

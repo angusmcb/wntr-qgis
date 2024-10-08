@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import ast
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Any  # noqa F401
 
@@ -285,7 +287,10 @@ class RunSimulation(QgsProcessingAlgorithm):
             import wntr
         except ImportError:
             try:
-                from wntrqgis.packages import wntr
+                this_dir = os.path.dirname(os.path.realpath(__file__))
+                path = os.path.join(this_dir, "..", "packages")
+                sys.path.append(path)
+                import wntr
             except ImportError as e:
                 msg = "WNTR  is not installed"
                 raise QgsProcessingException(msg) from e
