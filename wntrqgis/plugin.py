@@ -169,7 +169,7 @@ class Plugin:
 
         kwargs: dict[str, Any] = {}
         if os.name == "nt":
-            kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
+            kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)  # type: ignore[attr-defined]
 
         # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
         # https://github.com/qgis/QGIS/issues/45646
