@@ -6,3 +6,6 @@ def test_install_wntr():
 
     wntrqgis.environment_tools.install_wntr()
     assert importlib.util.find_spec("wntr")
+    import wntr
+
+    assert wntr.__version__

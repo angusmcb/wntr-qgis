@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from qgis.core import (
     QgsExpressionContextUtils,
@@ -34,7 +34,7 @@ class EmptyLayers(QgsProcessingAlgorithm):
     PUMPS = "PUMPS"
     VALVES = "VALVES"
 
-    post_processors: dict[str, LayerPostProcessor]
+    post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
 
     def __init__(self) -> None:
         super().__init__()

@@ -16,7 +16,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any  # noqa F401
+from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
     QgsExpressionContextUtils,
@@ -57,7 +57,7 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
-    post_processors: dict[str, LayerPostProcessor]
+    post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
     wn = None
     name_increment = 0
 
