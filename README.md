@@ -11,7 +11,7 @@
 
 This QGIS plugin integrates the US EPA's [Water Network Tools for Resiliance (WNTR)](https://usepa.github.io/WNTR/) with [QGIS](https://qgis.org/). 
 
-The purpose of this plugin is to allow the creation, simulation and visualisation of results of piped water network models within QGIS.
+The purpose of this plugin is to allow all aspects of piped water networks analysis to be done within QGIS including the creation of the model, the simulation and the visualisation of results
 
 It is compatible with and import/exports to, EPANET. It uses the EPANET solver by default. 
 
