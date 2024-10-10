@@ -18,7 +18,7 @@ import wntrqgis.fields
 from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
 
 
-class EmptyLayers(QgsProcessingAlgorithm):
+class TemplateLayers(QgsProcessingAlgorithm):
     CRS = "CRS"
     PRESSUREDEPENDENT = "PRESSUREDEPENDENT"
     QUALITY = "QUALITY"
@@ -35,17 +35,19 @@ class EmptyLayers(QgsProcessingAlgorithm):
     def __init__(self) -> None:
         super().__init__()
 
-        self._name = "emptymodel"
-        self._display_name = "Create Empty Layers"
-        self._group_id = ""
-        self._group = ""
-        self._short_help_string = ""
+        self._name = "templatelayers"
+        self._display_name = "Create Template Layers"
+        self._short_help_string = """
+        This will create a set of 'template' layers, which you can use for building your model.
+        You do not need to create or use all layers if not required for your model.
+        Press the 'Help' button below to find out more.
+        """
 
     def tr(self, string) -> str:
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):  # noqa N802
-        return EmptyLayers()
+        return TemplateLayers()
 
     def name(self) -> str:
         return self._name
@@ -56,27 +58,24 @@ class EmptyLayers(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:  # noqa N802
         return self.tr(self._short_help_string)
 
-    def initAlgorithm(self, config=None):  # noqa N802
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", "ProjectCrs"))
+    def helpUrl(self) -> str:  # noqa N802
+        return "https://www.helpsite.com"
 
-        param = QgsProcessingParameterBoolean(
-            self.QUALITY, "Create Fields for Water Quality Analysis", optional=True, defaultValue=False
+    def initAlgorithm(self, config=None):  # noqa N802
+        self.addParameter(
+            QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"), "ProjectCrs")
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(param)
-        param = QgsProcessingParameterBoolean(
-            self.PRESSUREDEPENDENT,
-            "Create Fields for Pressure-Dependent Demand Analysis",
-            optional=True,
-            defaultValue=False,
-        )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(param)
-        param = QgsProcessingParameterBoolean(
-            self.ENERGY, "Create Fields for Energy Analysis", optional=True, defaultValue=False
-        )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(param)
+
+        for param_name, param_description in {
+            self.QUALITY: "Create Fields for Water Quality Analysis",
+            self.PRESSUREDEPENDENT: "Create Fields for Pressure-Dependent Demand Analysis",
+            self.ENERGY: "Create Fields for Energy Analysis",
+        }.items():
+            param = QgsProcessingParameterBoolean(
+                param_name, self.tr(param_description), optional=True, defaultValue=False
+            )
+            param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+            self.addParameter(param)
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))

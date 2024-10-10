@@ -71,7 +71,9 @@ class ImportInp(QgsProcessingAlgorithm):
                 defaultValue=None,
             )
         )
-        self.addParameter(QgsProcessingParameterCrs(self.CRS, "CRS", "ProjectCrs"))
+        self.addParameter(
+            QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"), "ProjectCrs")
+        )
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))
@@ -85,24 +87,20 @@ class ImportInp(QgsProcessingAlgorithm):
             feedback = QgsProcessingFeedback()
 
         # PREPARE IMPORTS
-        # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
+        # imports are here as they are slow and only needed when processing the model.
         feedback.setProgressText("Checking dependencies")
 
         if environment_tools.check_dependencies():
             msg = "Missing Dependencies"
             raise QgsProcessingException(msg)
 
+        if environment_tools.check_wntr() is None:
+            feedback.setProgressText("Unpacking WNTR")
+            environment_tools.install_wntr()
         try:
             import wntr
         except ImportError as e:
             raise QgsProcessingException(e) from e
-        # except ImportError:
-        #    try:
-        # environment_tools.add_packages_to_path()
-        # import wntr
-        #    except ModuleNotFoundError as e:
-        #        msg = "WNTR is not installed"
-        #        raise QgsProcessingException(msg) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
@@ -128,6 +126,9 @@ class ImportInp(QgsProcessingAlgorithm):
         feedback.pushInfo(str(wn.describe(level=0)))
 
         feedback.setProgressText("Preparing patterns and curves")
+
+        def _pattern_string(pn):
+            return "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]" if wn.get_pattern(pn) else None
 
         wn_gis.junctions["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
         wn_gis.junctions["demand_pattern"] = wn.query_node_attribute(

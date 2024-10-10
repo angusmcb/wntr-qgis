@@ -29,6 +29,7 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterFeatureSource,
     QgsProcessingParameterMatrix,
     QgsProcessingParameterVectorLayer,
     QgsProcessingUtils,
@@ -37,15 +38,14 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication, QMetaType, QVariant
 
+import wntrqgis.options
+from wntrqgis import environment_tools
 from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
 
 
 class RunSimulation(QgsProcessingAlgorithm):
     OPTIONSHYDRAULIC = "OPTIONSHYDRAULIC"
     OPTIONSTIME = "OPTIONSTIME"
-
-    INPUTNODES = "INPUTNODES"
-    INPUTLINKS = "INPUTLINKS"
 
     JUNCTIONS = "JUNCTIONS"
     TANKS = "TANKS"
@@ -59,6 +59,9 @@ class RunSimulation(QgsProcessingAlgorithm):
     post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
     wn = None
     name_increment = 0
+
+    def flags(self):
+        return super().flags() | QgsProcessingAlgorithm.Flag.FlagRequiresMatchingCrs
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -77,11 +80,11 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):  # noqa N802
         default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
-        if default_layers is None:
+        if not isinstance(default_layers, dict):
             default_layers = {}
 
         self.addParameter(
-            QgsProcessingParameterVectorLayer(
+            QgsProcessingParameterFeatureSource(
                 self.JUNCTIONS,
                 "Junctions",
                 types=[QgsProcessing.TypeVectorPoint],
@@ -90,7 +93,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
-            QgsProcessingParameterVectorLayer(
+            QgsProcessingParameterFeatureSource(
                 self.TANKS,
                 "Tanks",
                 types=[QgsProcessing.TypeVectorPoint],
@@ -127,119 +130,12 @@ class RunSimulation(QgsProcessingAlgorithm):
             )
         )
 
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Output Nodes")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTLINKS, self.tr("Output Links")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Simulation Results - Nodes")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTLINKS, self.tr("Simulation Results - Links")))
 
-        default_options = {
-            "time": {
-                "duration": 0.0,
-                "hydraulic_timestep": 3600,
-                "quality_timestep": 360,
-                "rule_timestep": 360,
-                "pattern_timestep": 3600,
-                "pattern_start": 0.0,
-                "report_timestep": 3600,
-                "report_start": 0.0,
-                "start_clocktime": 0.0,
-                "statistic": "NONE",
-                "pattern_interpolation": False,
-            },
-            "hydraulic": {
-                "headloss": "H-W",
-                "hydraulics": None,
-                "hydraulics_filename": None,
-                "viscosity": 1.0,
-                "specific_gravity": 1.0,
-                "pattern": "1",
-                "demand_multiplier": 1.0,
-                "demand_model": "DDA",
-                "minimum_pressure": 0.0,
-                "required_pressure": 0.07,
-                "pressure_exponent": 0.5,
-                "emitter_exponent": 0.5,
-                "trials": 200,
-                "accuracy": 0.001,
-                "unbalanced": "STOP",
-                "unbalanced_value": None,
-                "checkfreq": 2,
-                "maxcheck": 10,
-                "damplimit": 0.0,
-                "headerror": 0.0,
-                "flowchange": 0.0,
-                "inpfile_units": "GPM",
-                "inpfile_pressure_units": None,
-            },
-            "report": {
-                "pagesize": None,
-                "report_filename": None,
-                "status": "NO",
-                "summary": "YES",
-                "energy": "NO",
-                "nodes": False,
-                "links": False,
-                "report_params": {
-                    "elevation": False,
-                    "demand": True,
-                    "head": True,
-                    "pressure": True,
-                    "quality": True,
-                    "length": False,
-                    "diameter": False,
-                    "flow": True,
-                    "velocity": True,
-                    "headloss": True,
-                    "position": False,
-                    "setting": False,
-                    "reaction": False,
-                    "f-factor": False,
-                },
-                "param_opts": {
-                    "elevation": {},
-                    "demand": {},
-                    "head": {},
-                    "pressure": {},
-                    "quality": {},
-                    "length": {},
-                    "diameter": {},
-                    "flow": {},
-                    "velocity": {},
-                    "headloss": {},
-                    "position": {},
-                    "setting": {},
-                    "reaction": {},
-                    "f-factor": {},
-                },
-            },
-            "quality": {
-                "parameter": "NONE",
-                "trace_node": None,
-                "chemical_name": "CHEMICAL",
-                "diffusivity": 1.0,
-                "tolerance": 0.01,
-                "inpfile_units": "mg/L",
-            },
-            "reaction": {
-                "bulk_order": 1.0,
-                "wall_order": 1.0,
-                "tank_order": 1.0,
-                "bulk_coeff": 0.0,
-                "wall_coeff": 0.0,
-                "limiting_potential": None,
-                "roughness_correl": None,
-            },
-            "energy": {"global_price": 0, "global_pattern": None, "global_efficiency": None, "demand_charge": None},
-            "graphics": {
-                "dimensions": None,
-                "units": "NONE",
-                "offset": None,
-                "image_filename": None,
-                "map_filename": None,
-            },
-            "user": {},
-        }
         options = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_options")
 
-        optionslist = default_options
+        optionslist = wntrqgis.options.default_options
         if options:
             for i in options:
                 optionslist[i] = []
@@ -271,9 +167,12 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):  # noqa N802
         # PREPARE IMPORTS
-        # imports are here in case wntr is installed on qgis startup, but also so we can easily provide exceptions
-
+        # imports are here as they are slow and only needed when processing the model.
         feedback.setProgressText("Checking dependencies")
+
+        if environment_tools.check_dependencies():
+            msg = "Missing Dependencies"
+            raise QgsProcessingException(msg)
         try:
             import geopandas as gpd
         except ImportError as e:
@@ -282,24 +181,21 @@ class RunSimulation(QgsProcessingAlgorithm):
         import pandas as pd  # if geopadas installed this should not pose a problem!
         import shapely
 
+        if environment_tools.check_wntr() is None:
+            feedback.setProgressText("Unpacking WNTR")
+            environment_tools.install_wntr()
+
         try:
             import wntr
-        except ImportError:
-            try:
-                this_dir = os.path.dirname(os.path.realpath(__file__))
-                path = os.path.join(this_dir, "..", "packages")
-                sys.path.append(path)
-                import wntr
-            except ImportError as e:
-                msg = "WNTR  is not installed"
-                raise QgsProcessingException(msg) from e
+        except ImportError as e:
+            raise QgsProcessingException(e) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
         # PREPARE WN_GIS GEODATAFRAMES
         if feedback.isCanceled():
             return {}
-        feedback.setProgress(5)
+        feedback.setProgress(10)
         feedback.setProgressText("Creating WNTR model")
 
         options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
@@ -332,6 +228,10 @@ class RunSimulation(QgsProcessingAlgorithm):
                 gdf["node_type"] = node_link_types[i]
             else:
                 gdf["link_type"] = node_link_types[i]
+                gdf["geometry"] = gdf["geometry"].line_merge()  # shapefiles are multi line strings
+            # TODO make aboe and below lines only run on shapefiles, not all inputs
+            gdf.rename(columns=self._shapefile_field_name_map(), inplace=True, errors="ignore")
+            feedback.pushInfo(str(gdf.columns))
             gdf.set_index("name", inplace=True)
             gdf.index.rename(None, inplace=True)
             gdf_inputs[str.lower(i)] = gdf
@@ -382,10 +282,10 @@ class RunSimulation(QgsProcessingAlgorithm):
 
         if feedback.isCanceled():
             return {}
-        try:  # try loading nodes and links into wntr
-            self.wn.from_gis(gdf_inputs)
-        except Exception as e:
-            raise QgsProcessingException("Error loading network: " + str(e)) from e
+        # try:  # try loading nodes and links into wntr
+        self.wn.from_gis(gdf_inputs)
+        # except Exception as e:
+        #    raise QgsProcessingException("Error loading network: " + str(e)) from e
 
         # ADD DEMANDS - wntr 1.2 doesn't handle this automatically
         if gdf_inputs.get("junctions") is not None:
@@ -398,7 +298,6 @@ class RunSimulation(QgsProcessingAlgorithm):
                     ]  # 'None' if no pattern
                     if base_demand:
                         junction.add_demand(base=base_demand, pattern_name=pattern_name)
-                        # feedback.pushInfo("Added demand to " + junction_name + " - " + str(pattern_name))
                 except KeyError:
                     pass
 
@@ -420,9 +319,6 @@ class RunSimulation(QgsProcessingAlgorithm):
         feedback.pushInfo(str(self.wn.describe(level=0)))
 
         # RUN SIMULATION
-
-        if feedback.isCanceled():
-            return {}
         feedback.setProgress(25)
         feedback.setProgressText("Running Simulation")
 
@@ -450,17 +346,19 @@ class RunSimulation(QgsProcessingAlgorithm):
         # PROCESS SIMULATION RESULTS
         outputs = {}
 
+        f = QVariant.Double
+
         possibleparams = {
             "nodes": {
-                "demand": QMetaType.Double,
-                "head": QMetaType.Double,
-                "pressure": QMetaType.Double,
-                "quality": QMetaType.Double,
+                "demand": f,
+                "head": f,
+                "pressure": f,
+                "quality": f,
             },
             "links": {
-                "flowrate": QMetaType.Double,
-                "headloss": QMetaType.Double,
-                "velocity": QMetaType.Double,
+                "flowrate": f,
+                "headloss": f,
+                "velocity": f,
             },
         }
         combined_input_gdf = {
@@ -476,7 +374,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             fields = QgsFields()
             fields.append(QgsField("name", QVariant.String))
             for p in resultparamstouse:
-                fields.append(QgsField(p, QMetaType.QVariantList, subType=possibleparams[nodeorlink][p]))
+                fields.append(QgsField(p, QVariant.List, subType=possibleparams[nodeorlink][p]))
 
             (sink, outputs[input_param[nodeorlink]]) = self.parameterAsSink(
                 parameters,
@@ -503,109 +401,6 @@ class RunSimulation(QgsProcessingAlgorithm):
             feedback.setProgress(feedback.progress() + 20)
 
         feedback.setProgressText("Finished layer creation")
-        """
-
-        combined_input_gdf = {
-            "nodes": pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]),
-            "links": pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]),
-        }
-        input_param = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
-        dest_id = {}
-        for type, result in {"nodes": results.node, "links": results.link}.items():
-            feedback.pushDebugInfo("Processing results for " + type)
-            resultDf = None
-            for param_name in result.keys():
-                feedback.pushDebugInfo("Processing results for " + param_name)
-                param_df = result[param_name].reset_index(names="time")
-                param_long_df = param_df.melt(id_vars="time", var_name="name", value_name=param_name)
-                # merge all our results into one dataframe
-                resultDf = resultDf.merge(param_long_df, on=["name", "time"]) if resultDf is not None else param_long_df
-            # Add a column for time from unix epoch (1 jan 1970) for qgis
-            # temporal controller
-            # results_dfs[type]["datetime"] = pd.to_datetime(results_dfs[type]["time"], unit="s")
-            # feedback.pushDebugInfo(results_dfs[type].info(verbose=True))
-            combined_input_gdf[type].reset_index(inplace=True, names="name")
-            mergedGdf = pd.merge(combined_input_gdf[type][["name", "geometry"]], resultDf, on="name")
-
-            fields = QgsFields()
-            fields.append(QgsField("name", QVariant.String))
-            for c in resultDf.columns:
-                fields.append(QgsField(c, QVariant.Double))
-            if type == "nodes":
-                fields.append(QgsField("demand_list", QMetaType.QVariantList, subType=QMetaType.Double))
-
-            (sink, dest_id[type]) = self.parameterAsSink(
-                parameters,
-                input_param[type],
-                context,
-                fields,
-                QgsWkbTypes.Point if type == "nodes" else QgsWkbTypes.LineString,
-                crs,
-            )
-            g = QgsGeometry()
-            for row in mergedGdf.itertuples(index=False):
-                g.fromWkb(shapely.to_wkb(row.geometry))
-                f = QgsFeature()
-                f.setGeometry(g)
-                alist = []
-                if type == "nodes":
-                    alist = result["demand"][row.name].to_list()
-                f.setAttributes([row[0], *list(row[2 : len(row)]), alist])
-                sink.addFeature(
-                    f,
-                    QgsFeatureSink.FastInsert,
-                )
-        ###
-        inputnodes_gdf = pd.concat(
-            [gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]
-        ).reset_index(inplace=True, names="name")
-        inputlinks_gdf = pd.concat(
-            [gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]
-        ).reset_index(inplace=True, names="name")
-
-        outputnodes_df = pd.merge(inputnodes_gdf[["name", "geometry"]], results_dfs["nodes"], on="name")
-        outputlinks_df = pd.merge(inputlinks_gdf[["name", "geometry"]], results_dfs["links"], on="name")
-
-        feedback.pushInfo("Finished processing model outputs.")
-
-        nodefields = QgsFields()
-        nodefields.append(QgsField("name", QVariant.String))
-        for c in results_dfs["nodes"].columns:
-            nodefields.append(QgsField(c, QVariant.Double))
-
-        (junctionssink, junctions_dest_id) = self.parameterAsSink(
-            parameters,
-            self.OUTPUTNODES,
-            context,
-            nodefields,
-            QgsWkbTypes.Point,
-            crs,
-        )
-        g = QgsGeometry()
-        for row in outputnodes_df.itertuples(index=False):
-            g.fromWkb(shapely.to_wkb(row.geometry))
-            f = QgsFeature()
-            f.setGeometry(g)
-            f.setAttributes([row[0], *list(row[2 : len(row)])])
-            junctionssink.addFeature(
-                f,
-                QgsFeatureSink.FastInsert,
-            )
-
-
-        feedback.pushDebugInfo("about to access json")
-        nodejson = outputnodes_df.to_json()
-        fields = QgsJsonUtils.stringToFields(nodejson)
-        feedback.pushDebugInfo(nodejson)
-        (nodessink, nodes_dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUTNODES, context, fields, QgsWkbTypes.Point, crs
-        )
-        feedback.pushDebugInfo("created sink")
-        nodessink.addFeatures(QgsJsonUtils.stringToFeatureList(nodejson, fields))
-
-
-
-        """
 
         # PREPARE TO LOAD LAYER STYLES IN MAIN THREAD ONCE FINISHED
 
@@ -615,6 +410,30 @@ class RunSimulation(QgsProcessingAlgorithm):
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs
+
+    def _shapefile_field_name_map(self):
+        """
+        Return a map (dictionary) of tuncated shapefile field names to
+        valid base WaterNetworkModel attribute names
+
+        Esri Shapefiles truncate field names to 10 characters. The field name
+        map links truncated shapefile field names to complete (and ofen longer)
+        WaterNetworkModel attribute names.  This assumes that the first 10
+        characters of each attribute name are unique.
+
+        Returns
+        -------
+        field_name_map : dict
+            Map (dictionary) of valid base shapefile field names to
+            WaterNetworkModel attribute names
+        """
+
+        valid_names = wntrqgis.fields.namesPerLayer
+
+        name_map = {}
+        for attributes in valid_names.values():
+            name_map.update({attribute[:10]: attribute for attribute in attributes})
+        return name_map
 
 
 class LoggingHandler(logging.StreamHandler):

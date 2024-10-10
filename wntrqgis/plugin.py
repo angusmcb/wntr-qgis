@@ -8,7 +8,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
-from wntrqgis.environment_tools import check_dependencies, check_wntr, install_wntr
+# from wntrqgis.environment_tools import check_dependencies, check_wntr, install_wntr
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
@@ -36,11 +36,6 @@ class Plugin:
 
         self.actions: list[QAction] = []
         self.menu = Plugin.name
-
-        self.missing_deps = check_dependencies()
-
-        if len(self.missing_deps) == 0 and check_wntr() is None:
-            install_wntr()
 
     def add_action(
         self,
@@ -116,12 +111,17 @@ class Plugin:
     def initGui(self) -> None:  # noqa N802
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        if len(self.missing_deps):
-            iface.messageBar().pushMessage(
-                "Error",
-                "Water Network Tools for Resiliance Plugin has missing dependencies: " + ", ".join(self.missing_deps),
-                level=Qgis.Warning,
-            )
+        # self.missing_deps = check_dependencies()
+
+        # if len(self.missing_deps) == 0 and check_wntr() is None:
+        #    install_wntr()
+
+        # if len(self.missing_deps):
+        #    iface.messageBar().pushMessage(
+        #        "Error",
+        #        "Water Network Tools for Resiliance Plugin has missing dependencies: " + ", ".join(self.missing_deps),
+        #        level=Qgis.Warning,
+        #    )
 
         self.add_action(
             "",

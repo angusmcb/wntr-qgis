@@ -38,7 +38,7 @@ def test_alg_empty_model(qgis_processing, qgis_iface, qgis_new_project):  # noqa
     from qgis import processing
 
     result = processing.run(
-        "wntr:emptymodel",
+        "wntr:templatelayers",
         {
             "CRS": QgsCoordinateReferenceSystem("EPSG:4326"),
             "JUNCTIONS": "TEMPORARY_OUTPUT",
@@ -132,12 +132,13 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, tmp_pa
             lyr: "ogr:dbname='" + str(tmp_path / "outputs.gpkg") + "' table=\"" + lyr + '" (geom)'
             for lyr in expected_inp_results
         },
-        # "shape": {l: str(tmp_path / (l + ".shp")) for l in expected_inp_results},
+        "shape": {lyr: str(tmp_path / (lyr + ".shp")) for lyr in expected_inp_results},
+        "geojson": {lyr: str(tmp_path / (lyr + ".geojson")) for lyr in expected_inp_results},
     }
-
+    run_results = []
     for fileset in outputfilesets.values():
         template_result = processing.run(
-            "wntr:emptymodel", {"CRS": QgsCoordinateReferenceSystem("EPSG:4326"), **fileset}
+            "wntr:templatelayers", {"CRS": QgsCoordinateReferenceSystem("EPSG:4326"), **fileset}
         )
 
         expectedoutputs = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
@@ -165,4 +166,8 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, tmp_pa
 
         expected_run_results = ["OUTPUTNODES", "OUTPUTLINKS"]
         assert all(outkey in expected_run_results for outkey in run_result)
+        run_results.append(run_result)
+
+    # need to find a way to check if all match
+
     QgsProject.instance().addMapLayers(run_result.values())
