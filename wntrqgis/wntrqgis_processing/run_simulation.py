@@ -15,7 +15,6 @@ import ast
 import logging
 import os
 import sys
-from pathlib import Path
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
@@ -28,17 +27,17 @@ from qgis.core import (
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
-    QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterMatrix,
     QgsProcessingParameterVectorLayer,
     QgsProcessingUtils,
     QgsProject,
-    QgsVectorLayer,
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication, QMetaType, QVariant
+
+from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
 
 
 class RunSimulation(QgsProcessingAlgorithm):
@@ -615,23 +614,7 @@ class RunSimulation(QgsProcessingAlgorithm):
                 self.post_processors[lyr_id] = LayerPostProcessor.create(outputname)
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
-        return outputs  # , self.OUTPUTLINKS: pipes_dest_id}
-
-
-class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
-    instance = None
-    layertype = None
-
-    def postProcessLayer(self, layer, context, feedback):  # noqa N802
-        if not isinstance(layer, QgsVectorLayer):
-            return
-        layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
-
-    @staticmethod
-    def create(layertype):
-        LayerPostProcessor.instance = LayerPostProcessor()
-        LayerPostProcessor.instance.layertype = layertype
-        return LayerPostProcessor.instance
+        return outputs
 
 
 class LoggingHandler(logging.StreamHandler):

@@ -20,6 +20,16 @@ def check_dependencies():
     ]
 
 
+def check_wntr():
+    if find_spec("wntr") is None:
+        return None
+    try:
+        import wntr
+    except ImportError:
+        return None
+    return wntr.__version__
+
+
 def install_wntr() -> bool:
     this_dir = os.path.dirname(os.path.realpath(__file__))
     wheels = os.path.join(this_dir, "wheels/")
@@ -40,6 +50,7 @@ def install_wntr() -> bool:
             "install",
             "--no-index",
             "--upgrade",
+            "--force-reinstall",
             "--target=" + packagedir,
             "--no-deps",
             "--find-links=" + wheels,

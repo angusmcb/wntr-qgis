@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from importlib.util import find_spec
 from typing import Callable
 
 from qgis.core import Qgis, QgsApplication
@@ -9,7 +8,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
-from wntrqgis.environment_tools import check_dependencies, install_wntr
+from wntrqgis.environment_tools import check_dependencies, check_wntr, install_wntr
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
@@ -40,7 +39,7 @@ class Plugin:
 
         self.missing_deps = check_dependencies()
 
-        if len(self.missing_deps) == 0 and find_spec("wntr") is None:
+        if len(self.missing_deps) == 0 and check_wntr() is None:
             install_wntr()
 
     def add_action(

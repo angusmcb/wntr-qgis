@@ -9,7 +9,10 @@
 ***************************************************************************
 """
 
-from qgis import processing
+from __future__ import annotations
+
+from typing import ClassVar
+
 from qgis.core import (
     QgsExpressionContextUtils,
     QgsFeature,
@@ -21,11 +24,13 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
     QgsProject,
+    QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
 import wntrqgis.fields
 from wntrqgis import environment_tools
+from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
 
 
 class ImportInp(QgsProcessingAlgorithm):
@@ -38,6 +43,8 @@ class ImportInp(QgsProcessingAlgorithm):
     PIPES = "PIPES"
     PUMPS = "PUMPS"
     VALVES = "VALVES"
+
+    post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -162,7 +169,7 @@ class ImportInp(QgsProcessingAlgorithm):
                 else None
             )
 
-        feedback.setProgressText("Preparing template layers")
+        feedback.setProgressText("Creating output layers")
 
         # first check which types of 'extra' fields to add
 
@@ -177,34 +184,10 @@ class ImportInp(QgsProcessingAlgorithm):
         for i, j in extras.items():
             if set(j) & set(allcols):
                 extracols.append(i)
-                feedback.pushInfo("Including columns for " + str.lower(i))
+                feedback.pushDebugInfo("Will include columns for analysis type: " + str.lower(i))
 
-        try:
-            emptylayers = processing.run(
-                "wntr:emptymodel",
-                {
-                    "CRS": crs,
-                    "PRESSUREDEPENDENT": "PRESSUREDEPENDENT" in extracols,
-                    "QUALITY": "QUALITY" in extracols,
-                    "ENERGY": "ENERGY" in extracols,
-                    "JUNCTIONS": parameters[self.JUNCTIONS],
-                    "PIPES": parameters[self.PIPES],
-                    "PUMPS": parameters[self.PUMPS],
-                    "RESERVOIRS": parameters[self.RESERVOIRS],
-                    "TANKS": parameters[self.TANKS],
-                    "VALVES": parameters[self.VALVES],
-                },
-                context=context,
-                feedback=None,
-                is_child_algorithm=True,
-            )
-        except QgsProcessingException as e:
-            raise QgsProcessingException("Couldn't create template layer:" + str(e)) from e
-
-        feedback.setProgressText("Filling template layers")
-
-        outputs = {}
-        for i, j in {
+        outputs: dict[str, str] = {}
+        for layername, j in {
             "JUNCTIONS": wn_gis.junctions,
             "TANKS": wn_gis.tanks,
             "RESERVOIRS": wn_gis.reservoirs,
@@ -212,9 +195,12 @@ class ImportInp(QgsProcessingAlgorithm):
             "PUMPS": wn_gis.pumps,
             "VALVES": wn_gis.valves,
         }.items():
-            emptylayer = context.getMapLayer(emptylayers[i])
+            geomtype = (
+                QgsWkbTypes.Point if layername in ["JUNCTIONS", "TANKS", "RESERVOIRS"] else QgsWkbTypes.LineString
+            )
+            fields = wntrqgis.fields.getQgsFields(str.lower(layername), extracols)
+            (sink, outputs[layername]) = self.parameterAsSink(parameters, layername, context, fields, geomtype, crs)
 
-            outputs[i] = emptylayers[i]
             if j.shape[0] > 0:
                 j.reset_index(inplace=True, names="name")
                 for jsonfeature in QgsJsonUtils.stringToFeatureList(
@@ -222,14 +208,19 @@ class ImportInp(QgsProcessingAlgorithm):
                 ):
                     newfeature = QgsFeature()
                     newfeature.setGeometry(jsonfeature.geometry())
-                    newfeature.setFields(emptylayer.fields())
+                    newfeature.setFields(fields)
                     for fieldname in jsonfeature.fields().names():
-                        if fieldname in emptylayer.fields().names():
+                        if fieldname in fields.names():
                             newfeature[fieldname] = jsonfeature[fieldname]
-                    emptylayer.dataProvider().addFeature(newfeature)
+                    sink.addFeature(newfeature)
 
         feedback.setProgressText("Saving options to project file")
 
         QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_options", wn.options.to_dict())
+
+        for layername, lyr_id in outputs.items():
+            if context.willLoadLayerOnCompletion(lyr_id):
+                self.post_processors[lyr_id] = LayerPostProcessor.create(layername)
+                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs

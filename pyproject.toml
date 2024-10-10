@@ -1,7 +1,9 @@
 [tool.pytest.ini_options]
 addopts = "-v"
 testpaths = ['tests/']
-
+filterwarnings = [
+    'ignore: .*QgsField constructor is deprecated'
+]
 [tool.coverage.report]
 omit = ["wntrqgis/qgis_plugin_tools/*"]
 

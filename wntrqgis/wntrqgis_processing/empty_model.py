@@ -1,25 +1,21 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, ClassVar
 
 from qgis.core import (
-    QgsExpressionContextUtils,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
-    QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterCrs,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
-    QgsProject,
-    QgsVectorLayer,
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
 import wntrqgis.fields
+from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
 
 
 class EmptyLayers(QgsProcessingAlgorithm):
@@ -95,64 +91,24 @@ class EmptyLayers(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,  # noqa ARG002
     ) -> dict:
-        outputs = {
-            "junctions": {"parameter": self.JUNCTIONS, "type": QgsWkbTypes.Point},
-            "tanks": {"parameter": self.TANKS, "type": QgsWkbTypes.Point},
-            "reservoirs": {"parameter": self.RESERVOIRS, "type": QgsWkbTypes.Point},
-            "pipes": {"parameter": self.PIPES, "type": QgsWkbTypes.LineString},
-            "pumps": {"parameter": self.PUMPS, "type": QgsWkbTypes.LineString},
-            "valves": {"parameter": self.VALVES, "type": QgsWkbTypes.LineString},
-        }
-
-        extra = [
+        extracols = [
             i
             for i in [self.QUALITY, self.PRESSUREDEPENDENT, self.ENERGY]
             if self.parameterAsBoolean(parameters, i, context)
         ]
 
-        returnoutputs = {}
-        for i in outputs:
-            fields = wntrqgis.fields.getQgsFields(i, extra)
-
-            (outputs[i]["sink"], dest_id) = self.parameterAsSink(
-                parameters,
-                outputs[i]["parameter"],
-                context,
-                fields,
-                outputs[i]["type"],
-                self.parameterAsCrs(parameters, self.CRS, context),
+        outputs: dict[str, str] = {}
+        crs = self.parameterAsCrs(parameters, self.CRS, context)
+        for layername in ["JUNCTIONS", "TANKS", "RESERVOIRS", "PIPES", "PUMPS", "VALVES"]:
+            geomtype = (
+                QgsWkbTypes.Point if layername in ["JUNCTIONS", "TANKS", "RESERVOIRS"] else QgsWkbTypes.LineString
             )
-            returnoutputs[outputs[i]["parameter"]] = dest_id
+            fields = wntrqgis.fields.getQgsFields(str.lower(layername), extracols)
+            (sink, outputs[layername]) = self.parameterAsSink(parameters, layername, context, fields, geomtype, crs)
 
-            if context.willLoadLayerOnCompletion(dest_id):
-                self.post_processors[dest_id] = LayerPostProcessor.create(outputs[i]["parameter"])
-                context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(self.post_processors[dest_id])
-
-        """
-        for lyr_id in returnoutputs.values():
+        for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create()
+                self.post_processors[lyr_id] = LayerPostProcessor.create(layername)
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
-        """
-        return returnoutputs
 
-
-class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
-    instance = None
-    layertype = None
-
-    def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
-        if not isinstance(layer, QgsVectorLayer):
-            return
-        layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
-        wntr_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
-        if wntr_layers is None:
-            wntr_layers = {}
-        wntr_layers[self.layertype] = layer.id()
-        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_layers", wntr_layers)
-
-    @staticmethod
-    def create(layertype) -> LayerPostProcessor:
-        LayerPostProcessor.instance = LayerPostProcessor()
-        LayerPostProcessor.instance.layertype = layertype
-        return LayerPostProcessor.instance
+        return outputs
