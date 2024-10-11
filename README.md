@@ -9,18 +9,18 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
-This QGIS plugin integrates the US EPA's [Water Network Tools for Resiliance (WNTR)](https://usepa.github.io/WNTR/) with [QGIS](https://qgis.org/). 
+This QGIS plugin integrates the US EPA's [Water Network Tools for Resiliance (WNTR)](https://usepa.github.io/WNTR/) with [QGIS](https://qgis.org/).
 
-The purpose of this plugin is to allow all aspects of piped water networks analysis to be done within QGIS including the creation of the model, the simulation and the visualisation of results
+The purpose of this plugin is to allow all aspects of piped water networks analysis to be done within QGIS including the creation of the model, the simulation and the visualisation of results.
 
-It is compatible with and import/exports to, EPANET. It uses the EPANET solver by default. 
+It is compatible with and import/exports to, EPANET. It uses the EPANET solver by default.
 
 Compared to other QGIS water network modelling plugins, this plugin aims to be:
 - **Easy to use.** Accessible for thowe who know how to use QGIS. Well documented, good defaults, clear functionality.
 - **Integrate the power of QGIS and WNTR.** It aims to completement rather than replace features already within QGIS. Data can be manipulated with the standard QGIS tools, processing algorithms, and plugins.
 - **Robust.** Limited, well tested features.
 - **Flexible.** Not choosy about how you do things.
-- **Automatable / programmable.** Tools can be used in the QGIS 'model builder' or from  PyQGIS 
+- **Automatable / programmable.** Tools can be used in the QGIS 'model builder' or from  PyQGIS
 
 ## Installation
 
@@ -62,7 +62,7 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
 5. **Viewing the results.** Use all the power of QGIS to view and analyse your results.
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
    - Use QGIS's temporal manager to view how your results change over time.
- 
+
 
 ## License
 This plugin is distributed under the terms of the [GNU General Public License, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) license.
