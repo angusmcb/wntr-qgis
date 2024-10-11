@@ -17,7 +17,7 @@ jobs:
       matrix:
         # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
         docker_tags: ['ltr','3.38.3', latest]
-        os: [ubuntu-22.04, ubuntu-latest]
+        os: [ubuntu-latest]
       fail-fast: false
 
     # Steps represent a sequence of tasks that will be executed as part of the job
