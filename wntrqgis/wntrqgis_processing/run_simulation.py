@@ -27,7 +27,7 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
-    QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterFileDestination,
     QgsProcessingParameterMatrix,
     QgsProcessingParameterVectorLayer,
     QgsProcessingUtils,
@@ -54,6 +54,7 @@ class RunSimulation(QgsProcessingAlgorithm):
 
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
+    OUTPUTINP = "OUTPUTINP"
     post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
     wn = None
     name_increment = 0
@@ -82,7 +83,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             default_layers = {}
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.JUNCTIONS,
                 "Junctions",
                 types=[QgsProcessing.TypeVectorPoint],
@@ -91,7 +92,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.TANKS,
                 "Tanks",
                 types=[QgsProcessing.TypeVectorPoint],
@@ -159,6 +160,12 @@ class RunSimulation(QgsProcessingAlgorithm):
             hasFixedNumberRows=True,
             headers=["Setting Name", "Setting Value"],
             defaultValue=optionslist["hydraulic"],
+        )
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param)
+
+        param = QgsProcessingParameterFileDestination(
+            self.OUTPUTINP, "Output .inp file", optional=True, createByDefault=False
         )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
@@ -331,9 +338,14 @@ class RunSimulation(QgsProcessingAlgorithm):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-        tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
+        outputs = {}
 
+        tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
+        inpfile = self.parameterAsFile(parameters, self.OUTPUTINP, context)
         try:
+            if inpfile:
+                wntr.network.write_inpfile(self.wn, inpfile)
+                outputs = {self.OUTPUTINP: inpfile}
             sim = wntr.sim.EpanetSimulator(self.wn)
             results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
         except Exception as e:
@@ -345,7 +357,6 @@ class RunSimulation(QgsProcessingAlgorithm):
         feedback.setProgressText("Simulation completed.")
 
         # PROCESS SIMULATION RESULTS
-        outputs = {}
 
         f = QVariant.Double
 

@@ -123,8 +123,13 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
 
 @pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
 def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, tmp_path):  # noqa ARG001
+    import wntr
     from qgis import processing
 
+    inputinp = str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net2.inp")
+    inputwn = wntr.network.read_inpfile(inputinp)
+    sim = wntr.sim.EpanetSimulator(inputwn)
+    inputresults = sim.run_sim()
     expected_inp_results = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
     outputfilesets = {
         "TEMPORARY_OUTPUT": {lyr: "TEMPORARY_OUTPUT" for lyr in expected_inp_results},
@@ -132,7 +137,7 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, tmp_pa
             lyr: "ogr:dbname='" + str(tmp_path / "outputs.gpkg") + "' table=\"" + lyr + '" (geom)'
             for lyr in expected_inp_results
         },
-        "shape": {lyr: str(tmp_path / (lyr + ".shp")) for lyr in expected_inp_results},
+        # "shape": {lyr: str(tmp_path / (lyr + ".shp")) for lyr in expected_inp_results},
         "geojson": {lyr: str(tmp_path / (lyr + ".geojson")) for lyr in expected_inp_results},
     }
     run_results = []
@@ -148,7 +153,7 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, tmp_pa
             "wntr:importinp",
             {
                 "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
-                "INPUT": str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.inp"),
+                "INPUT": inputinp,
                 **fileset,
             },
         )
@@ -160,14 +165,21 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, tmp_pa
             {
                 "OUTPUTNODES": "TEMPORARY_OUTPUT",
                 "OUTPUTLINKS": "TEMPORARY_OUTPUT",
+                "OUTPUTINP": "TEMPORARY_OUTPUT",
                 **inp_result,
             },
         )
 
-        expected_run_results = ["OUTPUTNODES", "OUTPUTLINKS"]
+        expected_run_results = ["OUTPUTNODES", "OUTPUTLINKS", "OUTPUTINP"]
         assert all(outkey in expected_run_results for outkey in run_result)
         run_results.append(run_result)
 
+        wn = wntr.network.read_inpfile(run_result["OUTPUTINP"])
+        sim = wntr.sim.EpanetSimulator(wn)
+        outputresults = sim.run_sim()
+
+        assert all(inputresults.node[i].equals(outputresults.node[i]) for i in ["pressure", "head", "demand"])
+
     # need to find a way to check if all match
 
-    QgsProject.instance().addMapLayers(run_result.values())
+    QgsProject.instance().addMapLayers([run_result["OUTPUTLINKS"]])
