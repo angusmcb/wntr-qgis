@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import ast
 import logging
-import os
-import sys
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
@@ -36,7 +34,7 @@ from qgis.core import (
     QgsProject,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QMetaType, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 import wntrqgis.options
 from wntrqgis import environment_tools
@@ -229,7 +227,7 @@ class RunSimulation(QgsProcessingAlgorithm):
             else:
                 gdf["link_type"] = node_link_types[i]
                 gdf["geometry"] = gdf["geometry"].line_merge()  # shapefiles are multi line strings
-            # TODO make aboe and below lines only run on shapefiles, not all inputs
+            # TODO: make aboe and below lines only run on shapefiles, not all inputs
             gdf.rename(columns=self._shapefile_field_name_map(), inplace=True, errors="ignore")
             feedback.pushInfo(str(gdf.columns))
             gdf.set_index("name", inplace=True)
@@ -252,14 +250,17 @@ class RunSimulation(QgsProcessingAlgorithm):
                 return name
             return None
 
-        def _add_pattern(pattern_string):
-            if pattern_string:
-                self.name_increment = self.name_increment + 1
-                name = str(self.name_increment)
-                patternlist = ast.literal_eval(pattern_string)
-                self.wn.add_pattern(name=name, pattern=patternlist)
-                return name
-            return None
+        def _add_pattern(pattern):
+            if not pattern:
+                return None
+            if isinstance(pattern, str) and pattern != "":
+                patternlist = ast.literal_eval(pattern)
+            elif isinstance(pattern, list):
+                patternlist = pattern
+            self.name_increment = self.name_increment + 1
+            name = str(self.name_increment)
+            self.wn.add_pattern(name=name, pattern=patternlist)
+            return name
 
         if "junctions" in gdf_inputs and "demand_pattern" in gdf_inputs["junctions"]:
             gdf_inputs["junctions"]["demand_pattern_name"] = gdf_inputs["junctions"]["demand_pattern"].apply(
