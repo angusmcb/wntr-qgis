@@ -40,7 +40,6 @@ class TemplateLayers(QgsProcessingAlgorithm):
         self._short_help_string = """
         This will create a set of 'template' layers, which you can use for building your model.
         You do not need to create or use all layers if not required for your model.
-        Press the 'Help' button below to find out more.
         """
 
     def tr(self, string) -> str:
@@ -58,8 +57,8 @@ class TemplateLayers(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:  # noqa N802
         return self.tr(self._short_help_string)
 
-    def helpUrl(self) -> str:  # noqa N802
-        return "https://www.helpsite.com"
+    # def helpUrl(self) -> str:  # N802
+    #    return "" # "https://www.helpsite.com"
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(

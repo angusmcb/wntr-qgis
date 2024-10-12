@@ -75,7 +75,14 @@ class RunSimulation(QgsProcessingAlgorithm):
         return self.tr("Run Simulation")
 
     def shortHelpString(self):  # noqa N802
-        return self.tr("Example algorithm short description")
+        return self.tr("""
+            This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), \
+            combine them with the chosen options, and run a simulation on WNTR.
+            The output files are a layer of 'nodes' (junctions, tanks, reservoirs) and \
+            'links' (pipes, valves, pumps).
+            Optionally, you can also output an EPANET '.inp' file which can be run / viewed \
+            in other software.
+            """)
 
     def initAlgorithm(self, config=None):  # noqa N802
         default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")

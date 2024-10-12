@@ -1,3 +1,6 @@
-wntr
+pandas
+networkx
+numpy
+scipy
+matplotlib
 geopandas
-shapely

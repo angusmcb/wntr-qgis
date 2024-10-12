@@ -1,18 +1,18 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis simplifyAlgorithm="0" readOnly="0" symbologyReferenceScale="-1" simplifyMaxScale="1" minScale="100000000" styleCategories="AllStyleCategories" simplifyDrawingTol="1" maxScale="0" version="3.38.3-Grenoble" labelsEnabled="0" simplifyLocal="1" hasScaleBasedVisibilityFlag="0" simplifyDrawingHints="1">
+<qgis minScale="100000000" styleCategories="AllStyleCategories" simplifyDrawingHints="1" simplifyDrawingTol="1" simplifyAlgorithm="0" readOnly="0" labelsEnabled="0" simplifyLocal="1" version="3.38.3-Grenoble" symbologyReferenceScale="-1" simplifyMaxScale="1" maxScale="0" hasScaleBasedVisibilityFlag="0">
   <flags>
     <Identifiable>1</Identifiable>
     <Removable>1</Removable>
     <Searchable>1</Searchable>
     <Private>0</Private>
   </flags>
-  <temporal limitMode="0" accumulate="0" mode="0" startExpression="" endExpression="" durationUnit="min" endField="" fixedDuration="0" startField="" durationField="diameter" enabled="0">
+  <temporal startExpression="" startField="" enabled="0" accumulate="0" limitMode="0" endField="" durationUnit="min" mode="0" durationField="diameter" fixedDuration="0" endExpression="">
     <fixedRange>
       <start></start>
       <end></end>
     </fixedRange>
   </temporal>
-  <elevation extrusion="0" extrusionEnabled="0" type="IndividualFeatures" showMarkerSymbolInSurfacePlots="0" binding="Centroid" clamping="Terrain" zscale="1" zoffset="0" symbology="Line" respectLayerSymbol="1">
+  <elevation type="IndividualFeatures" zoffset="0" extrusion="0" respectLayerSymbol="1" showMarkerSymbolInSurfacePlots="0" binding="Centroid" extrusionEnabled="0" clamping="Terrain" zscale="1" symbology="Line">
     <data-defined-properties>
       <Option type="Map">
         <Option type="QString" value="" name="name"/>
@@ -21,7 +21,7 @@
       </Option>
     </data-defined-properties>
     <profileLineSymbol>
-      <symbol force_rhr="0" is_animated="0" type="line" frame_rate="10" name="" alpha="1" clip_to_extent="1">
+      <symbol type="line" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="" clip_to_extent="1">
         <data_defined_properties>
           <Option type="Map">
             <Option type="QString" value="" name="name"/>
@@ -29,7 +29,7 @@
             <Option type="QString" value="collection" name="type"/>
           </Option>
         </data_defined_properties>
-        <layer class="SimpleLine" id="{2a51e43b-43ca-4e01-9e9c-a1e49a12d11a}" pass="0" locked="0" enabled="1">
+        <layer locked="0" enabled="1" id="{2a51e43b-43ca-4e01-9e9c-a1e49a12d11a}" pass="0" class="SimpleLine">
           <Option type="Map">
             <Option type="QString" value="0" name="align_dash_pattern"/>
             <Option type="QString" value="square" name="capstyle"/>
@@ -70,7 +70,7 @@
       </symbol>
     </profileLineSymbol>
     <profileFillSymbol>
-      <symbol force_rhr="0" is_animated="0" type="fill" frame_rate="10" name="" alpha="1" clip_to_extent="1">
+      <symbol type="fill" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="" clip_to_extent="1">
         <data_defined_properties>
           <Option type="Map">
             <Option type="QString" value="" name="name"/>
@@ -78,7 +78,7 @@
             <Option type="QString" value="collection" name="type"/>
           </Option>
         </data_defined_properties>
-        <layer class="SimpleFill" id="{adb0c53f-01c5-4097-9750-c7efdb30b86a}" pass="0" locked="0" enabled="1">
+        <layer locked="0" enabled="1" id="{adb0c53f-01c5-4097-9750-c7efdb30b86a}" pass="0" class="SimpleFill">
           <Option type="Map">
             <Option type="QString" value="3x:0,0,0,0,0,0" name="border_width_map_unit_scale"/>
             <Option type="QString" value="164,113,88,255,rgb:0.64313725490196083,0.44313725490196076,0.34509803921568627,1" name="color"/>
@@ -103,7 +103,7 @@
       </symbol>
     </profileFillSymbol>
     <profileMarkerSymbol>
-      <symbol force_rhr="0" is_animated="0" type="marker" frame_rate="10" name="" alpha="1" clip_to_extent="1">
+      <symbol type="marker" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="" clip_to_extent="1">
         <data_defined_properties>
           <Option type="Map">
             <Option type="QString" value="" name="name"/>
@@ -111,7 +111,7 @@
             <Option type="QString" value="collection" name="type"/>
           </Option>
         </data_defined_properties>
-        <layer class="SimpleMarker" id="{e118f0ec-1787-4897-925a-f03fa1b8a44b}" pass="0" locked="0" enabled="1">
+        <layer locked="0" enabled="1" id="{e118f0ec-1787-4897-925a-f03fa1b8a44b}" pass="0" class="SimpleMarker">
           <Option type="Map">
             <Option type="QString" value="0" name="angle"/>
             <Option type="QString" value="square" name="cap_style"/>
@@ -144,9 +144,9 @@
       </symbol>
     </profileMarkerSymbol>
   </elevation>
-  <renderer-v2 referencescale="-1" type="singleSymbol" forceraster="0" enableorderby="0" symbollevels="0">
+  <renderer-v2 type="singleSymbol" forceraster="0" symbollevels="0" referencescale="-1" enableorderby="0">
     <symbols>
-      <symbol force_rhr="0" is_animated="0" type="line" frame_rate="10" name="0" alpha="1" clip_to_extent="1">
+      <symbol type="line" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="0" clip_to_extent="1">
         <data_defined_properties>
           <Option type="Map">
             <Option type="QString" value="" name="name"/>
@@ -154,7 +154,7 @@
             <Option type="QString" value="collection" name="type"/>
           </Option>
         </data_defined_properties>
-        <layer class="MarkerLine" id="{52a19216-0a9d-4206-953e-24fb6202c409}" pass="0" locked="0" enabled="1">
+        <layer locked="0" enabled="1" id="{52a19216-0a9d-4206-953e-24fb6202c409}" pass="0" class="MarkerLine">
           <Option type="Map">
             <Option type="QString" value="4" name="average_angle_length"/>
             <Option type="QString" value="3x:0,0,0,0,0,0" name="average_angle_map_unit_scale"/>
@@ -180,7 +180,7 @@
               <Option type="QString" value="collection" name="type"/>
             </Option>
           </data_defined_properties>
-          <symbol force_rhr="0" is_animated="0" type="marker" frame_rate="10" name="@0@0" alpha="1" clip_to_extent="1">
+          <symbol type="marker" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="@0@0" clip_to_extent="1">
             <data_defined_properties>
               <Option type="Map">
                 <Option type="QString" value="" name="name"/>
@@ -188,7 +188,7 @@
                 <Option type="QString" value="collection" name="type"/>
               </Option>
             </data_defined_properties>
-            <layer class="SimpleMarker" id="{1d806d93-13f3-45b0-b510-52c7320bec03}" pass="0" locked="0" enabled="1">
+            <layer locked="0" enabled="1" id="{1d806d93-13f3-45b0-b510-52c7320bec03}" pass="0" class="SimpleMarker">
               <Option type="Map">
                 <Option type="QString" value="0" name="angle"/>
                 <Option type="QString" value="square" name="cap_style"/>
@@ -218,7 +218,7 @@
                 </Option>
               </data_defined_properties>
             </layer>
-            <layer class="SimpleMarker" id="{4edaeb0e-bf85-46a4-9644-aecdc9766894}" pass="0" locked="0" enabled="1">
+            <layer locked="0" enabled="1" id="{4edaeb0e-bf85-46a4-9644-aecdc9766894}" pass="0" class="SimpleMarker">
               <Option type="Map">
                 <Option type="QString" value="180" name="angle"/>
                 <Option type="QString" value="square" name="cap_style"/>
@@ -250,7 +250,7 @@
             </layer>
           </symbol>
         </layer>
-        <layer class="SimpleLine" id="{e8a23c71-3184-4e76-aedc-c4e0da88336a}" pass="0" locked="0" enabled="1">
+        <layer locked="0" enabled="1" id="{e8a23c71-3184-4e76-aedc-c4e0da88336a}" pass="0" class="SimpleLine">
           <Option type="Map">
             <Option type="QString" value="0" name="align_dash_pattern"/>
             <Option type="QString" value="square" name="capstyle"/>
@@ -303,7 +303,7 @@
   <selection mode="Default">
     <selectionColor invalid="1"/>
     <selectionSymbol>
-      <symbol force_rhr="0" is_animated="0" type="line" frame_rate="10" name="" alpha="1" clip_to_extent="1">
+      <symbol type="line" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="" clip_to_extent="1">
         <data_defined_properties>
           <Option type="Map">
             <Option type="QString" value="" name="name"/>
@@ -311,7 +311,7 @@
             <Option type="QString" value="collection" name="type"/>
           </Option>
         </data_defined_properties>
-        <layer class="SimpleLine" id="{620f0fcb-e619-426d-86a8-25733815408b}" pass="0" locked="0" enabled="1">
+        <layer locked="0" enabled="1" id="{620f0fcb-e619-426d-86a8-25733815408b}" pass="0" class="SimpleLine">
           <Option type="Map">
             <Option type="QString" value="0" name="align_dash_pattern"/>
             <Option type="QString" value="square" name="capstyle"/>
@@ -364,10 +364,11 @@
   <featureBlendMode>0</featureBlendMode>
   <layerOpacity>1</layerOpacity>
   <SingleCategoryDiagramRenderer attributeLegend="1" diagramType="Histogram">
-    <DiagramCategory sizeType="MM" backgroundAlpha="255" scaleBasedVisibility="0" backgroundColor="#ffffff" direction="0" barWidth="5" height="15" minimumSize="0" maxScaleDenominator="1e+08" opacity="1" spacing="5" rotationOffset="270" minScaleDenominator="0" lineSizeType="MM" spacingUnitScale="3x:0,0,0,0,0,0" labelPlacementMethod="XHeight" scaleDependency="Area" lineSizeScale="3x:0,0,0,0,0,0" spacingUnit="MM" sizeScale="3x:0,0,0,0,0,0" diagramOrientation="Up" penAlpha="255" showAxis="1" penColor="#000000" penWidth="0" width="15" enabled="0">
-      <fontProperties description="Ubuntu,11,-1,5,50,0,0,0,0,0" strikethrough="0" style="" bold="0" italic="0" underline="0"/>
+    <DiagramCategory height="15" spacingUnit="MM" enabled="0" sizeScale="3x:0,0,0,0,0,0" width="15" showAxis="1" direction="0" opacity="1" penWidth="0" minScaleDenominator="0" labelPlacementMethod="XHeight" spacing="5" sizeType="MM" lineSizeScale="3x:0,0,0,0,0,0" scaleDependency="Area" spacingUnitScale="3x:0,0,0,0,0,0" maxScaleDenominator="1e+08" penColor="#000000" backgroundColor="#ffffff" minimumSize="0" diagramOrientation="Up" backgroundAlpha="255" lineSizeType="MM" barWidth="5" rotationOffset="270" penAlpha="255" scaleBasedVisibility="0">
+      <fontProperties underline="0" style="" bold="0" italic="0" strikethrough="0" description="Ubuntu,11,-1,5,50,0,0,0,0,0"/>
+      <attribute colorOpacity="1" field="" label="" color="#000000"/>
       <axisSymbol>
-        <symbol force_rhr="0" is_animated="0" type="line" frame_rate="10" name="" alpha="1" clip_to_extent="1">
+        <symbol type="line" is_animated="0" force_rhr="0" alpha="1" frame_rate="10" name="" clip_to_extent="1">
           <data_defined_properties>
             <Option type="Map">
               <Option type="QString" value="" name="name"/>
@@ -375,7 +376,7 @@
               <Option type="QString" value="collection" name="type"/>
             </Option>
           </data_defined_properties>
-          <layer class="SimpleLine" id="{f58350b9-595c-47eb-935b-72b96dba8f23}" pass="0" locked="0" enabled="1">
+          <layer locked="0" enabled="1" id="{f58350b9-595c-47eb-935b-72b96dba8f23}" pass="0" class="SimpleLine">
             <Option type="Map">
               <Option type="QString" value="0" name="align_dash_pattern"/>
               <Option type="QString" value="square" name="capstyle"/>
@@ -417,7 +418,7 @@
       </axisSymbol>
     </DiagramCategory>
   </SingleCategoryDiagramRenderer>
-  <DiagramLayerSettings placement="2" linePlacementFlags="18" priority="0" showAll="1" obstacle="0" dist="0" zIndex="0">
+  <DiagramLayerSettings linePlacementFlags="18" obstacle="0" dist="0" placement="2" zIndex="0" priority="0" showAll="1">
     <properties>
       <Option type="Map">
         <Option type="QString" value="" name="name"/>
@@ -426,7 +427,7 @@
       </Option>
     </properties>
   </DiagramLayerSettings>
-  <geometryOptions removeDuplicateNodes="0" geometryPrecision="0">
+  <geometryOptions geometryPrecision="0" removeDuplicateNodes="0">
     <activeChecks/>
     <checkConfiguration/>
   </geometryOptions>
@@ -443,14 +444,20 @@
     <field configurationFlags="NoFlag" name="start_node_name">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="end_node_name">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
@@ -489,68 +496,56 @@
         </config>
       </editWidget>
     </field>
-    <field configurationFlags="NoFlag" name="tag">
-      <editWidget type="TextEdit">
-        <config>
-          <Option/>
-        </config>
-      </editWidget>
-    </field>
   </fieldConfiguration>
   <aliases>
-    <alias field="name" name="" index="0"/>
-    <alias field="start_node_name" name="" index="1"/>
-    <alias field="end_node_name" name="" index="2"/>
-    <alias field="diameter" name="" index="3"/>
-    <alias field="valve_type" name="" index="4"/>
-    <alias field="minor_loss" name="" index="5"/>
-    <alias field="initial_setting" name="" index="6"/>
-    <alias field="initial_status" name="" index="7"/>
-    <alias field="tag" name="" index="8"/>
+    <alias index="0" field="name" name=""/>
+    <alias index="1" field="start_node_name" name=""/>
+    <alias index="2" field="end_node_name" name=""/>
+    <alias index="3" field="diameter" name=""/>
+    <alias index="4" field="valve_type" name=""/>
+    <alias index="5" field="minor_loss" name=""/>
+    <alias index="6" field="initial_setting" name=""/>
+    <alias index="7" field="initial_status" name=""/>
   </aliases>
   <splitPolicies>
-    <policy policy="Duplicate" field="name"/>
-    <policy policy="Duplicate" field="start_node_name"/>
-    <policy policy="Duplicate" field="end_node_name"/>
-    <policy policy="Duplicate" field="diameter"/>
-    <policy policy="Duplicate" field="valve_type"/>
-    <policy policy="Duplicate" field="minor_loss"/>
-    <policy policy="Duplicate" field="initial_setting"/>
-    <policy policy="Duplicate" field="initial_status"/>
-    <policy policy="Duplicate" field="tag"/>
+    <policy field="name" policy="Duplicate"/>
+    <policy field="start_node_name" policy="Duplicate"/>
+    <policy field="end_node_name" policy="Duplicate"/>
+    <policy field="diameter" policy="Duplicate"/>
+    <policy field="valve_type" policy="Duplicate"/>
+    <policy field="minor_loss" policy="Duplicate"/>
+    <policy field="initial_setting" policy="Duplicate"/>
+    <policy field="initial_status" policy="Duplicate"/>
   </splitPolicies>
   <duplicatePolicies>
-    <policy policy="Duplicate" field="name"/>
-    <policy policy="Duplicate" field="start_node_name"/>
-    <policy policy="Duplicate" field="end_node_name"/>
-    <policy policy="Duplicate" field="diameter"/>
-    <policy policy="Duplicate" field="valve_type"/>
-    <policy policy="Duplicate" field="minor_loss"/>
-    <policy policy="Duplicate" field="initial_setting"/>
-    <policy policy="Duplicate" field="initial_status"/>
-    <policy policy="Duplicate" field="tag"/>
+    <policy field="name" policy="Duplicate"/>
+    <policy field="start_node_name" policy="Duplicate"/>
+    <policy field="end_node_name" policy="Duplicate"/>
+    <policy field="diameter" policy="Duplicate"/>
+    <policy field="valve_type" policy="Duplicate"/>
+    <policy field="minor_loss" policy="Duplicate"/>
+    <policy field="initial_setting" policy="Duplicate"/>
+    <policy field="initial_status" policy="Duplicate"/>
   </duplicatePolicies>
   <defaults>
     <default expression="" field="name" applyOnUpdate="0"/>
-    <default expression="" field="start_node_name" applyOnUpdate="0"/>
-    <default expression="" field="end_node_name" applyOnUpdate="0"/>
+    <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0]&#xa;)" field="start_node_name" applyOnUpdate="1"/>
+    <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0]&#xa;)" field="end_node_name" applyOnUpdate="1"/>
     <default expression="" field="diameter" applyOnUpdate="0"/>
     <default expression="" field="valve_type" applyOnUpdate="0"/>
     <default expression="" field="minor_loss" applyOnUpdate="0"/>
     <default expression="" field="initial_setting" applyOnUpdate="0"/>
     <default expression="" field="initial_status" applyOnUpdate="0"/>
-    <default expression="" field="tag" applyOnUpdate="0"/>
   </defaults>
   <constraints>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="name" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="start_node_name" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="end_node_name" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="diameter" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="valve_type" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="minor_loss" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="initial_setting" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="initial_status" constraints="0"/>
-    <constraint notnull_strength="0" exp_strength="0" unique_strength="0" field="tag" constraints="0"/>
+    <constraint unique_strength="0" constraints="0" field="name" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="start_node_name" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="end_node_name" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="diameter" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="valve_type" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="minor_loss" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="initial_setting" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="0" field="initial_status" exp_strength="0" notnull_strength="0"/>
   </constraints>
   <constraintExpressions>
     <constraint exp="" field="name" desc=""/>
@@ -561,24 +556,22 @@
     <constraint exp="" field="minor_loss" desc=""/>
     <constraint exp="" field="initial_setting" desc=""/>
     <constraint exp="" field="initial_status" desc=""/>
-    <constraint exp="" field="tag" desc=""/>
   </constraintExpressions>
   <expressionfields/>
   <attributeactions>
     <defaultAction key="Canvas" value="{00000000-0000-0000-0000-000000000000}"/>
   </attributeactions>
-  <attributetableconfig actionWidgetStyle="dropDown" sortOrder="0" sortExpression="">
+  <attributetableconfig sortOrder="0" sortExpression="" actionWidgetStyle="dropDown">
     <columns>
-      <column type="field" hidden="0" name="name" width="-1"/>
-      <column type="field" hidden="0" name="start_node_name" width="-1"/>
-      <column type="field" hidden="0" name="end_node_name" width="-1"/>
-      <column type="field" hidden="0" name="diameter" width="-1"/>
-      <column type="field" hidden="0" name="valve_type" width="-1"/>
-      <column type="field" hidden="0" name="minor_loss" width="-1"/>
-      <column type="field" hidden="0" name="initial_setting" width="-1"/>
-      <column type="field" hidden="0" name="initial_status" width="-1"/>
-      <column type="field" hidden="0" name="tag" width="-1"/>
-      <column type="actions" hidden="1" width="-1"/>
+      <column type="field" width="-1" hidden="0" name="name"/>
+      <column type="field" width="-1" hidden="0" name="start_node_name"/>
+      <column type="field" width="-1" hidden="0" name="end_node_name"/>
+      <column type="field" width="-1" hidden="0" name="diameter"/>
+      <column type="field" width="-1" hidden="0" name="valve_type"/>
+      <column type="field" width="-1" hidden="0" name="minor_loss"/>
+      <column type="field" width="-1" hidden="0" name="initial_setting"/>
+      <column type="field" width="-1" hidden="0" name="initial_status"/>
+      <column type="actions" width="-1" hidden="1"/>
     </columns>
   </attributetableconfig>
   <conditionalstyles>

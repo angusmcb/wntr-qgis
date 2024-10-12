@@ -59,7 +59,11 @@ class ImportInp(QgsProcessingAlgorithm):
         return self.tr("Import from Epanet INP file")
 
     def shortHelpString(self):  # noqa N802
-        return self.tr("Example algorithm short description")
+        return self.tr("""
+            Import all junctions, tanks, reservoirs, pipes, pumps and valves from an EPANET inp file.
+            This will also import all of the options from the .inp file.
+            All values will be in SI units (metres, kg, seconds, m3/s, etc).
+            """)
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(
@@ -187,7 +191,7 @@ class ImportInp(QgsProcessingAlgorithm):
                 extracols.append(i)
                 feedback.pushDebugInfo("Will include columns for analysis type: " + str.lower(i))
 
-        outputs: dict[str, str] = {}
+        outputs = {}
         for layername, j in {
             "JUNCTIONS": wn_gis.junctions,
             "TANKS": wn_gis.tanks,
