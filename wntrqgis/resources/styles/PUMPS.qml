@@ -355,6 +355,9 @@
   <customproperties>
     <Option type="Map">
       <Option type="bool" value="false" name="OnConvertFormatRegeneratePrimaryKey"/>
+      <Option type="List" name="dualview/previewExpressions">
+        <Option type="QString" value="&quot;name&quot;"/>
+      </Option>
       <Option type="int" value="0" name="embeddedWidgets/count"/>
       <Option name="variableNames"/>
       <Option name="variableValues"/>
@@ -437,7 +440,10 @@
     <field configurationFlags="NoFlag" name="name">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
@@ -462,51 +468,78 @@
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="pump_type">
-      <editWidget type="TextEdit">
+      <editWidget type="ValueMap">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="List" name="map">
+              <Option type="Map">
+                <Option type="QString" value="HEAD" name="HEAD"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="POWER" name="POWER"/>
+              </Option>
+            </Option>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="pump_curve">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="power">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="base_speed">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="speed_pattern">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="initial_status">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="initial_setting">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
@@ -548,7 +581,7 @@
     <policy field="initial_setting" policy="Duplicate"/>
   </duplicatePolicies>
   <defaults>
-    <default expression="" field="name" applyOnUpdate="0"/>
+    <default expression="if(&quot;name&quot;,&quot;name&quot;,&#xa;concat('PUMP',to_string(array_filter(&#xa;generate_series(1,array_length(array_agg(&quot;name&quot;))+1),&#xa;NOT(array_contains(&#xa;array_agg(&quot;name&quot;),concat('PUMP',to_string(@element))&#xa;)),&#xa;limit:=1&#xa;)[0]))&#xa;)&#xa;&#xa;" field="name" applyOnUpdate="1"/>
     <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0]&#xa;)" field="start_node_name" applyOnUpdate="1"/>
     <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0]&#xa;)" field="end_node_name" applyOnUpdate="1"/>
     <default expression="" field="pump_type" applyOnUpdate="0"/>

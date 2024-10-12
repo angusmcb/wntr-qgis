@@ -505,7 +505,7 @@
       <editWidget type="Range">
         <config>
           <Option type="Map">
-            <Option type="bool" value="true" name="AllowNull"/>
+            <Option type="bool" value="false" name="AllowNull"/>
             <Option type="double" value="1.7976931348623157e+308" name="Max"/>
             <Option type="double" value="0" name="Min"/>
             <Option type="int" value="0" name="Precision"/>
@@ -520,7 +520,7 @@
       <editWidget type="Range">
         <config>
           <Option type="Map">
-            <Option type="bool" value="true" name="AllowNull"/>
+            <Option type="bool" value="false" name="AllowNull"/>
             <Option type="double" value="1.7976931348623157e+308" name="Max"/>
             <Option type="double" value="0" name="Min"/>
             <Option type="int" value="3" name="Precision"/>
@@ -568,11 +568,13 @@
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="check_valve">
-      <editWidget type="TextEdit">
+      <editWidget type="CheckBox">
         <config>
           <Option type="Map">
-            <Option type="bool" value="false" name="IsMultiline"/>
-            <Option type="bool" value="false" name="UseHtml"/>
+            <Option type="bool" value="false" name="AllowNullState"/>
+            <Option type="QString" value="" name="CheckedState"/>
+            <Option type="int" value="0" name="TextDisplayMethod"/>
+            <Option type="QString" value="" name="UncheckedState"/>
           </Option>
         </config>
       </editWidget>
@@ -640,26 +642,26 @@
   <defaults>
     <default expression="if(&quot;name&quot;,&quot;name&quot;,&#xa;concat('P',to_string(array_filter(&#xa;generate_series(1,array_length(array_agg(&quot;name&quot;))+1),&#xa;NOT(array_contains(&#xa;array_agg(&quot;name&quot;),concat('P',to_string(@element))&#xa;)),&#xa;limit:=1&#xa;)[0]))&#xa;)&#xa;&#xa;" field="name" applyOnUpdate="1"/>
     <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0]&#xa;)" field="start_node_name" applyOnUpdate="1"/>
-    <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0]&#xa;)" field="end_node_name" applyOnUpdate="1"/>
+    <default expression="" field="end_node_name" applyOnUpdate="0"/>
     <default expression="round($length)" field="length" applyOnUpdate="1"/>
     <default expression="0.1" field="diameter" applyOnUpdate="0"/>
     <default expression="100" field="roughness" applyOnUpdate="0"/>
     <default expression="" field="minor_loss" applyOnUpdate="0"/>
     <default expression="'Open'" field="initial_status" applyOnUpdate="0"/>
-    <default expression="" field="check_valve" applyOnUpdate="0"/>
+    <default expression="False" field="check_valve" applyOnUpdate="0"/>
     <default expression="" field="bulk_coeff" applyOnUpdate="0"/>
     <default expression="" field="wall_coeff" applyOnUpdate="0"/>
   </defaults>
   <constraints>
-    <constraint unique_strength="2" constraints="2" field="name" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="2" constraints="3" field="name" exp_strength="0" notnull_strength="2"/>
     <constraint unique_strength="0" constraints="0" field="start_node_name" exp_strength="0" notnull_strength="0"/>
     <constraint unique_strength="0" constraints="0" field="end_node_name" exp_strength="0" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="4" field="length" exp_strength="2" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="4" field="diameter" exp_strength="2" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="0" field="roughness" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="5" field="length" exp_strength="2" notnull_strength="2"/>
+    <constraint unique_strength="0" constraints="5" field="diameter" exp_strength="2" notnull_strength="2"/>
+    <constraint unique_strength="0" constraints="1" field="roughness" exp_strength="0" notnull_strength="2"/>
     <constraint unique_strength="0" constraints="0" field="minor_loss" exp_strength="0" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="0" field="initial_status" exp_strength="0" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="0" field="check_valve" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="1" field="initial_status" exp_strength="0" notnull_strength="2"/>
+    <constraint unique_strength="0" constraints="1" field="check_valve" exp_strength="0" notnull_strength="2"/>
     <constraint unique_strength="0" constraints="0" field="bulk_coeff" exp_strength="0" notnull_strength="0"/>
     <constraint unique_strength="0" constraints="0" field="wall_coeff" exp_strength="0" notnull_strength="0"/>
   </constraints>
@@ -667,8 +669,8 @@
     <constraint exp="" field="name" desc=""/>
     <constraint exp="" field="start_node_name" desc=""/>
     <constraint exp="" field="end_node_name" desc=""/>
-    <constraint exp="round($length)=&quot;length&quot;" field="length" desc=""/>
-    <constraint exp="&quot;diameter&quot;>0 AND &quot;diameter&quot;&lt;5" field="diameter" desc="Pipe diameter is normally within 1 - 5 metres"/>
+    <constraint exp="round($length)=round(&quot;length&quot;)" field="length" desc=""/>
+    <constraint exp="&quot;diameter&quot;>0 AND &quot;diameter&quot;&lt;5" field="diameter" desc="Pipe diameter is normally within 0 - 5 metres"/>
     <constraint exp="" field="roughness" desc=""/>
     <constraint exp="" field="minor_loss" desc=""/>
     <constraint exp="" field="initial_status" desc=""/>

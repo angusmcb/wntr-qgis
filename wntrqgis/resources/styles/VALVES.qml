@@ -437,7 +437,10 @@
     <field configurationFlags="NoFlag" name="name">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
@@ -464,14 +467,38 @@
     <field configurationFlags="NoFlag" name="diameter">
       <editWidget type="TextEdit">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="bool" value="false" name="IsMultiline"/>
+            <Option type="bool" value="false" name="UseHtml"/>
+          </Option>
         </config>
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="valve_type">
-      <editWidget type="TextEdit">
+      <editWidget type="ValueMap">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="List" name="map">
+              <Option type="Map">
+                <Option type="QString" value="PRV" name="Pressure Reducing Valve"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="PSV" name="Pressure Sustaining Valve"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="PBV" name="Pressure Breaker Valve"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="FCV" name="Flow Control Valve"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="TCV" name="Throttle Control Valve"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="GPV" name="General Purpose Valve"/>
+              </Option>
+            </Option>
+          </Option>
         </config>
       </editWidget>
     </field>
@@ -490,9 +517,21 @@
       </editWidget>
     </field>
     <field configurationFlags="NoFlag" name="initial_status">
-      <editWidget type="TextEdit">
+      <editWidget type="ValueMap">
         <config>
-          <Option/>
+          <Option type="Map">
+            <Option type="List" name="map">
+              <Option type="Map">
+                <Option type="QString" value="OPEN" name="OPEN"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="CLOSED" name="CLOSED"/>
+              </Option>
+              <Option type="Map">
+                <Option type="QString" value="ACTIVE" name="ACTIVE"/>
+              </Option>
+            </Option>
+          </Option>
         </config>
       </editWidget>
     </field>
@@ -528,24 +567,24 @@
     <policy field="initial_status" policy="Duplicate"/>
   </duplicatePolicies>
   <defaults>
-    <default expression="" field="name" applyOnUpdate="0"/>
+    <default expression="if(&quot;name&quot;,&quot;name&quot;,&#xa;concat('VALVE',to_string(array_filter(&#xa;generate_series(1,array_length(array_agg(&quot;name&quot;))+1),&#xa;NOT(array_contains(&#xa;array_agg(&quot;name&quot;),concat('VALVE',to_string(@element))&#xa;)),&#xa;limit:=1&#xa;)[0]))&#xa;)&#xa;&#xa;" field="name" applyOnUpdate="1"/>
     <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, start_point(geometry(@parent) ) ) )[0]&#xa;)" field="start_node_name" applyOnUpdate="1"/>
     <default expression="coalesce(&#xa;&#x9;aggregate( @wntr_layers['JUNCTIONS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['RESERVOIRS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0],&#xa;&#x9;aggregate( @wntr_layers['TANKS'],'array_agg',expression:=&quot;name&quot;, filter:=intersects( $geometry, end_point(geometry(@parent) ) ) )[0]&#xa;)" field="end_node_name" applyOnUpdate="1"/>
     <default expression="" field="diameter" applyOnUpdate="0"/>
-    <default expression="" field="valve_type" applyOnUpdate="0"/>
+    <default expression="'PRV'" field="valve_type" applyOnUpdate="0"/>
     <default expression="" field="minor_loss" applyOnUpdate="0"/>
     <default expression="" field="initial_setting" applyOnUpdate="0"/>
-    <default expression="" field="initial_status" applyOnUpdate="0"/>
+    <default expression="'ACTIVE'" field="initial_status" applyOnUpdate="0"/>
   </defaults>
   <constraints>
     <constraint unique_strength="0" constraints="0" field="name" exp_strength="0" notnull_strength="0"/>
     <constraint unique_strength="0" constraints="0" field="start_node_name" exp_strength="0" notnull_strength="0"/>
     <constraint unique_strength="0" constraints="0" field="end_node_name" exp_strength="0" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="0" field="diameter" exp_strength="0" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="0" field="valve_type" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="1" field="diameter" exp_strength="0" notnull_strength="2"/>
+    <constraint unique_strength="0" constraints="1" field="valve_type" exp_strength="0" notnull_strength="2"/>
     <constraint unique_strength="0" constraints="0" field="minor_loss" exp_strength="0" notnull_strength="0"/>
     <constraint unique_strength="0" constraints="0" field="initial_setting" exp_strength="0" notnull_strength="0"/>
-    <constraint unique_strength="0" constraints="0" field="initial_status" exp_strength="0" notnull_strength="0"/>
+    <constraint unique_strength="0" constraints="1" field="initial_status" exp_strength="0" notnull_strength="2"/>
   </constraints>
   <constraintExpressions>
     <constraint exp="" field="name" desc=""/>
