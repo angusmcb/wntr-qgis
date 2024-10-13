@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import ClassVar
 
 from qgis.core import (
@@ -85,6 +86,14 @@ class ImportInp(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFeatureSink(self.PIPES, self.tr("Pipes")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.PUMPS, self.tr("Pumps")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.VALVES, self.tr("Valves")))
+
+    def preprocessParameters(self, parameters):  # noqa N802
+        if not Path(parameters[self.INPUT]).is_file():
+            example_file = Path(__file__).parent.parent / "resources" / "examples" / parameters[self.INPUT]
+            if example_file.is_file():
+                parameters[self.INPUT] = str(example_file)
+
+        return parameters
 
     def processAlgorithm(self, parameters, context, feedback):  # noqa N802
         if feedback is None:
@@ -219,9 +228,17 @@ class ImportInp(QgsProcessingAlgorithm):
                             newfeature[fieldname] = jsonfeature[fieldname]
                     sink.addFeature(newfeature)
 
-        feedback.setProgressText("Saving options to project file")
+        feedback.setProgressText("Saving options and controls to project file")
+
+        controls = []
+        for k, c in wn.controls.items():
+            cc = c.to_dict()
+            if "name" in cc and not cc["name"]:
+                cc["name"] = k
+            controls.append(cc)
 
         QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_options", wn.options.to_dict())
+        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntr_controls", controls)
 
         for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):

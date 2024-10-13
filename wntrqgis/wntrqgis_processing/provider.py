@@ -18,11 +18,6 @@ class Provider(QgsProcessingProvider):
         return self._id
 
     def name(self) -> str:
-        """
-        The display name of your plugin in Processing.
-
-        This string should be as short as possible and localised.
-        """
         return self._name
 
     def load(self) -> bool:
@@ -30,12 +25,9 @@ class Provider(QgsProcessingProvider):
         return True
 
     def icon(self):
-        return QIcon(resources_path("icons", "water_circle.jpg"))
+        return QIcon(resources_path("icons", "water_circle.png"))
 
     def loadAlgorithms(self) -> None:  # noqa N802
-        """
-        Adds individual processing algorithms to the provider.
-        """
         self.addAlgorithm(RunSimulation())
         self.addAlgorithm(ImportInp())
         self.addAlgorithm(TemplateLayers())

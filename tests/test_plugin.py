@@ -26,7 +26,7 @@ def example_dir():
 
 
 def examples_list():
-    return ["Net1.inp", "Net2.inp", "Net3.inp"]
+    return ["Net1.inp", "Net2.inp", "Net3.inp", "Net6.inp", "ky10.inp"]
 
 
 expected_model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
@@ -135,12 +135,12 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
         )
 
 
-@pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson"])
+@pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
 def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):  # noqa ARG001
     import wntr
     from qgis import processing
 
-    inputinp = str(example_dir / "Net2.inp")
+    inputinp = str(example_dir / "Net3.simplified.inp")
 
     fileset = output_params(expected_model_layers, tmp_path, filetype)
 

@@ -52,6 +52,8 @@ class RunSimulation(QgsProcessingAlgorithm):
     PUMPS = "PUMPS"
     VALVES = "VALVES"
 
+    CONTROLS = "CONTROLS"
+
     OUTPUTNODES = "OUTPUTNODES"
     OUTPUTLINKS = "OUTPUTLINKS"
     OUTPUTINP = "OUTPUTINP"
@@ -89,52 +91,18 @@ class RunSimulation(QgsProcessingAlgorithm):
         if not isinstance(default_layers, dict):
             default_layers = {}
 
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.JUNCTIONS,
-                "Junctions",
-                types=[QgsProcessing.TypeVectorPoint],
-                defaultValue=default_layers.get("JUNCTIONS"),
-                optional=True,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.TANKS,
-                "Tanks",
-                types=[QgsProcessing.TypeVectorPoint],
-                defaultValue=default_layers.get("TANKS"),
-                optional=True,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.RESERVOIRS,
-                "Reservoirs",
-                types=[QgsProcessing.TypeVectorPoint],
-                defaultValue=default_layers.get("RESERVOIRS"),
-                optional=True,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.PIPES,
-                "Pipes",
-                types=[QgsProcessing.TypeVectorLine],
-                defaultValue=default_layers.get("PIPES"),
-                optional=True,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.PUMPS, "Pumps", defaultValue=default_layers.get("PUMPS"), optional=True
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.VALVES, "Valves", defaultValue=default_layers.get("VALVES"), optional=True
-            )
-        )
+        for lyr in [
+            (self.JUNCTIONS, "Junctions", [QgsProcessing.TypeVectorPoint]),
+            (self.TANKS, "Tanks", [QgsProcessing.TypeVectorPoint]),
+            (self.RESERVOIRS, "Reservoirs", [QgsProcessing.TypeVectorPoint]),
+            (self.PIPES, "Pipes", [QgsProcessing.TypeVectorLine]),
+            (self.PUMPS, "Pumps", [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPoint]),
+            (self.VALVES, "Valves", [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPoint]),
+        ]:
+            param = QgsProcessingParameterVectorLayer(lyr[0], lyr[1], types=lyr[2], optional=True)
+            param.setGuiDefaultValueOverride(default_layers.get(lyr[0]))
+            param.setHelp(self.tr("Model Inputs"))
+            self.addParameter(param)
 
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Simulation Results - Nodes")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTLINKS, self.tr("Simulation Results - Links")))
@@ -176,6 +144,11 @@ class RunSimulation(QgsProcessingAlgorithm):
         )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
+
+        # param = QgsProcessingParameterString(self.CONTROLS, "Controls", multiLine=True)
+        # param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # param.setGuiDefaultValueOverride()
+        # self.addParameter(param)
 
     def processAlgorithm(self, parameters, context, feedback):  # noqa N802
         # PREPARE IMPORTS
@@ -222,10 +195,6 @@ class RunSimulation(QgsProcessingAlgorithm):
             "VALVES": "Valve",
         }
 
-        # ! this doesn't seem to be working
-        if self.validateInputCrs(parameters, context) is not True:
-            feedback.pushWarning("Warning - CRS of inputs don't match - this could cause unexpected problems")
-
         gdf_inputs = {}
         for i in ["JUNCTIONS", "TANKS", "RESERVOIRS", "PIPES", "PUMPS", "VALVES"]:
             lyr = self.parameterAsVectorLayer(parameters, i, context)
@@ -233,6 +202,7 @@ class RunSimulation(QgsProcessingAlgorithm):
                 continue
             crs = lyr.crs()
             gdf = gpd.GeoDataFrame.from_features(lyr.getFeatures())
+
             gdf.dropna(how="all", axis=1, inplace=True)
             if len(gdf) == 0:
                 continue
@@ -240,10 +210,12 @@ class RunSimulation(QgsProcessingAlgorithm):
                 gdf["node_type"] = node_link_types[i]
             else:
                 gdf["link_type"] = node_link_types[i]
-                gdf["geometry"] = gdf["geometry"].line_merge()  # shapefiles are multi line strings
-            # TODO: make aboe and below lines only run on shapefiles, not all inputs
+                # this is for shapefiles, but must not apply otherwise or causes problems
+                if isinstance(gdf["geometry"].iloc[0], shapely.MultiLineString):
+                    gdf["geometry"] = gdf["geometry"].apply(lambda g: g.geoms[0])  # shapefiles are multi line strings
+            # below line should only affect shapefiles
             gdf.rename(columns=self._shapefile_field_name_map(), inplace=True, errors="ignore")
-            feedback.pushInfo(str(gdf.columns))
+
             gdf.set_index("name", inplace=True)
             gdf.index.rename(None, inplace=True)
             gdf_inputs[str.lower(i)] = gdf

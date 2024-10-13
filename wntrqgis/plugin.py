@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable
-
 from qgis.core import QgsApplication
-from qgis.PyQt.QtCore import QCoreApplication, QTranslator
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QWidget
+from qgis.PyQt.QtCore import QAction, QCoreApplication, QTranslator
 from qgis.utils import iface
 
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
@@ -36,6 +32,7 @@ class Plugin:
         self.actions: list[QAction] = []
         self.menu = Plugin.name
 
+    """
     def add_action(
         self,
         icon_path: str,
@@ -49,7 +46,7 @@ class Plugin:
         whats_this: str | None = None,
         parent: QWidget | None = None,
     ) -> QAction:
-        """Add a toolbar icon to the toolbar.
+        Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
             path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
@@ -78,7 +75,7 @@ class Plugin:
         :returns: The action that was created. Note that the action is also
             added to self.actions list.
         :rtype: QAction
-        """
+
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -102,6 +99,7 @@ class Plugin:
         self.actions.append(action)
 
         return action
+        """
 
     def initProcessing(self):  # noqa N802
         self.provider = Provider()
@@ -121,7 +119,7 @@ class Plugin:
         #        "Water Network Tools for Resiliance Plugin has missing dependencies: " + ", ".join(self.missing_deps),
         #        level=Qgis.Warning,
         #    )
-
+        """
         self.add_action(
             "",
             text=Plugin.name,
@@ -129,6 +127,7 @@ class Plugin:
             parent=iface.mainWindow(),
             add_to_toolbar=False,
         )
+        """
         self.initProcessing()
 
     def onClosePlugin(self) -> None:  # noqa N802

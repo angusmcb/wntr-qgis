@@ -11,12 +11,12 @@
 
 This QGIS plugin integrates the US EPA's [Water Network Tools for Resiliance (WNTR)](https://usepa.github.io/WNTR/) with [QGIS](https://qgis.org/).
 
-The purpose of this plugin is to allow all aspects of piped water networks analysis to be done within QGIS including the creation of the model, the simulation and the visualisation of results.
+A plugin for doing all aspects of piped water networks analysis directly within QGIS. This includes the creation of the model, the simulation and the visualisation of results.
 
 It is compatible with and import/exports to, EPANET. It uses the EPANET solver by default.
 
 Compared to other QGIS water network modelling plugins, this plugin aims to be:
-- **Easy to use.** Accessible for thowe who know how to use QGIS. Well documented, good defaults, clear functionality.
+- **Easy to use.** Accessible for those who know how to use QGIS. Well documented, good defaults, clear functionality.
 - **Integrate the power of QGIS and WNTR.** It aims to completement rather than replace features already within QGIS. Data can be manipulated with the standard QGIS tools, processing algorithms, and plugins.
 - **Robust.** Limited, well tested features.
 - **Flexible.** Not choosy about how you do things.
@@ -42,7 +42,7 @@ WNTR will have created three new processing algorithms. If you can't see the pro
 
 Whilst the plugin is very flexible in how it's used, the key principles are the following four steps:
 
-1. **Layer Creation** Layers can either be created using the 'Create Template Layers' processing algorithm, or imported from EPANET files using the tools provided in the processing toolbox (or you can create them manually). All of the layers are optional - only create what you need.
+1. **Layer Creation** Layers can either be created using the 'Create Template Layers' processing algorithm, or imported from EPANET files using the tools provided in the processing toolbox (or you can create them manually). If you are not sure where to start, type 'Net3.inp' into the 'Import from Epanet .inp file' algorithm. All of the layers are optional - only create what you need.
 	- Junctions
 	- Reservoirs
 	- Tanks
@@ -63,6 +63,11 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
    - Use QGIS's temporal manager to view how your results change over time.
 
+### Limitations
+The plugin is currently marked as experimental. Some features are not yet implemented. Including:
+* Water quality analysis is not yet possible
+* Controls do not yet work
+* Shapefile support is limited (due to a limitation of attribute length to 254 characters)
 
 ## License
 This plugin is distributed under the terms of the [GNU General Public License, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) license.
