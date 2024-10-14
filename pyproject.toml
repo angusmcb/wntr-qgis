@@ -2,7 +2,8 @@
 addopts = "-v"
 testpaths = ['tests/']
 filterwarnings = [
-    'ignore: .*QgsField constructor is deprecated'
+    'ignore: .*QgsField constructor is deprecated',
+    'ignore: .*pkg_resources'
 ]
 [tool.coverage.report]
 omit = ["wntrqgis/qgis_plugin_tools/*"]

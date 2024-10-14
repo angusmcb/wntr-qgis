@@ -22,6 +22,9 @@ Compared to other QGIS water network modelling plugins, this plugin aims to be:
 - **Flexible.** Not choosy about how you do things.
 - **Automatable / programmable.** Tools can be used in the QGIS 'model builder' or from  PyQGIS
 
+
+Feedback on this plugin would be very welcome.
+
 ## Installation
 
 Install the plugin in QGIS in the normal way (see the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary).
@@ -63,11 +66,14 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
    - Use QGIS's temporal manager to view how your results change over time.
 
-### Limitations
-The plugin is currently marked as experimental. Some features are not yet implemented. Including:
-* Water quality analysis is not yet possible
-* Controls do not yet work
-* Shapefile support is limited (due to a limitation of attribute length to 254 characters)
+## Limitations
+The plugin is currently marked as experimental. Some features which exist in WNTR / EPANET  are not yet implemented:
+* Water quality analysis
+* Controls
+* Multiple demands per node.
+* Patterns on valves
+
+In addition, Shapefile support is limited (due to a limitation of attribute length to 254 characters)
 
 ## License
 This plugin is distributed under the terms of the [GNU General Public License, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) license.
