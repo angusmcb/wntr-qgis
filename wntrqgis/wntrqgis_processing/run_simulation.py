@@ -107,15 +107,23 @@ class RunSimulation(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Simulation Results - Nodes")))
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTLINKS, self.tr("Simulation Results - Links")))
 
-        options = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_options")
+        saved_options = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_options")
 
-        optionslist = wntrqgis.options.default_options
-        if options:
-            for i in options:
-                optionslist[i] = []
-                for x, y in options[i].items():
-                    optionslist[i].append(x)
-                    optionslist[i].append(y)
+        default_options = wntrqgis.options.get_default_options()
+
+        optionslist = {}
+
+        for optionskey in ["time", "hydraulic"]:
+            if isinstance(default_options[optionskey], dict):
+                if isinstance(saved_options, dict):
+                    optionsdict = default_options[optionskey] | saved_options.get(optionskey, {})
+                else:
+                    optionsdict = default_options[optionskey]
+
+                optionslist[optionskey] = []
+                for x, y in optionsdict.items():
+                    optionslist[optionskey].append(x)
+                    optionslist[optionskey].append(y)
 
         param = QgsProcessingParameterMatrix(
             self.OPTIONSTIME,

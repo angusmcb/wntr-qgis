@@ -1,4 +1,11 @@
-default_options = {
+import copy
+
+
+def get_default_options():
+    return copy.deepcopy(_default_options)
+
+
+_default_options = {
     "time": {
         "duration": 0.0,
         "hydraulic_timestep": 3600,
