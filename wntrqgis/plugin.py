@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from qgis.core import QgsApplication
-from qgis.PyQt.QtCore import QAction, QCoreApplication, QTranslator
-from qgis.utils import iface
+from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 
+# from qgis.PyQt.QtWidgets import QAction
+# from qgis.utils import iface
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
@@ -12,8 +13,6 @@ from wntrqgis.wntrqgis_processing.provider import Provider
 
 
 class Plugin:
-    """QGIS Plugin Implementation."""
-
     name = plugin_name()
 
     def __init__(self) -> None:
@@ -29,8 +28,8 @@ class Plugin:
         else:
             pass
 
-        self.actions: list[QAction] = []
-        self.menu = Plugin.name
+        # self.actions: list[QAction] = []
+        # self.menu = Plugin.name
 
     """
     def add_action(
@@ -135,9 +134,9 @@ class Plugin:
 
     def unload(self) -> None:
         """Removes the plugin menu item and icon from QGIS GUI."""
-        for action in self.actions:
-            iface.removePluginMenu(Plugin.name, action)
-            iface.removeToolBarIcon(action)
+        # for action in self.actions:
+        #    iface.removePluginMenu(Plugin.name, action)
+        #    iface.removeToolBarIcon(action)
         teardown_logger(Plugin.name)
         QgsApplication.processingRegistry().removeProvider(self.provider)
 

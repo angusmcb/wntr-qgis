@@ -7,16 +7,15 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 # def test_plugin_name():
 #    assert plugin_name() == "Water Network Tools for Resilience (WNTR) Integration"
 import wntrqgis.environment_tools
-
-# from wntrqgis.plugin import Plugin
+from wntrqgis.plugin import Plugin
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name  # noqa F401
 
 wntrqgis.environment_tools.install_wntr()
 
 
-# def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):
-#    wntrplugin = Plugin()
-#    assert wntrplugin
+def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG001
+    wntrplugin = Plugin()
+    assert wntrplugin
 
 
 # the examples are store in the plugin folder as they are used in the plugin

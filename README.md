@@ -53,6 +53,9 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
 	- Pumps
 	- Valves
 
+![input image](docs/input_screenshot.png)
+
+
 2. **Layer Editing.** The layers are normal QGIS layers and can be edited / modified / processed / styled / automated in the same ways as any other QGIS layer. In particular:
    	- *Digitize* from any of the enormous range of data that QGIS can handle.
 	- *Snapping tools* can be used when drawing the network to make sure that nodes and links connect.
@@ -65,6 +68,8 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
 5. **Viewing the results.** Use all the power of QGIS to view and analyse your results.
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
    - Use QGIS's temporal manager to view how your results change over time.
+
+![input image](docs/output_screenshot.png)
 
 ## Limitations
 The plugin is currently marked as experimental. Some features which exist in WNTR / EPANET  are not yet implemented:
