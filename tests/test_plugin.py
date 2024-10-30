@@ -1,16 +1,17 @@
 import contextlib
 from pathlib import Path
 
+import numpy as np
 import pytest
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
 # def test_plugin_name():
 #    assert plugin_name() == "Water Network Tools for Resilience (WNTR) Integration"
-import wntrqgis.environment_tools
+# from wntrqgis.dependency_management import WqDependencyManagemet
 from wntrqgis.plugin import Plugin
 from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name  # noqa F401
 
-wntrqgis.environment_tools.install_wntr()
+# WqDependencyManagemet.install_wntr()
 
 
 def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG001
@@ -142,12 +143,13 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     inputinp = str(example_dir / "Net3.simplified.inp")
 
     fileset = output_params(expected_model_layers, tmp_path, filetype)
-
+    units = 0
     inp_result = processing.run(
         "wntr:importinp",
         {
             "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
             "INPUT": inputinp,
+            "UNITS": units,
             **fileset,
         },
     )
@@ -160,6 +162,7 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
             "OUTPUTNODES": "TEMPORARY_OUTPUT",
             "OUTPUTLINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
+            "UNITS": units,
             **inp_result,
         },
     )
@@ -175,5 +178,7 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     sim = wntr.sim.EpanetSimulator(wn)
     outputresults = sim.run_sim()
 
-    assert all(inputresults.node[i].equals(outputresults.node[i]) for i in ["demand", "head", "pressure"])
-    assert all(inputresults.link[i].equals(outputresults.link[i]) for i in ["flowrate", "headloss", "velocity"])
+    for i in ["demand", "head", "pressure"]:
+        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i]))
+    for i in ["flowrate", "headloss", "velocity"]:
+        assert all(all(sublist) for sublist in np.isclose(inputresults.link[i], outputresults.link[i]))

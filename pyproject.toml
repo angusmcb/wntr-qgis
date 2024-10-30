@@ -2,7 +2,6 @@
 addopts = "-v"
 testpaths = ['tests/']
 filterwarnings = [
-    'ignore: .*QgsField constructor is deprecated',
     'ignore: .*pkg_resources'
 ]
 [tool.coverage.report]

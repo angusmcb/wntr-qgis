@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any
 
 from qgis.core import (
     QgsProcessingAlgorithm,
@@ -10,27 +10,14 @@ from qgis.core import (
     QgsProcessingParameterCrs,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
-    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 
-import wntrqgis.fields
-from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
+from wntrqgis.utilswithoutwntr import WqAnalysisType, WqInLayer
+from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, WntrQgisProcessingBase
 
 
-class TemplateLayers(QgsProcessingAlgorithm):
+class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     CRS = "CRS"
-    PRESSUREDEPENDENT = "PRESSUREDEPENDENT"
-    QUALITY = "QUALITY"
-    ENERGY = "ENERGY"
-    JUNCTIONS = "JUNCTIONS"
-    TANKS = "TANKS"
-    RESERVOIRS = "RESERVOIRS"
-    PIPES = "PIPES"
-    PUMPS = "PUMPS"
-    VALVES = "VALVES"
-
-    post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
 
     def __init__(self) -> None:
         super().__init__()
@@ -41,9 +28,6 @@ class TemplateLayers(QgsProcessingAlgorithm):
         This will create a set of 'template' layers, which you can use for building your model.
         You do not need to create or use all layers if not required for your model.
         """
-
-    def tr(self, string) -> str:
-        return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):  # noqa N802
         return TemplateLayers()
@@ -65,23 +49,25 @@ class TemplateLayers(QgsProcessingAlgorithm):
             QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"), "ProjectCrs")
         )
 
-        for param_name, param_description in {
-            self.QUALITY: "Create Fields for Water Quality Analysis",
-            self.PRESSUREDEPENDENT: "Create Fields for Pressure-Dependent Demand Analysis",
-            self.ENERGY: "Create Fields for Energy Analysis",
-        }.items():
+        for analysis_type in WqAnalysisType:
+            match analysis_type:
+                case WqAnalysisType.BASE:
+                    continue
+                case WqAnalysisType.QUALITY:
+                    description = "Create Fields for Water Quality Analysis"
+                case WqAnalysisType.PDA:
+                    description = "Create Fields for Pressure Driven Analysis"
+                case WqAnalysisType.ENERGY:
+                    description = "Create Fields for Energy Analysis"
+
             param = QgsProcessingParameterBoolean(
-                param_name, self.tr(param_description), optional=True, defaultValue=False
+                analysis_type.name, self.tr(description), optional=True, defaultValue=False
             )
             param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
             self.addParameter(param)
 
-        self.addParameter(QgsProcessingParameterFeatureSink(self.JUNCTIONS, self.tr("Junctions")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.TANKS, self.tr("Tanks")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.RESERVOIRS, self.tr("Reservoirs")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.PIPES, self.tr("Pipes")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.PUMPS, self.tr("Pumps")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.VALVES, self.tr("Valves")))
+        for layer in WqInLayer:
+            self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
 
     def processAlgorithm(  # noqa N802
         self,
@@ -89,20 +75,27 @@ class TemplateLayers(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,  # noqa ARG002
     ) -> dict:
-        extracols = [
-            i
-            for i in [self.QUALITY, self.PRESSUREDEPENDENT, self.ENERGY]
-            if self.parameterAsBoolean(parameters, i, context)
-        ]
+        analysis_types_to_use = WqAnalysisType.BASE
+
+        for analysis_type in WqAnalysisType:
+            if analysis_type is WqAnalysisType.BASE:
+                continue
+            if self.parameterAsBoolean(parameters, analysis_type.name, context):
+                analysis_types_to_use = analysis_types_to_use | analysis_type
 
         outputs: dict[str, str] = {}
         crs = self.parameterAsCrs(parameters, self.CRS, context)
-        for layername in ["JUNCTIONS", "TANKS", "RESERVOIRS", "PIPES", "PUMPS", "VALVES"]:
-            geomtype = (
-                QgsWkbTypes.Point if layername in ["JUNCTIONS", "TANKS", "RESERVOIRS"] else QgsWkbTypes.LineString
-            )
-            fields = wntrqgis.fields.getQgsFields(str.lower(layername), extracols)
-            (sink, outputs[layername]) = self.parameterAsSink(parameters, layername, context, fields, geomtype, crs)
+
+        for layer in WqInLayer:
+            fields = layer.qgs_fields(analysis_types_to_use)
+            wkb_type = layer.qgs_wkb_type
+            (sink, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
+
+        ### add virtual fields
+        # for layername in linklayers:
+        #    lyr = QgsProcessingUtils.mapLayerFromString(outputs[layername], context)
+        #    lyr.addExpressionField(**wntrqgis.fields.linked_node_field("start"))
+        #    lyr.addExpressionField(**wntrqgis.fields.linked_node_field("end"))
 
         for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):

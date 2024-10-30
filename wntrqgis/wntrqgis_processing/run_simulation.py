@@ -11,61 +11,39 @@
 
 from __future__ import annotations
 
-import ast
 import logging
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
-    QgsExpressionContextUtils,
-    QgsFeature,
-    QgsFeatureSink,
-    QgsField,
     QgsFields,
-    QgsGeometry,
-    QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
+    QgsProcessingFeedback,
     QgsProcessingParameterDefinition,
+    QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterMatrix,
     QgsProcessingParameterVectorLayer,
     QgsProcessingUtils,
     QgsProject,
-    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 import wntrqgis.options
-from wntrqgis import environment_tools
-from wntrqgis.wntrqgis_processing.LayerPostProcessor import LayerPostProcessor
+from wntrqgis.utilswithoutwntr import WqFlowUnit, WqInField, WqInLayer, WqOutLayer, WqProjectVar, WqUtil
+from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
-class RunSimulation(QgsProcessingAlgorithm):
+class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     OPTIONSHYDRAULIC = "OPTIONSHYDRAULIC"
     OPTIONSTIME = "OPTIONSTIME"
 
-    JUNCTIONS = "JUNCTIONS"
-    TANKS = "TANKS"
-    RESERVOIRS = "RESERVOIRS"
-    PIPES = "PIPES"
-    PUMPS = "PUMPS"
-    VALVES = "VALVES"
-
     CONTROLS = "CONTROLS"
-
-    OUTPUTNODES = "OUTPUTNODES"
-    OUTPUTLINKS = "OUTPUTLINKS"
+    UNITS = "UNITS"
     OUTPUTINP = "OUTPUTINP"
-    post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
-    wn = None
-    name_increment = 0
 
     def flags(self):
         return super().flags() | QgsProcessingAlgorithm.Flag.FlagRequiresMatchingCrs
-
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):  # noqa N802
         return RunSimulation()
@@ -87,27 +65,47 @@ class RunSimulation(QgsProcessingAlgorithm):
             """)
 
     def initAlgorithm(self, config=None):  # noqa N802
-        default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
+        # default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
+        default_layers = WqUtil.get_project_var(WqProjectVar.INLAYERS)
         if not isinstance(default_layers, dict):
             default_layers = {}
 
-        for lyr in [
-            (self.JUNCTIONS, "Junctions", [QgsProcessing.TypeVectorPoint]),
-            (self.TANKS, "Tanks", [QgsProcessing.TypeVectorPoint]),
-            (self.RESERVOIRS, "Reservoirs", [QgsProcessing.TypeVectorPoint]),
-            (self.PIPES, "Pipes", [QgsProcessing.TypeVectorLine]),
-            (self.PUMPS, "Pumps", [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPoint]),
-            (self.VALVES, "Valves", [QgsProcessing.TypeVectorLine, QgsProcessing.TypeVectorPoint]),
-        ]:
-            param = QgsProcessingParameterVectorLayer(lyr[0], lyr[1], types=lyr[2], optional=True)
-            param.setGuiDefaultValueOverride(default_layers.get(lyr[0]))
+        for lyr in WqInLayer:
+            param = QgsProcessingParameterVectorLayer(
+                lyr.name,
+                self.tr(lyr.friendly_name),
+                types=lyr.acceptable_processing_vectors,
+                optional=lyr is not WqInLayer.JUNCTIONS,
+            )
+            savedlyr = default_layers.get(lyr.name)
+            if savedlyr and param.checkValueIsAcceptable(savedlyr) and QgsProject.instance().mapLayer(savedlyr):
+                param.setGuiDefaultValueOverride(savedlyr)
             param.setHelp(self.tr("Model Inputs"))
             self.addParameter(param)
 
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTNODES, self.tr("Simulation Results - Nodes")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUTLINKS, self.tr("Simulation Results - Links")))
+        default_flow_units = WqUtil.get_project_var(WqProjectVar.FLOW_UNITS)
 
-        saved_options = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_options")
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.UNITS,
+                self.tr("Units"),
+                options=list(WqFlowUnit),
+                allowMultiple=False,
+                usesStaticStrings=False,
+                defaultValue=(
+                    WqFlowUnit[default_flow_units].value if default_flow_units in WqFlowUnit.__members__ else None
+                ),
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(WqOutLayer.NODES.value, self.tr("Simulation Results - Nodes"))
+        )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(WqOutLayer.LINKS.value, self.tr("Simulation Results - Links"))
+        )
+
+        saved_options = WqUtil.get_project_var(WqProjectVar.OPTIONS)
 
         default_options = wntrqgis.options.get_default_options()
 
@@ -159,163 +157,102 @@ class RunSimulation(QgsProcessingAlgorithm):
         # self.addParameter(param)
 
     def processAlgorithm(self, parameters, context, feedback):  # noqa N802
+        if feedback is None:
+            feedback = QgsProcessingFeedback()
+
         # PREPARE IMPORTS
         # imports are here as they are slow and only needed when processing the model.
-        feedback.setProgressText("Checking dependencies")
+        self._check_and_unpack_dependencies(feedback)
 
-        if environment_tools.check_dependencies():
-            msg = "Missing Dependencies"
-            raise QgsProcessingException(msg)
         try:
             import geopandas as gpd
-        except ImportError as e:
-            msg = "Geopandas is not installed"
-            raise QgsProcessingException(msg) from e
-        import pandas as pd  # if geopadas installed this should not pose a problem!
-        import shapely
-
-        if environment_tools.check_wntr() is None:
-            feedback.setProgressText("Unpacking WNTR")
-            environment_tools.install_wntr()
-
-        try:
+            import pandas as pd  # if geopadas installed this should not pose a problem!
+            import shapely
             import wntr
+
+            from wntrqgis.utilswithwntr import WqWntrUtils
         except ImportError as e:
             raise QgsProcessingException(e) from e
 
         feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
 
-        # PREPARE WN_GIS GEODATAFRAMES
         if feedback.isCanceled():
             return {}
-        feedback.setProgress(10)
-        feedback.setProgressText("Creating WNTR model")
+        self._update_progress(feedback, ProgStatus.PREPARING_MODEL)
+
+        flow_unit_string = self.parameterAsEnum(parameters, self.UNITS, context)
+        if flow_unit_string is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.UNITS))
+        flow_units = wntr.epanet.util.FlowUnits[list(WqFlowUnit)[flow_unit_string].name]
 
         options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
         options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
 
-        node_link_types = {
-            "JUNCTIONS": "Junction",
-            "TANKS": "Tank",
-            "RESERVOIRS": "Reservoir",
-            "PIPES": "Pipe",
-            "PUMPS": "Pump",
-            "VALVES": "Valve",
-        }
-
-        gdf_inputs = {}
-        for i in ["JUNCTIONS", "TANKS", "RESERVOIRS", "PIPES", "PUMPS", "VALVES"]:
-            lyr = self.parameterAsVectorLayer(parameters, i, context)
-            if lyr is None:
-                continue
-            crs = lyr.crs()
-            gdf = gpd.GeoDataFrame.from_features(lyr.getFeatures())
-
-            gdf.dropna(how="all", axis=1, inplace=True)
-            if len(gdf) == 0:
-                continue
-            if i in ("JUNCTIONS", "TANKS", "RESERVOIRS"):
-                gdf["node_type"] = node_link_types[i]
-            else:
-                gdf["link_type"] = node_link_types[i]
-                # this is for shapefiles, but must not apply otherwise or causes problems
-                if isinstance(gdf["geometry"].iloc[0], shapely.MultiLineString):
-                    gdf["geometry"] = gdf["geometry"].apply(lambda g: g.geoms[0])  # shapefiles are multi line strings
-            # below line should only affect shapefiles
-            gdf.rename(columns=self._shapefile_field_name_map(), inplace=True, errors="ignore")
-
-            gdf.set_index("name", inplace=True)
-            gdf.index.rename(None, inplace=True)
-            gdf_inputs[str.lower(i)] = gdf
-
         # START WNTR MODEL
-
-        self.wn = wntr.network.WaterNetworkModel()
-
-        # PREPARE PATTERNS AND CURVES
-        self.name_increment = 1  # first pattern must be '2' as default pattern in wntr is '1'
-
-        def _add_curve(curve_string, curve_type):
-            if curve_string:
-                self.name_increment = self.name_increment + 1
-                name = str(self.name_increment)
-                curvelist = ast.literal_eval(curve_string)
-                self.wn.add_curve(name=name, curve_type=curve_type, xy_tuples_list=curvelist)
-                return name
-            return None
-
-        def _add_pattern(pattern):
-            if not pattern:
-                return None
-            if isinstance(pattern, str) and pattern != "":
-                patternlist = ast.literal_eval(pattern)
-            elif isinstance(pattern, list):
-                patternlist = pattern
-            self.name_increment = self.name_increment + 1
-            name = str(self.name_increment)
-            self.wn.add_pattern(name=name, pattern=patternlist)
-            return name
-
-        if "junctions" in gdf_inputs and "demand_pattern" in gdf_inputs["junctions"]:
-            gdf_inputs["junctions"]["demand_pattern_name"] = gdf_inputs["junctions"]["demand_pattern"].apply(
-                _add_pattern
-            )
-        if "reservoirs" in gdf_inputs and "vol_curve" in gdf_inputs["reservoirs"]:
-            gdf_inputs["reservoirs"]["head_pattern_name"] = gdf_inputs["reservoirs"]["head_pattern"].apply(_add_pattern)
-        if "tanks" in gdf_inputs and "vol_curve" in gdf_inputs["tanks"]:
-            gdf_inputs["tanks"]["vol_curve_name"] = gdf_inputs["tanks"]["vol_curve"].apply(
-                _add_curve, curve_type="VOLUME"
-            )
-        if "pumps" in gdf_inputs and "pump_curve" in gdf_inputs["pumps"]:
-            gdf_inputs["pumps"]["pump_curve_name"] = gdf_inputs["pumps"]["pump_curve"].apply(
-                _add_curve, curve_type="HEAD"
-            )
-        if "pumps" in gdf_inputs and "speed_pattern" in gdf_inputs["pumps"]:
-            gdf_inputs["pumps"]["speed_pattern_name"] = gdf_inputs["pumps"]["speed_pattern"].apply(_add_pattern)
-        if "pumps" in gdf_inputs and "energy_pattern" in gdf_inputs["pumps"]:
-            gdf_inputs["pumps"]["energy_pattern_name"] = gdf_inputs["pumps"]["energy_pattern"].apply(_add_pattern)
-
-        if feedback.isCanceled():
-            return {}
-        # try:  # try loading nodes and links into wntr
-        self.wn.from_gis(gdf_inputs)
-        # except Exception as e:
-        #    raise QgsProcessingException("Error loading network: " + str(e)) from e
-
-        # ADD DEMANDS - wntr 1.2 doesn't handle this automatically
-        if gdf_inputs.get("junctions") is not None:
-            for junction_name, junction in self.wn.junctions():
-                junction.demand_timeseries_list.clear()
-                try:
-                    base_demand = gdf_inputs["junctions"].at[junction_name, "base_demand"]
-                    pattern_name = gdf_inputs["junctions"].at[
-                        junction_name, "demand_pattern_name"
-                    ]  # 'None' if no pattern
-                    if base_demand:
-                        junction.add_demand(base=base_demand, pattern_name=pattern_name)
-                except KeyError:
-                    pass
+        # creation order to be options, patterns/cruves, nodes, then links
+        wn = wntr.network.WaterNetworkModel()
 
         # ADD OPTIONS
 
         options_hydraulic_dict = {}
         for i in range(0, len(options_hydraulic), 2):
             options_hydraulic_dict[options_hydraulic[i]] = options_hydraulic[i + 1]
-        self.wn.options.hydraulic = wntr.network.options.HydraulicOptions(**options_hydraulic_dict)
+        wn.options.hydraulic = wntr.network.options.HydraulicOptions(**options_hydraulic_dict)
 
         options_time_dict = {}
         for i in range(0, len(options_time), 2):
             options_time_dict[options_time[i]] = options_time[i + 1]
-        self.wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
+        wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
+
+        gdf_inputs = {}
+        for in_layer in WqInLayer:
+            lyr = self.parameterAsVectorLayer(parameters, in_layer.name, context)
+            if lyr is None:
+                continue
+            crs = lyr.crs()
+            gdf = gpd.GeoDataFrame.from_features(lyr.getFeatures())
+
+            gdf.dropna(how="all", axis=1, inplace=True)
+            if gdf.empty:
+                continue
+
+            # to fix bug in wntr 1.2.0, where 'node_type' and 'link_type' are required
+            gdf["node_type" if in_layer.is_node else "link_type"] = in_layer.node_link_type
+
+            # this is for shapefiles, but must not apply otherwise or causes problems
+            if not in_layer.is_node and isinstance(gdf["geometry"].iloc[0], shapely.MultiLineString):
+                gdf["geometry"] = gdf["geometry"].apply(lambda g: g.geoms[0])  # shapefiles are multi line strings
+
+            # below line should only affect shapefiles
+            shape_name_map = {wq_field.value[:10]: wq_field.value for wq_field in WqInField}
+            gdf.rename(columns=shape_name_map, inplace=True, errors="ignore")
+
+            gdf.set_index("name", inplace=True)
+            gdf.index.rename(None, inplace=True)
+
+            gdf_inputs[in_layer] = gdf
+
+        # unit conversion
+        WqWntrUtils.convert_dfs_to_si(gdf_inputs, flow_units, wn.options.hydraulic.headloss == "D-W")
+
+        # PREPARE PATTERNS AND CURVES
+        WqWntrUtils.patterns_curves_from_df(gdf_inputs, wn, flow_units)
 
         if feedback.isCanceled():
             return {}
-        feedback.pushInfo("WNTR model created. Model contains:")
-        feedback.pushInfo(str(self.wn.describe(level=0)))
+
+        wn.from_gis({lyr.wntr_attr: df for lyr, df in gdf_inputs.items()})
+
+        # ADD DEMANDS - wntr 1.2 doesn't handle this automatically
+        if WqInLayer.JUNCTIONS in gdf_inputs:
+            WqWntrUtils.add_demands_to_wntr(gdf_inputs[WqInLayer.JUNCTIONS], wn)
+
+        if feedback.isCanceled():
+            return {}
+        self._describe_model(feedback, wn)
 
         # RUN SIMULATION
-        feedback.setProgress(25)
-        feedback.setProgressText("Running Simulation")
+        self._update_progress(feedback, ProgStatus.RUNNING_SIMULATION)
 
         # create logger
         logger = logging.getLogger("wntr")
@@ -329,77 +266,44 @@ class RunSimulation(QgsProcessingAlgorithm):
 
         tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
         inpfile = self.parameterAsFile(parameters, self.OUTPUTINP, context)
+        if inpfile:
+            wntr.network.write_inpfile(wn, inpfile)
+            outputs = {self.OUTPUTINP: inpfile}
         try:
-            if inpfile:
-                wntr.network.write_inpfile(self.wn, inpfile)
-                outputs = {self.OUTPUTINP: inpfile}
-            sim = wntr.sim.EpanetSimulator(self.wn)
+            sim = wntr.sim.EpanetSimulator(wn)
             results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
         except Exception as e:
+            if inpfile:
+                feedback.pushInfo(".inp file written to: " + inpfile)  # only push this message on failure
             raise QgsProcessingException("Error running model: " + str(e)) from e
 
         if feedback.isCanceled():
             return {}
-        feedback.setProgress(50)
-        feedback.setProgressText("Simulation completed.")
+        self._update_progress(feedback, ProgStatus.SIMULATION_COMPLETED)
 
         # PROCESS SIMULATION RESULTS
 
-        f = QVariant.Double
-
-        possibleparams = {
-            "nodes": {
-                "demand": f,
-                "head": f,
-                "pressure": f,
-                "quality": f,
-            },
-            "links": {
-                "flowrate": f,
-                "headloss": f,
-                "velocity": f,
-            },
-        }
-        combined_input_gdf = {
-            "nodes": pd.concat([gdf_inputs.get("junctions"), gdf_inputs.get("reservoirs"), gdf_inputs.get("tanks")]),
-            "links": pd.concat([gdf_inputs.get("pipes"), gdf_inputs.get("valves"), gdf_inputs.get("pumps")]),
-        }
-        input_param = {"nodes": self.OUTPUTNODES, "links": self.OUTPUTLINKS}
-
-        for nodeorlink, result in {"nodes": results.node, "links": results.link}.items():
-            feedback.setProgressText("Preparing output layer for " + nodeorlink)
-
-            resultparamstouse = [p for p in result if p in possibleparams[nodeorlink]]
+        for lyr in WqOutLayer:
             fields = QgsFields()
-            fields.append(QgsField("name", QVariant.String))
-            for p in resultparamstouse:
-                fields.append(QgsField(p, QVariant.List, subType=possibleparams[nodeorlink][p]))
+            fields.append(WqInField.NAME.qgs_field)
+            for f in lyr.wq_fields:
+                fields.append(f.qgs_field)
 
-            (sink, outputs[input_param[nodeorlink]]) = self.parameterAsSink(
+            (sink, outputs[lyr.value]) = self.parameterAsSink(
                 parameters,
-                input_param[nodeorlink],
+                lyr.value,
                 context,
                 fields,
-                QgsWkbTypes.Point if nodeorlink == "nodes" else QgsWkbTypes.LineString,
+                lyr.qgs_wkb_type,
                 crs,
             )
-            g = QgsGeometry()
-            combined_input_gdf[nodeorlink].reset_index(inplace=True, names="name")
-            for row in combined_input_gdf[nodeorlink].itertuples(index=False):
-                g.fromWkb(shapely.to_wkb(row.geometry))
-                f = QgsFeature()
-                f.setGeometry(g)
-                atts = [result[p][row.name].to_list() for p in resultparamstouse]
-                f.setAttributes([row.name, *atts])
-                sink.addFeature(
-                    f,
-                    QgsFeatureSink.FastInsert,
-                )
-            if feedback.isCanceled():
-                return {}
-            feedback.setProgress(feedback.progress() + 20)
 
-        feedback.setProgressText("Finished layer creation")
+            in_items = pd.concat([gdf.geometry for inlyr, gdf in gdf_inputs.items() if inlyr.is_node == lyr.is_node])
+            result_gdfs = getattr(results, lyr.wntr_attr)
+
+            WqWntrUtils.result_gdfs_to_sink(result_gdfs, lyr.wq_fields, in_items, sink)
+
+        self._update_progress(feedback, ProgStatus.FINISHED_PROCESSING)
 
         # PREPARE TO LOAD LAYER STYLES IN MAIN THREAD ONCE FINISHED
 
@@ -409,30 +313,6 @@ class RunSimulation(QgsProcessingAlgorithm):
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs
-
-    def _shapefile_field_name_map(self):
-        """
-        Return a map (dictionary) of tuncated shapefile field names to
-        valid base WaterNetworkModel attribute names
-
-        Esri Shapefiles truncate field names to 10 characters. The field name
-        map links truncated shapefile field names to complete (and ofen longer)
-        WaterNetworkModel attribute names.  This assumes that the first 10
-        characters of each attribute name are unique.
-
-        Returns
-        -------
-        field_name_map : dict
-            Map (dictionary) of valid base shapefile field names to
-            WaterNetworkModel attribute names
-        """
-
-        valid_names = wntrqgis.fields.namesPerLayer
-
-        name_map = {}
-        for attributes in valid_names.values():
-            name_map.update({attribute[:10]: attribute for attribute in attributes})
-        return name_map
 
 
 class LoggingHandler(logging.StreamHandler):
