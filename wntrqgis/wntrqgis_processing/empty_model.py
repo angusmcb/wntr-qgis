@@ -51,15 +51,14 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         for analysis_type in WqAnalysisType:
             match analysis_type:
-                case WqAnalysisType.BASE:
-                    continue
                 case WqAnalysisType.QUALITY:
                     description = "Create Fields for Water Quality Analysis"
                 case WqAnalysisType.PDA:
                     description = "Create Fields for Pressure Driven Analysis"
                 case WqAnalysisType.ENERGY:
                     description = "Create Fields for Energy Analysis"
-
+                case _:
+                    continue
             param = QgsProcessingParameterBoolean(
                 analysis_type.name, self.tr(description), optional=True, defaultValue=False
             )
@@ -99,7 +98,9 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(layername)
+                self.post_processors[lyr_id] = LayerPostProcessor.create(
+                    layername, self.tr("Model Layers (Template)"), True
+                )
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs

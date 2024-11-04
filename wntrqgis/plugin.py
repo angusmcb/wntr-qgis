@@ -16,7 +16,7 @@ class Plugin:
     name = plugin_name()
 
     def __init__(self) -> None:
-        setup_logger(Plugin.name)
+        setup_logger("wntrqgis")
 
         # initialize locale
         locale, file_path = setup_translation()
@@ -137,7 +137,7 @@ class Plugin:
         # for action in self.actions:
         #    iface.removePluginMenu(Plugin.name, action)
         #    iface.removeToolBarIcon(action)
-        teardown_logger(Plugin.name)
+        teardown_logger("wntrqgis")
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def run(self) -> None:

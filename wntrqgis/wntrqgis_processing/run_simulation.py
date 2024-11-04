@@ -12,25 +12,27 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
     QgsFields,
     QgsProcessingAlgorithm,
+    QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterFeatureSource,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterMatrix,
-    QgsProcessingParameterVectorLayer,
     QgsProcessingUtils,
     QgsProject,
 )
 
 import wntrqgis.options
-from wntrqgis.utilswithoutwntr import WqFlowUnit, WqInField, WqInLayer, WqOutLayer, WqProjectVar, WqUtil
+from wntrqgis.utilswithoutwntr import WqFlowUnit, WqInField, WqInLayer, WqOutLayer, WqProjectVar
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -66,12 +68,12 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
     def initAlgorithm(self, config=None):  # noqa N802
         # default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
-        default_layers = WqUtil.get_project_var(WqProjectVar.INLAYERS)
+        default_layers = WqProjectVar.INLAYERS.get()
         if not isinstance(default_layers, dict):
             default_layers = {}
 
         for lyr in WqInLayer:
-            param = QgsProcessingParameterVectorLayer(
+            param = QgsProcessingParameterFeatureSource(
                 lyr.name,
                 self.tr(lyr.friendly_name),
                 types=lyr.acceptable_processing_vectors,
@@ -83,7 +85,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             param.setHelp(self.tr("Model Inputs"))
             self.addParameter(param)
 
-        default_flow_units = WqUtil.get_project_var(WqProjectVar.FLOW_UNITS)
+        default_flow_units = WqProjectVar.FLOW_UNITS.get()
 
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -105,7 +107,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             QgsProcessingParameterFeatureSink(WqOutLayer.LINKS.value, self.tr("Simulation Results - Links"))
         )
 
-        saved_options = WqUtil.get_project_var(WqProjectVar.OPTIONS)
+        saved_options = WqProjectVar.OPTIONS.get()
 
         default_options = wntrqgis.options.get_default_options()
 
@@ -156,21 +158,22 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         # param.setGuiDefaultValueOverride()
         # self.addParameter(param)
 
-    def processAlgorithm(self, parameters, context, feedback):  # noqa N802
-        if feedback is None:
-            feedback = QgsProcessingFeedback()
+    def processAlgorithm(  # noqa N802
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ) -> dict:
+        WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
         # PREPARE IMPORTS
         # imports are here as they are slow and only needed when processing the model.
-        self._check_and_unpack_dependencies(feedback)
+        self._check_and_unpack_dependencies()
 
         try:
-            import geopandas as gpd
-            import pandas as pd  # if geopadas installed this should not pose a problem!
-            import shapely
             import wntr
 
-            from wntrqgis.utilswithwntr import WqWntrUtils
+            from wntrqgis.utilswithwntr import WqNetworkModel, WqNetworkModelError, WqSimulationResults
         except ImportError as e:
             raise QgsProcessingException(e) from e
 
@@ -178,12 +181,14 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         if feedback.isCanceled():
             return {}
-        self._update_progress(feedback, ProgStatus.PREPARING_MODEL)
+        self._update_progress(ProgStatus.PREPARING_MODEL)
 
-        flow_unit_string = self.parameterAsEnum(parameters, self.UNITS, context)
-        if flow_unit_string is None:
+        flow_unit_num = self.parameterAsEnum(parameters, self.UNITS, context)
+        if flow_unit_num is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.UNITS))
-        flow_units = wntr.epanet.util.FlowUnits[list(WqFlowUnit)[flow_unit_string].name]
+        wq_flow_unit = list(WqFlowUnit)[flow_unit_num]
+        WqProjectVar.FLOW_UNITS.set(wq_flow_unit.name)
+        flow_units = wntr.epanet.util.FlowUnits[wq_flow_unit.name]
 
         options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
         options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
@@ -204,55 +209,19 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             options_time_dict[options_time[i]] = options_time[i + 1]
         wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
 
-        gdf_inputs = {}
-        for in_layer in WqInLayer:
-            lyr = self.parameterAsVectorLayer(parameters, in_layer.name, context)
-            if lyr is None:
-                continue
-            crs = lyr.crs()
-            gdf = gpd.GeoDataFrame.from_features(lyr.getFeatures())
-
-            gdf.dropna(how="all", axis=1, inplace=True)
-            if gdf.empty:
-                continue
-
-            # to fix bug in wntr 1.2.0, where 'node_type' and 'link_type' are required
-            gdf["node_type" if in_layer.is_node else "link_type"] = in_layer.node_link_type
-
-            # this is for shapefiles, but must not apply otherwise or causes problems
-            if not in_layer.is_node and isinstance(gdf["geometry"].iloc[0], shapely.MultiLineString):
-                gdf["geometry"] = gdf["geometry"].apply(lambda g: g.geoms[0])  # shapefiles are multi line strings
-
-            # below line should only affect shapefiles
-            shape_name_map = {wq_field.value[:10]: wq_field.value for wq_field in WqInField}
-            gdf.rename(columns=shape_name_map, inplace=True, errors="ignore")
-
-            gdf.set_index("name", inplace=True)
-            gdf.index.rename(None, inplace=True)
-
-            gdf_inputs[in_layer] = gdf
-
-        # unit conversion
-        WqWntrUtils.convert_dfs_to_si(gdf_inputs, flow_units, wn.options.hydraulic.headloss == "D-W")
-
-        # PREPARE PATTERNS AND CURVES
-        WqWntrUtils.patterns_curves_from_df(gdf_inputs, wn, flow_units)
+        sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in WqInLayer}
+        network_model = WqNetworkModel(
+            flow_units, wn.options.hydraulic.headloss == "D-W", context.transformContext(), context.ellipsoid()
+        )
+        try:
+            wn = network_model.to_wntr(sources, wn)
+        except WqNetworkModelError as e:
+            raise QgsProcessingException(self.tr("Error preparing model - " + str(e))) from None
 
         if feedback.isCanceled():
             return {}
-
-        wn.from_gis({lyr.wntr_attr: df for lyr, df in gdf_inputs.items()})
-
-        # ADD DEMANDS - wntr 1.2 doesn't handle this automatically
-        if WqInLayer.JUNCTIONS in gdf_inputs:
-            WqWntrUtils.add_demands_to_wntr(gdf_inputs[WqInLayer.JUNCTIONS], wn)
-
-        if feedback.isCanceled():
-            return {}
-        self._describe_model(feedback, wn)
-
-        # RUN SIMULATION
-        self._update_progress(feedback, ProgStatus.RUNNING_SIMULATION)
+        self._describe_model(wn)
+        self._update_progress(ProgStatus.RUNNING_SIMULATION)
 
         # create logger
         logger = logging.getLogger("wntr")
@@ -269,19 +238,23 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         if inpfile:
             wntr.network.write_inpfile(wn, inpfile)
             outputs = {self.OUTPUTINP: inpfile}
+
+        sim = wntr.sim.EpanetSimulator(wn)
         try:
-            sim = wntr.sim.EpanetSimulator(wn)
-            results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
-        except Exception as e:
+            sim_results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
+        except wntr.epanet.exceptions.EpanetException as e:
             if inpfile:
                 feedback.pushInfo(".inp file written to: " + inpfile)  # only push this message on failure
-            raise QgsProcessingException("Error running model: " + str(e)) from e
+            raise QgsProcessingException("Epanet error: " + str(e)) from None
 
         if feedback.isCanceled():
             return {}
-        self._update_progress(feedback, ProgStatus.SIMULATION_COMPLETED)
+        self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
         # PROCESS SIMULATION RESULTS
+        wq_results = WqSimulationResults(sim_results)
+        wq_results.darcy_weisbach = wn.options.hydraulic.headloss == "D-W"
+        wq_results.flow_units = flow_units
 
         for lyr in WqOutLayer:
             fields = QgsFields()
@@ -295,21 +268,20 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 context,
                 fields,
                 lyr.qgs_wkb_type,
-                crs,
+                network_model.crs,
             )
 
-            in_items = pd.concat([gdf.geometry for inlyr, gdf in gdf_inputs.items() if inlyr.is_node == lyr.is_node])
-            result_gdfs = getattr(results, lyr.wntr_attr)
+            wq_results.to_sink(sink, lyr.wq_fields, network_model.geom_dict[lyr])
 
-            WqWntrUtils.result_gdfs_to_sink(result_gdfs, lyr.wq_fields, in_items, sink)
-
-        self._update_progress(feedback, ProgStatus.FINISHED_PROCESSING)
+        self._update_progress(ProgStatus.FINISHED_PROCESSING)
 
         # PREPARE TO LOAD LAYER STYLES IN MAIN THREAD ONCE FINISHED
-
+        finishtime = time.strftime("%X")
         for outputname, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(outputname)
+                self.post_processors[lyr_id] = LayerPostProcessor.create(
+                    outputname, self.tr(f"Simulation Results ({finishtime})")
+                )
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs

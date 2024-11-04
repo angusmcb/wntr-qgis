@@ -13,33 +13,11 @@ class WqProjectVar(StrEnum):
     CONTROLS = "wntr_controls"
     INLAYERS = "wntr_inlayers"
 
+    def set(self, value: Any):
+        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), self.value, value)
 
-# Used for namespae
-class WqUtil:
-    @staticmethod
-    def set_project_var(projectvariable: WqProjectVar, value: Any):
-        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), projectvariable.value, value)
-
-    @staticmethod
-    def get_project_var(projectvariable: WqProjectVar):
-        return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(projectvariable.value)
-
-    @staticmethod
-    def get_qgs_field_type(python_type):
-        newstyle = Qgis.versionInt() >= QGIS_VERSION_QMETATYPE
-
-        if python_type is str:
-            return QMetaType.QString if newstyle else QVariant.String
-        if python_type is float:
-            return QMetaType.Double if newstyle else QVariant.Double
-        if python_type is bool:
-            return QMetaType.Bool if newstyle else QVariant.Bool
-        if python_type is int:
-            return QMetaType.Int if newstyle else QVariant.Int
-        if python_type is list:
-            return QMetaType.QVariantList if newstyle else QVariant.List
-
-        raise KeyError
+    def get(self):
+        return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(self.value)
 
 
 class WqFlowUnit(StrEnum):
@@ -60,6 +38,8 @@ class WqAnalysisType(Flag):
     QUALITY = auto()
     PDA = auto()
     ENERGY = auto()
+    NOOUTPUT = auto()
+    REQUIRED = auto()
 
 
 class WqLayer(StrEnum):
@@ -131,8 +111,19 @@ class WqInLayer(WqLayer):
     def node_link_type(self):
         return str(self).title()[:-1]
 
-    def wq_fields(self, analysis_type: WqAnalysisType):
+    def wq_fields(self, analysis_type=None):
         field_list = []
+        # if self.is_node:
+        #     field_list = [
+        #         WqInField.NAME,
+        #         WqInField.INITIAL_QUALITY,
+        #     ]
+        # else:
+        #     field_list = [
+        #         WqInField.NAME,
+        #         # WqInField.START_NODE_NAME,
+        #         # WqInField.END_NODE_NAME,
+        #     ]
         match self:
             case WqInLayer.JUNCTIONS:
                 field_list = [
@@ -172,8 +163,8 @@ class WqInLayer(WqLayer):
             case WqInLayer.PIPES:
                 field_list = [
                     WqInField.NAME,
-                    WqInField.START_NODE_NAME,
-                    WqInField.END_NODE_NAME,
+                    # WqInField.START_NODE_NAME,
+                    # WqInField.END_NODE_NAME,
                     WqInField.LENGTH,
                     WqInField.DIAMETER,
                     WqInField.ROUGHNESS,
@@ -186,8 +177,8 @@ class WqInLayer(WqLayer):
             case WqInLayer.PUMPS:
                 field_list = [
                     WqInField.NAME,
-                    WqInField.START_NODE_NAME,
-                    WqInField.END_NODE_NAME,
+                    # WqInField.START_NODE_NAME,
+                    # WqInField.END_NODE_NAME,
                     WqInField.PUMP_TYPE,
                     WqInField.PUMP_CURVE,
                     WqInField.POWER,
@@ -202,8 +193,8 @@ class WqInLayer(WqLayer):
             case WqInLayer.VALVES:
                 field_list = [
                     WqInField.NAME,
-                    WqInField.START_NODE_NAME,
-                    WqInField.END_NODE_NAME,
+                    # WqInField.START_NODE_NAME,
+                    # WqInField.END_NODE_NAME,
                     WqInField.DIAMETER,
                     WqInField.VALVE_TYPE,
                     WqInField.MINOR_LOSS,
@@ -212,8 +203,9 @@ class WqInLayer(WqLayer):
                 ]
             case _:
                 raise KeyError
-
-        return [field for field in field_list if field.analysis_type in analysis_type]
+        if analysis_type:
+            return [field for field in field_list if field.analysis_type & analysis_type]
+        return field_list
 
     def qgs_fields(self, analysis_type: WqAnalysisType):
         qgs_fields = QgsFields()
@@ -229,9 +221,9 @@ class WqField(Enum):
         obj._value_ = args[0]
         return obj
 
-    def __init__(self, _, python_type, analysis_type):
-        self._python_type = python_type
-        self._analysis_type = analysis_type
+    def __init__(self, *args):
+        self._python_type = args[1]
+        self._analysis_type = args[2]
 
     @staticmethod
     def _generate_next_value_(name, start, count, last_values):  # noqa ARG004
@@ -247,7 +239,23 @@ class WqField(Enum):
 
     @property
     def _qgs_wkb_type(self):
-        return WqUtil.get_qgs_field_type(self.python_type)
+        return self._get_qgs_field_type(self.python_type)
+
+    def _get_qgs_field_type(self, python_type):
+        newstyle = Qgis.versionInt() >= QGIS_VERSION_QMETATYPE
+
+        if python_type is str:
+            return QMetaType.QString if newstyle else QVariant.String
+        if python_type is float:
+            return QMetaType.Double if newstyle else QVariant.Double
+        if python_type is bool:
+            return QMetaType.Bool if newstyle else QVariant.Bool
+        if python_type is int:
+            return QMetaType.Int if newstyle else QVariant.Int
+        if python_type is list:
+            return QMetaType.QVariantList if newstyle else QVariant.List
+
+        raise KeyError
 
 
 class WqInField(WqField):
@@ -255,34 +263,34 @@ class WqInField(WqField):
     def qgs_field(self):
         return QgsField(self.value, self._qgs_wkb_type)
 
-    NAME = auto(), str, WqAnalysisType.BASE
+    NAME = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    # START_NODE_NAME = auto(), str, WqAnalysisType.NOOUTPUT
+    # END_NODE_NAME = auto(), str, WqAnalysisType.NOOUTPUT
     ELEVATION = auto(), float, WqAnalysisType.BASE
     BASE_DEMAND = auto(), float, WqAnalysisType.BASE
     DEMAND_PATTERN = auto(), str, WqAnalysisType.BASE
     EMITTER_COEFFICIENT = auto(), float, WqAnalysisType.BASE
-    INIT_LEVEL = auto(), float, WqAnalysisType.BASE
-    MIN_LEVEL = auto(), float, WqAnalysisType.BASE
-    MAX_LEVEL = auto(), float, WqAnalysisType.BASE
-    DIAMETER = auto(), float, WqAnalysisType.BASE
+    INIT_LEVEL = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MIN_LEVEL = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MAX_LEVEL = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    DIAMETER = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     MIN_VOL = auto(), float, WqAnalysisType.BASE
     VOL_CURVE = auto(), str, WqAnalysisType.BASE
     OVERFLOW = auto(), bool, WqAnalysisType.BASE
     BASE_HEAD = auto(), float, WqAnalysisType.BASE
     HEAD_PATTERN = auto(), str, WqAnalysisType.BASE
-    START_NODE_NAME = auto(), str, WqAnalysisType.BASE
-    END_NODE_NAME = auto(), str, WqAnalysisType.BASE
-    LENGTH = auto(), float, WqAnalysisType.BASE
-    ROUGHNESS = auto(), float, WqAnalysisType.BASE
+    LENGTH = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    ROUGHNESS = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     MINOR_LOSS = auto(), float, WqAnalysisType.BASE
     INITIAL_STATUS = auto(), str, WqAnalysisType.BASE
     CHECK_VALVE = auto(), bool, WqAnalysisType.BASE
-    PUMP_TYPE = auto(), str, WqAnalysisType.BASE
+    PUMP_TYPE = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     PUMP_CURVE = auto(), str, WqAnalysisType.BASE
     POWER = auto(), float, WqAnalysisType.BASE
     BASE_SPEED = auto(), float, WqAnalysisType.BASE
     SPEED_PATTERN = auto(), str, WqAnalysisType.BASE
     INITIAL_SETTING = auto(), float, WqAnalysisType.BASE
-    VALVE_TYPE = auto(), str, WqAnalysisType.BASE
+    VALVE_TYPE = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
 
     INITIAL_QUALITY = auto(), float, WqAnalysisType.QUALITY
     MIXING_FRACTION = auto(), float, WqAnalysisType.QUALITY
@@ -302,7 +310,7 @@ class WqInField(WqField):
 class WqOutField(WqField):
     @property
     def qgs_field(self):
-        return QgsField(self.value, WqUtil.get_qgs_field_type(list), subType=self._qgs_wkb_type)
+        return QgsField(self.value, self._get_qgs_field_type(list), subType=self._qgs_wkb_type)
 
     DEMAND = auto(), float, WqAnalysisType.BASE
     HEAD = auto(), float, WqAnalysisType.BASE

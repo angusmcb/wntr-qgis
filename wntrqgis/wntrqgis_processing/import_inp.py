@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from qgis.core import (
     QgsProcessingAlgorithm,
+    QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingParameterCrs,
@@ -23,7 +25,7 @@ from qgis.core import (
     QgsProcessingParameterFile,
 )
 
-from wntrqgis.utilswithoutwntr import WqAnalysisType, WqFlowUnit, WqInField, WqInLayer, WqProjectVar, WqUtil
+from wntrqgis.utilswithoutwntr import WqAnalysisType, WqFlowUnit, WqInLayer, WqProjectVar
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -85,17 +87,21 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         return parameters
 
-    def processAlgorithm(self, parameters, context, feedback):  # noqa N802
-        if feedback is None:
-            feedback = QgsProcessingFeedback()
+    def processAlgorithm(  # noqa N802
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ) -> dict:
+        WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
         # PREPARE IMPORTS
         # imports are here as they are slow and only needed when processing the model.
-        self._check_and_unpack_dependencies(feedback)
+        self._check_and_unpack_dependencies()
         try:
             import wntr
 
-            from wntrqgis.utilswithwntr import WqWntrUtils
+            from wntrqgis.utilswithwntr import WqNetworkModel
         except ImportError as e:
             raise QgsProcessingException(e) from e
 
@@ -103,86 +109,74 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         if feedback.isCanceled():
             return {}
-        self._update_progress(feedback, ProgStatus.LOADING_INP_FILE)
+        self._update_progress(ProgStatus.LOADING_INP_FILE)
 
         source = self.parameterAsFile(parameters, self.INPUT, context)
         crs = self.parameterAsCrs(parameters, self.CRS, context)
-
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         try:
             wn = wntr.network.read_inpfile(source)
-            wn_gis = wntr.network.to_gis(wn)
-            gdfs = {lyr: getattr(wn_gis, lyr.wntr_attr) for lyr in WqInLayer}
+
         except ModuleNotFoundError as e:
             raise QgsProcessingException("WNTR dependencies not installed: " + str(e)) from e
         except Exception as e:
             raise QgsProcessingException("Error loading model: " + str(e)) from e
         if feedback.isCanceled():
             return {}
-        self._describe_model(feedback, wn)
-
-        self._update_progress(feedback, ProgStatus.CREATING_OUTPUTS)
+        self._describe_model(wn)
 
         # Hadle which units to ouptut in
         unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
         if unit_enum_int is not None:
-            if len(WqFlowUnit) <= unit_enum_int:
-                raise QgsProcessingException(self.tr("Could not find flow unit specified"))
-            wq_flow_unit = list(WqFlowUnit)[unit_enum_int]
+            try:
+                wq_flow_unit = list(WqFlowUnit)[unit_enum_int]
+            except ValueError as e:
+                msg = self.tr("Could not find flow unit specified")
+                raise QgsProcessingException(msg) from e
         else:
             wq_flow_unit = WqFlowUnit[wn.options.hydraulic.inpfile_units]
         feedback.pushInfo("Will output with the following units: " + str(wq_flow_unit))
         flow_units = wntr.epanet.util.FlowUnits[wq_flow_unit.name]
-        WqUtil.set_project_var(WqProjectVar.FLOW_UNITS, wq_flow_unit.name)
+        WqProjectVar.FLOW_UNITS.set(wq_flow_unit.name)
 
-        WqWntrUtils.pattern_curves_to_dfs(gdfs, wn, flow_units)
+        self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
-        analysis_types = WqAnalysisType.BASE
-        for lyr in WqInLayer:
-            cols = list(gdfs[lyr].loc[:, ~gdfs[lyr].isna().all()].columns)
-            for col in cols:
-                try:
-                    analysis_types = analysis_types | WqInField(col).analysis_type
-                except ValueError:
-                    continue
+        network_model = WqNetworkModel(flow_units, wn.options.hydraulic.headloss == "D-W")
+
+        network_model.from_wntr(wn)
 
         extra_analysis_type_names = [
-            atype.name for atype in WqAnalysisType if atype is not WqAnalysisType.BASE and atype in analysis_types
+            atype.name
+            for atype in WqAnalysisType
+            if atype is not WqAnalysisType.BASE and atype in network_model.analysis_types and atype.name is not None
         ]
         if len(extra_analysis_type_names):
             feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
 
-        WqWntrUtils.convert_dfs_from_si(gdfs, flow_units, wn.options.hydraulic.headloss == "D-W")
-
         outputs = {}
+        sinks = {}
         for layer in WqInLayer:
-            fields = layer.qgs_fields(analysis_types)
-
+            fields = layer.qgs_fields(network_model.analysis_types)
             (sink, outputs[layer.name]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
+            sinks[layer] = (sink, fields)
 
-            if not gdfs[layer].shape[0]:
-                continue
+        network_model.write_to_sinks(sinks)
 
-            WqWntrUtils.input_gdf_to_sink(gdfs[layer], fields, sink)
+        self._update_progress(ProgStatus.FINISHED_PROCESSING)
 
-        self._update_progress(feedback, ProgStatus.FINISHED_PROCESSING)
+        WqProjectVar.OPTIONS.set(wn.options.to_dict())
 
-        # controls = []
-        # for k, c in wn.controls.items():
-        #    cc = c.to_dict()
-        #    if "name" in cc and not cc["name"]:
-        #        cc["name"] = k
-        #    controls.append(cc)
-
-        WqUtil.set_project_var(WqProjectVar.OPTIONS, wn.options.to_dict())
+        filename = Path(source).stem
 
         for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(layername)
+                self.post_processors[lyr_id] = LayerPostProcessor.create(
+                    layername, self.tr(f"Model Layers ({filename})")
+                )
                 context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
 
         return outputs
