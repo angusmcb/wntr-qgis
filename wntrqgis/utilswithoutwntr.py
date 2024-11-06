@@ -7,30 +7,26 @@ from qgis.PyQt.QtCore import QMetaType, QVariant
 QGIS_VERSION_QMETATYPE = 33800
 
 
-class WqProjectVar(StrEnum):
-    OPTIONS = "wntr_options"
-    FLOW_UNITS = "wntr_flow_units"
-    CONTROLS = "wntr_controls"
-    INLAYERS = "wntr_inlayers"
-
-    def set(self, value: Any):
-        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), self.value, value)
-
-    def get(self):
-        return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(self.value)
-
-
 class WqFlowUnit(StrEnum):
-    LPS = auto()
-    LPM = auto()
-    MLD = auto()
-    CMH = auto()
-    CFS = auto()
-    GPM = auto()
-    MGD = auto()
-    IMGD = auto()
-    AFD = auto()
-    SI = auto()
+    LPS = "Litres per Second"
+    LPM = "Litres per Minute"
+    MLD = "Mega Litres Per Day"
+    CMH = "Cubic Metres per Hour"
+    CFS = "Cubic Feet per Second"
+    GPM = "Gallons per Minute"
+    MGD = "Mega Gallons per Day"
+    IMGD = "Imperial Mega Gallons per Day"
+    AFD = "Acre-feet per Day"
+    SI = "International System of Units (SI)"
+
+
+class WqHeadlossFormula(StrEnum):
+    HAZEN_WILLIAMS = "H-W"
+    DARCY_WEISBACH = "D-W"
+    CHEZY_MANNING = "C-M"
+
+    def friendly_name(self):
+        return self.name.replace("_", " ").title()
 
 
 class WqAnalysisType(Flag):
@@ -86,7 +82,7 @@ class WqOutLayer(WqLayer):
         return wq_fields
 
 
-class WqInLayer(WqLayer):
+class WqModelLayer(WqLayer):
     JUNCTIONS = "JUNCTIONS"
     RESERVOIRS = "RESERVOIRS"
     TANKS = "TANKS"
@@ -96,7 +92,7 @@ class WqInLayer(WqLayer):
 
     @property
     def is_node(self):
-        return self in [WqInLayer.JUNCTIONS, WqInLayer.RESERVOIRS, WqInLayer.TANKS]
+        return self in [WqModelLayer.JUNCTIONS, WqModelLayer.RESERVOIRS, WqModelLayer.TANKS]
 
     @property
     def wntr_attr(self):
@@ -125,7 +121,7 @@ class WqInLayer(WqLayer):
         #         # WqInField.END_NODE_NAME,
         #     ]
         match self:
-            case WqInLayer.JUNCTIONS:
+            case WqModelLayer.JUNCTIONS:
                 field_list = [
                     WqInField.NAME,
                     WqInField.ELEVATION,
@@ -137,7 +133,7 @@ class WqInLayer(WqLayer):
                     WqInField.REQUIRED_PRESSURE,
                     WqInField.PRESSURE_EXPONENT,
                 ]
-            case WqInLayer.TANKS:
+            case WqModelLayer.TANKS:
                 field_list = [
                     WqInField.NAME,
                     WqInField.ELEVATION,
@@ -153,14 +149,14 @@ class WqInLayer(WqLayer):
                     WqInField.MIXING_MODEL,
                     WqInField.BULK_COEFF,
                 ]
-            case WqInLayer.RESERVOIRS:
+            case WqModelLayer.RESERVOIRS:
                 field_list = [
                     WqInField.NAME,
                     WqInField.BASE_HEAD,
                     WqInField.HEAD_PATTERN,
                     WqInField.INITIAL_QUALITY,
                 ]
-            case WqInLayer.PIPES:
+            case WqModelLayer.PIPES:
                 field_list = [
                     WqInField.NAME,
                     # WqInField.START_NODE_NAME,
@@ -174,7 +170,7 @@ class WqInLayer(WqLayer):
                     WqInField.BULK_COEFF,
                     WqInField.WALL_COEFF,
                 ]
-            case WqInLayer.PUMPS:
+            case WqModelLayer.PUMPS:
                 field_list = [
                     WqInField.NAME,
                     # WqInField.START_NODE_NAME,
@@ -190,7 +186,7 @@ class WqInLayer(WqLayer):
                     WqInField.ENERGY_PATTERN,
                     WqInField.ENERGY_PRICE,
                 ]
-            case WqInLayer.VALVES:
+            case WqModelLayer.VALVES:
                 field_list = [
                     WqInField.NAME,
                     # WqInField.START_NODE_NAME,
@@ -320,3 +316,25 @@ class WqOutField(WqField):
     FLOWRATE = auto(), float, WqAnalysisType.BASE
     HEADLOSS = auto(), float, WqAnalysisType.BASE
     VELOCITY = auto(), float, WqAnalysisType.BASE
+
+
+class WqProjectVar(Enum):
+    OPTIONS = auto(), dict
+    FLOW_UNITS = auto(), WqFlowUnit
+    CONTROLS = auto(), str
+    INLAYERS = auto(), dict  # noqa PIE796
+    HEADLOSS_FORMULA = auto(), WqHeadlossFormula
+    SIMULATION_DURATION = auto(), float
+
+    @property
+    def _setting_name(self):
+        return "wntr_" + self.name.lower()
+
+    def set(self, value: Any):
+        if not isinstance(value, self.value[1]):
+            msg = f"{self.name} expects to save types {type(self.value[1])} but got {type(value)}"
+            raise TypeError(msg)
+        QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), self._setting_name, value)
+
+    def get(self):
+        return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(self._setting_name)

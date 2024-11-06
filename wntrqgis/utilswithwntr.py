@@ -8,6 +8,8 @@ from functools import partial
 import shapely
 import wntr
 from qgis.core import (
+    Qgis,
+    QgsCoordinateTransformContext,
     QgsDistanceArea,
     QgsFeature,
     QgsFeatureSink,
@@ -20,15 +22,24 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 from wntr.epanet.util import HydParam, QualParam
 
-from wntrqgis.utilswithoutwntr import WqAnalysisType, WqField, WqInField, WqInLayer, WqLayer, WqOutField, WqOutLayer
+from wntrqgis.utilswithoutwntr import (
+    WqAnalysisType,
+    WqField,
+    WqFlowUnit,
+    WqHeadlossFormula,
+    WqInField,
+    WqLayer,
+    WqModelLayer,
+    WqOutField,
+    WqOutLayer,
+)
 
 
 class WqSimulationResults:
     """Process WNTR Simulation Results, outputing to QGIS feature sinks"""
 
-    def __init__(self, wntr_simulation_results: wntr.sim.results.SimulationResults):
-        self.flow_units = wntr.epanet.util.FlowUnits.SI
-        self.darcy_weisbach = None
+    def __init__(self, wntr_simulation_results: wntr.sim.results.SimulationResults, unit_conversion: WqUnitConversion):
+        self._unit_conversion = unit_conversion
 
         self._result_dfs = {}
         for lyr in WqOutLayer:
@@ -38,7 +49,7 @@ class WqSimulationResults:
 
     def to_sink(self, sink: QgsFeatureSink, fields: list[WqInField], item_geoms):
         converted_dfs = {}
-        self._unit_conversion = WqUnitConversion(self.flow_units)
+
         for field in fields:
             # converted_dfs[field] = self._result_dfs[field].apply(self._unit_conversion.converter_from_si(field))
             converted_dfs[field] = self._unit_conversion.whole_df_from_si(self._result_dfs[field], field)
@@ -53,9 +64,9 @@ class WqSimulationResults:
 class WqUnitConversion:
     """Manages conversion to and from SI units"""
 
-    def __init__(self, flow_units: wntr.epanet.util.FlowUnits, darcy_weisbach: bool = False):  # noqa FBT001 #noqa FBT002
-        self._flow_units = flow_units
-        self._darcy_weisbach = darcy_weisbach
+    def __init__(self, flow_units: WqFlowUnit, headloss_formula: WqHeadlossFormula):
+        self._flow_units = wntr.epanet.util.FlowUnits[flow_units.name]
+        self._darcy_weisbach = headloss_formula is WqHeadlossFormula.DARCY_WEISBACH
 
     def to_si(self, value, field: WqField, layer: WqLayer | None = None):
         if (not isinstance(value, (int, float))) or isinstance(value, bool):
@@ -100,7 +111,7 @@ class WqUnitConversion:
             ):
                 return HydParam.HydraulicHead
             case WqInField.DIAMETER:
-                if layer is WqInLayer.TANKS:
+                if layer is WqModelLayer.TANKS:
                     return HydParam.TankDiameter
                 return HydParam.PipeDiameter
             case WqInField.MIN_VOL:
@@ -208,11 +219,15 @@ class WqNetworkModelError(Exception):
 class WqNetworkModel:
     """Interface between QGIS sources and WNTR models"""
 
-    def __init__(self, flow_units, darcy_weisbach, transform_context=None, ellipsoid=None):
-        self._transform_context = transform_context
+    def __init__(
+        self, unit_conversion: WqUnitConversion, transform_context: QgsCoordinateTransformContext = None, ellipsoid=None
+    ):
+        self._transform_context = (
+            transform_context if transform_context is not None else QgsCoordinateTransformContext()
+        )
         self._ellipsoid = ellipsoid
-        self.geom_dict = {WqOutLayer.LINKS: {}, WqOutLayer.NODES: {}}
-        self._unit_conversion = WqUnitConversion(flow_units, darcy_weisbach)
+        self.geom_dict: dict[WqOutLayer, dict[str, QgsGeometry]] = {WqOutLayer.LINKS: {}, WqOutLayer.NODES: {}}
+        self._unit_conversion = unit_conversion
 
     def to_wntr(self, sources, wn):
         self._node_spatial_index = QgsSpatialIndex()
@@ -224,8 +239,8 @@ class WqNetworkModel:
         linknames = set()
         shape_name_map = {wq_field.value[:10]: wq_field.value for wq_field in WqInField}
 
-        for in_layer in WqInLayer:
-            source = sources.get(in_layer)
+        for in_layer in WqModelLayer:
+            source = sources.get(WqModelLayer(in_layer))  # Can either be string or enum
             if source is None:
                 continue
 
@@ -240,10 +255,6 @@ class WqNetworkModel:
             measurer = QgsDistanceArea()
             measurer.setSourceCrs(self.crs, self._transform_context)
             measurer.setEllipsoid(self._ellipsoid)
-            #   TODO: do something reasonble if units are not metres
-            if measurer.lengthUnits() != 0:
-                msg = "length units not metres!"
-                raise NotImplementedError(msg)
 
             for ft in source.getFeatures():
                 geom = ft.geometry()
@@ -322,14 +333,21 @@ class WqNetworkModel:
                     self.geom_dict[WqOutLayer.LINKS][ftname] = newgeom
                     length = measurer.measureLength(newgeom)
 
-                    if in_layer is WqInLayer.PIPES and not math.isclose(atts[WqInField.LENGTH], length, rel_tol=0.05):
+                    if in_layer is WqModelLayer.PIPES and not math.isclose(
+                        atts[WqInField.LENGTH], length, rel_tol=0.05, abs_tol=10
+                    ):
                         # warnings are raised in bulk later, as very slow otherwise
                         pipe_length_warnings.append(ftname)
 
+                    if measurer.lengthUnits() != Qgis.DistanceUnit.Meters:
+                        # try:
+                        length = measurer.convertLengthMeasurement(length, Qgis.DistanceUnit.Meters)
+                        # msg = "length units not metres and cannot convert: " + str(measurer.lengthUnits())
+                        # raise NotImplementedError(msg)
                 try:
                     # Prefer adding nodes using 'add_...()' function as wntr does more error checking this way
                     match in_layer:
-                        case WqInLayer.JUNCTIONS:
+                        case WqModelLayer.JUNCTIONS:
                             wn.add_junction(
                                 ftname,
                                 base_demand=atts.get(WqInField.BASE_DEMAND, 0),
@@ -344,7 +362,7 @@ class WqNetworkModel:
                             n.minimum_pressure = atts.get(WqInField.MINIMUM_PRESSURE)
                             n.pressure_exponent = atts.get(WqInField.PRESSURE_EXPONENT)
                             n.required_pressure = atts.get(WqInField.REQUIRED_PRESSURE)
-                        case WqInLayer.TANKS:
+                        case WqModelLayer.TANKS:
                             wn.add_tank(
                                 ftname,
                                 elevation=atts.get(WqInField.ELEVATION, 0),
@@ -364,14 +382,14 @@ class WqNetworkModel:
                                     WqInField.MIXING_MODEL
                                 )  # WNTR BUG : doesn't accept 'none' value
                             n.bulk_coeff = atts.get(WqInField.BULK_COEFF)
-                        case WqInLayer.RESERVOIRS:
+                        case WqModelLayer.RESERVOIRS:
                             wn.add_reservoir(
                                 ftname,
                                 base_head=atts.get(WqInField.BASE_HEAD, 0),
                                 head_pattern=self._add_pattern_to_wn(atts.get(WqInField.HEAD_PATTERN), wn),
                                 coordinates=coordinates,
                             )
-                        case WqInLayer.PIPES:
+                        case WqModelLayer.PIPES:
                             wn.add_pipe(
                                 ftname,
                                 start_node_name,
@@ -389,7 +407,7 @@ class WqNetworkModel:
                             link.bulk_coeff = atts.get(WqInField.BULK_COEFF)
                             link.wall_coeff = atts.get(WqInField.WALL_COEFF)
                             link.vertices = vertex_list
-                        case WqInLayer.PUMPS:
+                        case WqModelLayer.PUMPS:
                             wn.add_pump(
                                 ftname,
                                 start_node_name,
@@ -408,7 +426,7 @@ class WqNetworkModel:
                             link.energy_price = atts.get(WqInField.ENERGY_PRICE)
                             link.initial_setting = atts.get(WqInField.INITIAL_SETTING)  # bug ???
                             link.vertices = vertex_list
-                        case WqInLayer.VALVES:
+                        case WqModelLayer.VALVES:
                             wn.add_valve(
                                 ftname,
                                 start_node_name,
@@ -430,7 +448,10 @@ class WqNetworkModel:
                     raise WqNetworkModelError(msg) from None
 
         if pipe_length_warnings:
-            msg = "the following pipes had very differnt measured length vs attribute:" + ",".join(pipe_length_warnings)
+            msg = (
+                f"the following {len(pipe_length_warnings)} pipes had very differnt measured length vs attribute:"
+                + ",".join(pipe_length_warnings)
+            )
             warnings.warn(msg, stacklevel=1)
 
         self._wntr_network_error_check(wn)
@@ -488,12 +509,12 @@ class WqNetworkModel:
 
     def from_wntr(self, wn):
         wn_gis = wntr.network.to_gis(wn)
-        gdfs = {lyr: getattr(wn_gis, lyr.wntr_attr) for lyr in WqInLayer}
+        gdfs = {lyr: getattr(wn_gis, lyr.wntr_attr) for lyr in WqModelLayer}
 
         self._get_pattern_from_wn(gdfs, wn)
 
         analysis_types = WqAnalysisType.BASE
-        for lyr in WqInLayer:
+        for lyr in WqModelLayer:
             cols = list(gdfs[lyr].loc[:, ~gdfs[lyr].isna().all()].columns)
             for col in cols:
                 try:
@@ -537,7 +558,7 @@ class WqNetworkModel:
 
         for lyr, df in dfs.items():
             match lyr:
-                case WqInLayer.JUNCTIONS:
+                case WqModelLayer.JUNCTIONS:
                     # Secial case for demands
                     df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
                     df["demand_pattern"] = wn.query_node_attribute(
@@ -547,15 +568,15 @@ class WqNetworkModel:
                         if dtl.pattern_list() and dtl.pattern_list()[0]
                         else None
                     )
-                case WqInLayer.RESERVOIRS:
+                case WqModelLayer.RESERVOIRS:
                     if "head_pattern_name" in df:
                         df["head_pattern"] = df["head_pattern_name"].apply(_pattern_string)
-                case WqInLayer.TANKS:
+                case WqModelLayer.TANKS:
                     if "vol_curve_name" in df:
                         df["vol_curve"] = df["vol_curve_name"].apply(
                             lambda cn: repr(curves[cn]) if curves[cn] else None
                         )
-                case WqInLayer.PUMPS:
+                case WqModelLayer.PUMPS:
                     # not all pumps will have a pump curve (power pumps)!
                     if "pump_curve_name" in df:
                         df["pump_curve"] = df["pump_curve_name"].apply(

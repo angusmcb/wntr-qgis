@@ -26,13 +26,12 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterFileDestination,
-    QgsProcessingParameterMatrix,
+    QgsProcessingParameterNumber,
     QgsProcessingUtils,
     QgsProject,
 )
 
-import wntrqgis.options
-from wntrqgis.utilswithoutwntr import WqFlowUnit, WqInField, WqInLayer, WqOutLayer, WqProjectVar
+from wntrqgis.utilswithoutwntr import WqFlowUnit, WqHeadlossFormula, WqInField, WqModelLayer, WqOutLayer, WqProjectVar
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -42,6 +41,8 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
     CONTROLS = "CONTROLS"
     UNITS = "UNITS"
+    DURATION = "DURATION"
+    HEADLOSS_FORMULA = "HEADLOSS_FORMULA"
     OUTPUTINP = "OUTPUTINP"
 
     def flags(self):
@@ -72,12 +73,12 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         if not isinstance(default_layers, dict):
             default_layers = {}
 
-        for lyr in WqInLayer:
+        for lyr in WqModelLayer:
             param = QgsProcessingParameterFeatureSource(
                 lyr.name,
                 self.tr(lyr.friendly_name),
                 types=lyr.acceptable_processing_vectors,
-                optional=lyr is not WqInLayer.JUNCTIONS,
+                optional=lyr is not WqModelLayer.JUNCTIONS,
             )
             savedlyr = default_layers.get(lyr.name)
             if savedlyr and param.checkValueIsAcceptable(savedlyr) and QgsProject.instance().mapLayer(savedlyr):
@@ -85,20 +86,35 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             param.setHelp(self.tr("Model Inputs"))
             self.addParameter(param)
 
-        default_flow_units = WqProjectVar.FLOW_UNITS.get()
-
-        self.addParameter(
-            QgsProcessingParameterEnum(
-                self.UNITS,
-                self.tr("Units"),
-                options=list(WqFlowUnit),
-                allowMultiple=False,
-                usesStaticStrings=False,
-                defaultValue=(
-                    WqFlowUnit[default_flow_units].value if default_flow_units in WqFlowUnit.__members__ else None
-                ),
-            )
+        param = QgsProcessingParameterEnum(
+            self.UNITS,
+            self.tr("Units"),
+            options=list(WqFlowUnit),
+            allowMultiple=False,
+            usesStaticStrings=False,
         )
+        default_flow_units = WqProjectVar.FLOW_UNITS.get()
+        param.setGuiDefaultValueOverride(list(WqFlowUnit).index(default_flow_units) if default_flow_units else None)
+        self.addParameter(param)
+
+        param = QgsProcessingParameterEnum(
+            self.HEADLOSS_FORMULA,
+            self.tr("Headloss Formula"),
+            options=[formula.friendly_name() for formula in WqHeadlossFormula],
+            allowMultiple=False,
+            usesStaticStrings=False,
+        )
+        default_hl_formula = WqProjectVar.HEADLOSS_FORMULA.get()
+        param.setGuiDefaultValueOverride(
+            list(WqHeadlossFormula).index(default_hl_formula) if default_hl_formula else None
+        )
+        self.addParameter(param)
+
+        param = QgsProcessingParameterNumber(
+            self.DURATION, self.tr("Simulation duration in hours (or 0 for single period)"), minValue=0
+        )
+        param.setGuiDefaultValueOverride(WqProjectVar.SIMULATION_DURATION.get())
+        self.addParameter(param)
 
         self.addParameter(
             QgsProcessingParameterFeatureSink(WqOutLayer.NODES.value, self.tr("Simulation Results - Nodes"))
@@ -107,56 +123,51 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             QgsProcessingParameterFeatureSink(WqOutLayer.LINKS.value, self.tr("Simulation Results - Links"))
         )
 
-        saved_options = WqProjectVar.OPTIONS.get()
+        # saved_options = WqProjectVar.OPTIONS.get()
 
-        default_options = wntrqgis.options.get_default_options()
+        # default_options = wntrqgis.options.get_default_options()
 
-        optionslist = {}
+        # optionslist = {}
 
-        for optionskey in ["time", "hydraulic"]:
-            if isinstance(default_options[optionskey], dict):
-                if isinstance(saved_options, dict):
-                    optionsdict = default_options[optionskey] | saved_options.get(optionskey, {})
-                else:
-                    optionsdict = default_options[optionskey]
+        # for optionskey in ["time", "hydraulic"]:
+        #     if isinstance(default_options[optionskey], dict):
+        #         if isinstance(saved_options, dict):
+        #             optionsdict = default_options[optionskey] | saved_options.get(optionskey, {})
+        #         else:
+        #             optionsdict = default_options[optionskey]
 
-                optionslist[optionskey] = []
-                for x, y in optionsdict.items():
-                    optionslist[optionskey].append(x)
-                    optionslist[optionskey].append(y)
+        #         optionslist[optionskey] = []
+        #         for x, y in optionsdict.items():
+        #             optionslist[optionskey].append(x)
+        #             optionslist[optionskey].append(y)
 
-        param = QgsProcessingParameterMatrix(
-            self.OPTIONSTIME,
-            "Time Settings",
-            numberRows=1,
-            hasFixedNumberRows=True,
-            headers=["Setting Name", "Setting Value"],
-            defaultValue=optionslist["time"],
-        )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(param)
+        # param = QgsProcessingParameterMatrix(
+        #     self.OPTIONSTIME,
+        #     "Time Settings",
+        #     numberRows=1,
+        #     hasFixedNumberRows=True,
+        #     headers=["Setting Name", "Setting Value"],
+        #     defaultValue=optionslist["time"],
+        # )
+        # param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # self.addParameter(param)
 
-        param = QgsProcessingParameterMatrix(
-            self.OPTIONSHYDRAULIC,
-            "Hydraulic Settings",
-            numberRows=1,
-            hasFixedNumberRows=True,
-            headers=["Setting Name", "Setting Value"],
-            defaultValue=optionslist["hydraulic"],
-        )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(param)
+        # param = QgsProcessingParameterMatrix(
+        #     self.OPTIONSHYDRAULIC,
+        #     "Hydraulic Settings",
+        #     numberRows=1,
+        #     hasFixedNumberRows=True,
+        #     headers=["Setting Name", "Setting Value"],
+        #     defaultValue=optionslist["hydraulic"],
+        # )
+        # param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # self.addParameter(param)
 
         param = QgsProcessingParameterFileDestination(
             self.OUTPUTINP, "Output .inp file", optional=True, createByDefault=False
         )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
-
-        # param = QgsProcessingParameterString(self.CONTROLS, "Controls", multiLine=True)
-        # param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        # param.setGuiDefaultValueOverride()
-        # self.addParameter(param)
 
     def processAlgorithm(  # noqa N802
         self,
@@ -173,7 +184,12 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         try:
             import wntr
 
-            from wntrqgis.utilswithwntr import WqNetworkModel, WqNetworkModelError, WqSimulationResults
+            from wntrqgis.utilswithwntr import (
+                WqNetworkModel,
+                WqNetworkModelError,
+                WqSimulationResults,
+                WqUnitConversion,
+            )
         except ImportError as e:
             raise QgsProcessingException(e) from e
 
@@ -183,15 +199,13 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             return {}
         self._update_progress(ProgStatus.PREPARING_MODEL)
 
-        flow_unit_num = self.parameterAsEnum(parameters, self.UNITS, context)
-        if flow_unit_num is None:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.UNITS))
-        wq_flow_unit = list(WqFlowUnit)[flow_unit_num]
-        WqProjectVar.FLOW_UNITS.set(wq_flow_unit.name)
-        flow_units = wntr.epanet.util.FlowUnits[wq_flow_unit.name]
-
-        options_hydraulic = self.parameterAsMatrix(parameters, self.OPTIONSHYDRAULIC, context)
-        options_time = self.parameterAsMatrix(parameters, self.OPTIONSTIME, context)
+        # create logger
+        logger = logging.getLogger("wntr")
+        ch = LoggingHandler(feedback)
+        ch.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
 
         # START WNTR MODEL
         # creation order to be options, patterns/cruves, nodes, then links
@@ -199,20 +213,24 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         # ADD OPTIONS
 
-        options_hydraulic_dict = {}
-        for i in range(0, len(options_hydraulic), 2):
-            options_hydraulic_dict[options_hydraulic[i]] = options_hydraulic[i + 1]
-        wn.options.hydraulic = wntr.network.options.HydraulicOptions(**options_hydraulic_dict)
+        flow_unit_num = self.parameterAsEnum(parameters, self.UNITS, context)
+        if parameters[self.UNITS] is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.UNITS))
+        wq_flow_unit = list(WqFlowUnit)[flow_unit_num]
+        WqProjectVar.FLOW_UNITS.set(wq_flow_unit)
 
-        options_time_dict = {}
-        for i in range(0, len(options_time), 2):
-            options_time_dict[options_time[i]] = options_time[i + 1]
-        wn.options.time = wntr.network.options.TimeOptions(**options_time_dict)
+        input_headloss_formula = list(WqHeadlossFormula)[
+            self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
+        ]
+        wn.options.hydraulic.headloss = input_headloss_formula.value
 
-        sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in WqInLayer}
-        network_model = WqNetworkModel(
-            flow_units, wn.options.hydraulic.headloss == "D-W", context.transformContext(), context.ellipsoid()
-        )
+        unit_conversion = WqUnitConversion(wq_flow_unit, input_headloss_formula)
+
+        duration = self.parameterAsDouble(parameters, self.DURATION, context)
+        wn.options.time.duration = duration * 3600
+
+        sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in WqModelLayer}
+        network_model = WqNetworkModel(unit_conversion, context.transformContext(), context.ellipsoid())
         try:
             wn = network_model.to_wntr(sources, wn)
         except WqNetworkModelError as e:
@@ -222,14 +240,6 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             return {}
         self._describe_model(wn)
         self._update_progress(ProgStatus.RUNNING_SIMULATION)
-
-        # create logger
-        logger = logging.getLogger("wntr")
-        ch = LoggingHandler(feedback)
-        ch.setLevel(logging.WARNING)
-        formatter = logging.Formatter("%(levelname)s - %(message)s")
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
 
         outputs = {}
 
@@ -252,9 +262,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
         # PROCESS SIMULATION RESULTS
-        wq_results = WqSimulationResults(sim_results)
-        wq_results.darcy_weisbach = wn.options.hydraulic.headloss == "D-W"
-        wq_results.flow_units = flow_units
+        wq_results = WqSimulationResults(sim_results, unit_conversion)
+        # wq_results.darcy_weisbach = wn.options.hydraulic.headloss == "D-W"
+        # wq_results.flow_units = flow_units
 
         for lyr in WqOutLayer:
             fields = QgsFields()
@@ -273,8 +283,10 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
             wq_results.to_sink(sink, lyr.wq_fields, network_model.geom_dict[lyr])
 
+        logger.removeHandler(ch)
         self._update_progress(ProgStatus.FINISHED_PROCESSING)
-
+        WqProjectVar.HEADLOSS_FORMULA.set(WqHeadlossFormula(wn.options.hydraulic.headloss))
+        WqProjectVar.SIMULATION_DURATION.set(wn.options.time.duration)
         # PREPARE TO LOAD LAYER STYLES IN MAIN THREAD ONCE FINISHED
         finishtime = time.strftime("%X")
         for outputname, lyr_id in outputs.items():

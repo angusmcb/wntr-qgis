@@ -163,6 +163,8 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
             "OUTPUTLINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
             "UNITS": units,
+            "HEADLOSS_FORMULA": 0,
+            "DURATION": 24,
             **inp_result,
         },
     )

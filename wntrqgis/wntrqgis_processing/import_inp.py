@@ -25,7 +25,7 @@ from qgis.core import (
     QgsProcessingParameterFile,
 )
 
-from wntrqgis.utilswithoutwntr import WqAnalysisType, WqFlowUnit, WqInLayer, WqProjectVar
+from wntrqgis.utilswithoutwntr import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -76,7 +76,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             )
         )
 
-        for layer in WqInLayer:
+        for layer in WqModelLayer:
             self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
 
     def preprocessParameters(self, parameters):  # noqa N802
@@ -101,7 +101,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         try:
             import wntr
 
-            from wntrqgis.utilswithwntr import WqNetworkModel
+            from wntrqgis.utilswithwntr import WqNetworkModel, WqUnitConversion
         except ImportError as e:
             raise QgsProcessingException(e) from e
 
@@ -116,20 +116,15 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
-        try:
-            wn = wntr.network.read_inpfile(source)
+        wn = wntr.network.read_inpfile(source)
 
-        except ModuleNotFoundError as e:
-            raise QgsProcessingException("WNTR dependencies not installed: " + str(e)) from e
-        except Exception as e:
-            raise QgsProcessingException("Error loading model: " + str(e)) from e
         if feedback.isCanceled():
             return {}
         self._describe_model(wn)
 
         # Hadle which units to ouptut in
-        unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
-        if unit_enum_int is not None:
+        if parameters.get(self.UNITS) is not None:
+            unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
             try:
                 wq_flow_unit = list(WqFlowUnit)[unit_enum_int]
             except ValueError as e:
@@ -137,13 +132,20 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 raise QgsProcessingException(msg) from e
         else:
             wq_flow_unit = WqFlowUnit[wn.options.hydraulic.inpfile_units]
-        feedback.pushInfo("Will output with the following units: " + str(wq_flow_unit))
-        flow_units = wntr.epanet.util.FlowUnits[wq_flow_unit.name]
-        WqProjectVar.FLOW_UNITS.set(wq_flow_unit.name)
+        feedback.pushInfo("Will output with the following units: " + str(wq_flow_unit.value))
+        # flow_units = wntr.epanet.util.FlowUnits[wq_flow_unit.name]
+
+        wq_headloss_formula = WqHeadlossFormula(wn.options.hydraulic.headloss)
+
+        unit_conversion = WqUnitConversion(wq_flow_unit, wq_headloss_formula)
+
+        WqProjectVar.FLOW_UNITS.set(wq_flow_unit)
+        WqProjectVar.HEADLOSS_FORMULA.set(wq_headloss_formula)
+        WqProjectVar.SIMULATION_DURATION.set(wn.options.time.duration)
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
-        network_model = WqNetworkModel(flow_units, wn.options.hydraulic.headloss == "D-W")
+        network_model = WqNetworkModel(unit_conversion)
 
         network_model.from_wntr(wn)
 
@@ -157,7 +159,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         outputs = {}
         sinks = {}
-        for layer in WqInLayer:
+        for layer in WqModelLayer:
             fields = layer.qgs_fields(network_model.analysis_types)
             (sink, outputs[layer.name]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
@@ -167,8 +169,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         network_model.write_to_sinks(sinks)
 
         self._update_progress(ProgStatus.FINISHED_PROCESSING)
-
-        WqProjectVar.OPTIONS.set(wn.options.to_dict())
 
         filename = Path(source).stem
 

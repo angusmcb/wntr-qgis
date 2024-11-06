@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
 )
 
-from wntrqgis.utilswithoutwntr import WqAnalysisType, WqInLayer
+from wntrqgis.utilswithoutwntr import WqAnalysisType, WqModelLayer
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, WntrQgisProcessingBase
 
 
@@ -65,7 +65,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
             self.addParameter(param)
 
-        for layer in WqInLayer:
+        for layer in WqModelLayer:
             self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
 
     def processAlgorithm(  # noqa N802
@@ -85,7 +85,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         outputs: dict[str, str] = {}
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
-        for layer in WqInLayer:
+        for layer in WqModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
             (sink, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
