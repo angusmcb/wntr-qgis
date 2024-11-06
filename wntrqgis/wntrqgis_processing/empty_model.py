@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
 )
 
-from wntrqgis.utilswithoutwntr import WqAnalysisType, WqModelLayer
+from wntrqgis.network_parts import WqAnalysisType, WqModelLayer
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, WntrQgisProcessingBase
 
 

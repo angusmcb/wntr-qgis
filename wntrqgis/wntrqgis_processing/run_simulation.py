@@ -31,7 +31,7 @@ from qgis.core import (
     QgsProject,
 )
 
-from wntrqgis.utilswithoutwntr import WqFlowUnit, WqHeadlossFormula, WqInField, WqModelLayer, WqOutLayer, WqProjectVar
+from wntrqgis.network_parts import WqFlowUnit, WqHeadlossFormula, WqInField, WqModelLayer, WqOutLayer, WqProjectVar
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -68,7 +68,6 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             """)
 
     def initAlgorithm(self, config=None):  # noqa N802
-        # default_layers = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntr_layers")
         default_layers = WqProjectVar.INLAYERS.get()
         if not isinstance(default_layers, dict):
             default_layers = {}
@@ -184,9 +183,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         try:
             import wntr
 
-            from wntrqgis.utilswithwntr import (
-                WqNetworkModel,
+            from wntrqgis.wntr_interface import (
                 WqNetworkModelError,
+                WqNetworkToWntr,
                 WqSimulationResults,
                 WqUnitConversion,
             )
@@ -230,7 +229,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         wn.options.time.duration = duration * 3600
 
         sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in WqModelLayer}
-        network_model = WqNetworkModel(unit_conversion, context.transformContext(), context.ellipsoid())
+        network_model = WqNetworkToWntr(unit_conversion, context.transformContext(), context.ellipsoid())
         try:
             wn = network_model.to_wntr(sources, wn)
         except WqNetworkModelError as e:

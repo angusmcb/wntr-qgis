@@ -25,7 +25,7 @@ from qgis.core import (
     QgsProcessingParameterFile,
 )
 
-from wntrqgis.utilswithoutwntr import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
+from wntrqgis.network_parts import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -101,7 +101,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         try:
             import wntr
 
-            from wntrqgis.utilswithwntr import WqNetworkModel, WqUnitConversion
+            from wntrqgis.wntr_interface import WqNetworkFromWntr, WqUnitConversion
         except ImportError as e:
             raise QgsProcessingException(e) from e
 
@@ -133,7 +133,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         else:
             wq_flow_unit = WqFlowUnit[wn.options.hydraulic.inpfile_units]
         feedback.pushInfo("Will output with the following units: " + str(wq_flow_unit.value))
-        # flow_units = wntr.epanet.util.FlowUnits[wq_flow_unit.name]
 
         wq_headloss_formula = WqHeadlossFormula(wn.options.hydraulic.headloss)
 
@@ -145,9 +144,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
-        network_model = WqNetworkModel(unit_conversion)
-
-        network_model.from_wntr(wn)
+        network_model = WqNetworkFromWntr(wn, unit_conversion)
 
         extra_analysis_type_names = [
             atype.name

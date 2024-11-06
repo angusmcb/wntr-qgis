@@ -4,7 +4,6 @@ from pathlib import Path
 from enum import IntEnum
 import logging
 
-
 import time
 from qgis.core import (
     QgsProcessingLayerPostProcessorInterface,
@@ -14,7 +13,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagemet
-from wntrqgis.utilswithoutwntr import WqProjectVar
+from wntrqgis.network_parts import WqProjectVar
 
 if TYPE_CHECKING:
     import wntr

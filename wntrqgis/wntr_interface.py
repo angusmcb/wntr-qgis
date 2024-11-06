@@ -22,7 +22,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 from wntr.epanet.util import HydParam, QualParam
 
-from wntrqgis.utilswithoutwntr import (
+from wntrqgis.network_parts import (
     WqAnalysisType,
     WqField,
     WqFlowUnit,
@@ -216,7 +216,7 @@ class WqNetworkModelError(Exception):
     pass
 
 
-class WqNetworkModel:
+class WqNetworkToWntr:
     """Interface between QGIS sources and WNTR models"""
 
     def __init__(
@@ -507,7 +507,10 @@ class WqNetworkModel:
         self._next_curve_name += 1
         return name
 
-    def from_wntr(self, wn):
+
+class WqNetworkFromWntr:
+    def __init__(self, wn, unit_conversion: WqUnitConversion):
+        self._unit_conversion = unit_conversion
         wn_gis = wntr.network.to_gis(wn)
         gdfs = {lyr: getattr(wn_gis, lyr.wntr_attr) for lyr in WqModelLayer}
 
