@@ -7,3 +7,9 @@ start_ide.bat
 __pycache__
 wntrqgis/packages/*
 !wntrqgis/packages/.gitkeep
+.ipynb_checkpoints
+temp.bin
+temp.inp
+temp.rpt
+output.inp
+notebooks/
