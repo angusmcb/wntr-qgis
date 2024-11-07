@@ -136,16 +136,17 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         WqProjectVar.FLOW_UNITS.set(wq_flow_unit)
         WqProjectVar.HEADLOSS_FORMULA.set(wq_headloss_formula)
-        WqProjectVar.SIMULATION_DURATION.set(wn.options.time.duration)
+        WqProjectVar.SIMULATION_DURATION.set(wn.options.time.duration / 3600)
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
         network_model = WqNetworkFromWntr(wn, unit_conversion)
 
+        # this is just to give a little user output
         extra_analysis_type_names = [
-            atype.name
-            for atype in WqAnalysisType
-            if atype is not WqAnalysisType.BASE and atype in network_model.analysis_types and atype.name is not None
+            str(atype.name)
+            for atype in [WqAnalysisType.ENERGY, WqAnalysisType.QUALITY, WqAnalysisType.PDA]
+            if network_model.analysis_types is not None and atype in network_model.analysis_types
         ]
         if len(extra_analysis_type_names):
             feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
