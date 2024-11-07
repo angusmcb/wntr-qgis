@@ -26,7 +26,7 @@ def example_dir():
 
 
 def examples_list():
-    return ["Net1.inp", "Net2.inp", "Net3.inp", "Net6.inp", "ky10.inp"]
+    return ["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp"]
 
 
 expected_model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
@@ -71,7 +71,7 @@ def test_alg_import_inp_show_map(qgis_processing, qgis_iface, qgis_new_project, 
         "wntr:importinp",
         {
             "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
-            "INPUT": str(example_dir / "Net1.inp"),
+            "INPUT": str(example_dir / "ky1.inp"),
             "JUNCTIONS": "TEMPORARY_OUTPUT",
             "PIPES": "TEMPORARY_OUTPUT",
             "PUMPS": "TEMPORARY_OUTPUT",
@@ -124,7 +124,9 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
             "wntr:importinp",
             {
                 "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
-                "INPUT": str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.inp"),
+                "INPUT": str(
+                    Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.simplified.inp"
+                ),
                 "JUNCTIONS": "TEMPORARY_OUTPUT",
                 "PIPES": "TEMPORARY_OUTPUT",
                 "PUMPS": "TEMPORARY_OUTPUT",

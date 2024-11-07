@@ -4,6 +4,7 @@ import ast
 import math
 import warnings
 from functools import partial
+from typing import TYPE_CHECKING
 
 import shapely
 import wntr
@@ -33,6 +34,9 @@ from wntrqgis.network_parts import (
     WqOutField,
     WqOutLayer,
 )
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class WqSimulationResults:
@@ -90,7 +94,7 @@ class WqUnitConversion:
             self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
         )
 
-    def _get_wntr_conversion_param(self, field: WqField, layer: WqLayer | None = None):
+    def _get_wntr_conversion_param(self, field: WqField, layer: WqLayer | None = None) -> QualParam | HydParam:
         match field:
             case WqInField.ELEVATION:
                 return HydParam.Elevation
@@ -141,7 +145,7 @@ class WqUnitConversion:
     def curve_points_from_si(self, points, curve_type):
         return self._convert_curve_points(points, curve_type, wntr.epanet.util.from_si)
 
-    def _convert_curve_points(self, points, curve_type, conversion_function):
+    def _convert_curve_points(self, points, curve_type: str, conversion_function):
         flow_units = self._flow_units
         converted_points = []
         match curve_type:
@@ -184,7 +188,7 @@ class WqUnitConversion:
     #         darcy_weisbach=self._darcy_weisbach,
     #     )
 
-    def whole_df_from_si(self, df, field, layer=None):
+    def whole_df_from_si(self, df: pd.DataFrame, field: WqField, layer: WqLayer | None = None):
         try:
             conversion_param = self._get_wntr_conversion_param(field, layer)
         except ValueError:
@@ -196,7 +200,7 @@ class WqUnitConversion:
             darcy_weisbach=self._darcy_weisbach,
         )
 
-    def convert_dfs_from_si(self, dfs):
+    def convert_dfs_from_si(self, dfs: dict[WqLayer, pd.DataFrame]):
         for layer, df in dfs.items():
             for fieldname, series in df.items():
                 try:
@@ -220,7 +224,10 @@ class WqNetworkToWntr:
     """Interface between QGIS sources and WNTR models"""
 
     def __init__(
-        self, unit_conversion: WqUnitConversion, transform_context: QgsCoordinateTransformContext = None, ellipsoid=None
+        self,
+        unit_conversion: WqUnitConversion,
+        transform_context: QgsCoordinateTransformContext | None = None,
+        ellipsoid: str | None = None,
     ):
         self._transform_context = (
             transform_context if transform_context is not None else QgsCoordinateTransformContext()
@@ -512,7 +519,7 @@ class WqNetworkFromWntr:
     def __init__(self, wn, unit_conversion: WqUnitConversion):
         self._unit_conversion = unit_conversion
         wn_gis = wntr.network.to_gis(wn)
-        gdfs = {lyr: getattr(wn_gis, lyr.wntr_attr) for lyr in WqModelLayer}
+        gdfs: dict[WqLayer, pd.DataFrame] = {lyr: getattr(wn_gis, lyr.wntr_attr) for lyr in WqModelLayer}
 
         self._get_pattern_from_wn(gdfs, wn)
 
