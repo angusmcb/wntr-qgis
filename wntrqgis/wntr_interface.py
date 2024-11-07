@@ -244,7 +244,7 @@ class WqNetworkToWntr:
         pipe_length_warnings = []
         nodenames = set()
         linknames = set()
-        shape_name_map = {wq_field.value[:10]: wq_field.value for wq_field in WqInField}
+        shape_name_map = {wq_field.name[:10]: wq_field.name for wq_field in WqInField}
 
         for in_layer in WqModelLayer:
             source = sources.get(WqModelLayer(in_layer))  # Can either be string or enum
@@ -252,10 +252,11 @@ class WqNetworkToWntr:
                 continue
 
             column_names = [
-                shape_name_map[fname] if fname in shape_name_map else fname for fname in source.fields().names()
+                shape_name_map[fname.upper()] if fname.upper() in shape_name_map else fname.upper()
+                for fname in source.fields().names()
             ]
-            possible_cnames = {field.value for field in in_layer.wq_fields()}  # this creates a set not dict
-            column_fields = [WqInField(cname) if cname in possible_cnames else None for cname in column_names]
+            possible_cnames = {field.name for field in in_layer.wq_fields()}  # this creates a set not dict
+            column_fields = [WqInField[cname] if cname in possible_cnames else None for cname in column_names]
             required_fields = [f for f in in_layer.wq_fields() if WqAnalysisType.REQUIRED in f.analysis_type]
 
             self.crs = source.sourceCrs()
@@ -286,7 +287,7 @@ class WqNetworkToWntr:
                     if atts.get(required_field) is None:
                         msg = (
                             f"in {in_layer.friendly_name} the feature '{ftname}' "
-                            f"must have a value for '{required_field.value}'"
+                            f"must have a value for '{required_field.name.lower()}'"
                         )
                         raise WqNetworkModelError(msg)
 

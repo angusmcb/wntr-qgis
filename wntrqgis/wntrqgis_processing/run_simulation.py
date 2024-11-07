@@ -93,7 +93,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             usesStaticStrings=False,
         )
         default_flow_units = WqProjectVar.FLOW_UNITS.get()
-        param.setGuiDefaultValueOverride(list(WqFlowUnit).index(default_flow_units) if default_flow_units else None)
+        param.setGuiDefaultValueOverride(
+            list(WqFlowUnit).index(default_flow_units) if isinstance(default_flow_units, WqFlowUnit) else None
+        )
         self.addParameter(param)
 
         param = QgsProcessingParameterEnum(
@@ -105,7 +107,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         )
         default_hl_formula = WqProjectVar.HEADLOSS_FORMULA.get()
         param.setGuiDefaultValueOverride(
-            list(WqHeadlossFormula).index(default_hl_formula) if default_hl_formula else None
+            list(WqHeadlossFormula).index(default_hl_formula)
+            if isinstance(default_hl_formula, WqHeadlossFormula)
+            else None
         )
         self.addParameter(param)
 
@@ -208,7 +212,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         # ADD OPTIONS
 
         flow_unit_num = self.parameterAsEnum(parameters, self.UNITS, context)
-        if parameters[self.UNITS] is None:
+        if parameters.get(self.UNITS) is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.UNITS))
         wq_flow_unit = list(WqFlowUnit)[flow_unit_num]
         WqProjectVar.FLOW_UNITS.set(wq_flow_unit)
