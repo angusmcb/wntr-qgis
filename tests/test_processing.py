@@ -5,11 +5,7 @@ import numpy as np
 import pytest
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
-# def test_plugin_name():
-#    assert plugin_name() == "Water Network Tools for Resilience (WNTR) Integration"
-# from wntrqgis.dependency_management import WqDependencyManagemet
 from wntrqgis.plugin import Plugin
-from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name  # noqa F401
 
 # WqDependencyManagemet.install_wntr()
 

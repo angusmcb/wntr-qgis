@@ -6,18 +6,19 @@ from qgis.core import QgsApplication
 # from qgis.PyQt.QtWidgets import QAction
 # from qgis.utils import iface
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
-from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 
+# from wntrqgis.qgis_plugin_tools.tools.custom_logging import setup_logger, teardown_logger
 # from wntrqgis.qgis_plugin_tools.tools.i18n import setup_translation
-from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
+# from wntrqgis.qgis_plugin_tools.tools.resources import plugin_name
 from wntrqgis.wntrqgis_processing.provider import Provider
 
 
 class Plugin:
-    name = plugin_name()
+    # name = plugin_name()
 
     def __init__(self) -> None:
-        setup_logger("wntrqgis")
+        pass
+        # setup_logger("wntrqgis")
 
         # initialize locale
         # locale, file_path = setup_translation()
@@ -124,7 +125,7 @@ class Plugin:
         # for action in self.actions:
         #    iface.removePluginMenu(Plugin.name, action)
         #    iface.removeToolBarIcon(action)
-        teardown_logger("wntrqgis")
+        # teardown_logger("wntrqgis")
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def run(self) -> None:
