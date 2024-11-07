@@ -257,7 +257,7 @@ class WqField(Enum):
 class WqInField(WqField):
     @property
     def qgs_field(self):
-        return QgsField(self.value, self._qgs_wkb_type)
+        return QgsField(self.name.lower(), self._qgs_wkb_type)
 
     NAME = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     # START_NODE_NAME = auto(), str, WqAnalysisType.NOOUTPUT
@@ -306,7 +306,7 @@ class WqInField(WqField):
 class WqOutField(WqField):
     @property
     def qgs_field(self):
-        return QgsField(self.value, self._get_qgs_field_type(list), subType=self._qgs_wkb_type)
+        return QgsField(self.name.lower(), self._get_qgs_field_type(list), subType=self._qgs_wkb_type)
 
     DEMAND = auto(), float, WqAnalysisType.BASE
     HEAD = auto(), float, WqAnalysisType.BASE
@@ -319,12 +319,12 @@ class WqOutField(WqField):
 
 
 class WqProjectVar(Enum):
-    OPTIONS = auto(), dict
-    FLOW_UNITS = auto(), WqFlowUnit
-    CONTROLS = auto(), str
-    INLAYERS = auto(), dict  # noqa PIE796
-    HEADLOSS_FORMULA = auto(), WqHeadlossFormula
-    SIMULATION_DURATION = auto(), float
+    OPTIONS = 1, dict
+    FLOW_UNITS = 2, WqFlowUnit
+    CONTROLS = 3, str
+    INLAYERS = 4, dict
+    HEADLOSS_FORMULA = 5, WqHeadlossFormula
+    SIMULATION_DURATION = 6, float
 
     @property
     def _setting_name(self):
