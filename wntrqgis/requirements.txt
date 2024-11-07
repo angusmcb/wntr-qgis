@@ -1,6 +1,0 @@
-pandas
-networkx
-numpy
-scipy
-matplotlib
-geopandas

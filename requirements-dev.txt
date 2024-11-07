@@ -23,3 +23,5 @@ pandas-stubs
 # For running within qgis
 geopandas
 networkx
+
+qgis-plugin-ci
