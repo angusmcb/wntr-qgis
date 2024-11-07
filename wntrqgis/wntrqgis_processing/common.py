@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingFeedback,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from wntrqgis.dependency_management import WqDependencyManagemet
+from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.network_parts import WqProjectVar
 
 if TYPE_CHECKING:
@@ -104,13 +104,12 @@ class WntrQgisProcessingBase:
         self.feedback.pushInfo(self.tr("WNTR model created. Model contains:"))
         self.feedback.pushInfo(str(wn.describe(level=0)))
 
-    def _check_and_unpack_dependencies(self) -> None:
+    def _ensure_wntr(self) -> None:
         self._update_progress(ProgStatus.CHECKING_DEPENDENCIES)
 
-        if WqDependencyManagemet.check_dependencies():
-            msg = "Missing Dependencies"
-            raise QgsProcessingException(msg)
+        try:
+            wntrversion = WqDependencyManagement.ensure_wntr()
+        except ImportError as e:
+            raise QgsProcessingException(e) from None
 
-        if WqDependencyManagemet.check_wntr() is None:
-            self._update_progress(ProgStatus.UNPACKING_WNTR)
-            WqDependencyManagemet.install_wntr()
+        self.feedback.pushDebugInfo("WNTR version: " + wntrversion)

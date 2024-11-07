@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from wntrqgis.qgis_plugin_tools.infrastructure.debugging import (
@@ -22,6 +23,6 @@ def classFactory(iface: "QgisInterface"):  # noqa N802
     return Plugin()
 
 
-this_dir = os.path.dirname(os.path.realpath(__file__))
-path = os.path.join(this_dir, "packages")
-sys.path.append(path)
+packages_path = Path(__file__).parent / "packages"
+packages_path.mkdir(exist_ok=True)
+sys.path.append(str(packages_path.resolve()))

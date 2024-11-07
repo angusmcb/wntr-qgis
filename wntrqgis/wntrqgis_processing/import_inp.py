@@ -97,15 +97,11 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         # PREPARE IMPORTS
         # imports are here as they are slow and only needed when processing the model.
-        self._check_and_unpack_dependencies()
-        try:
-            import wntr
+        self._ensure_wntr()
 
-            from wntrqgis.wntr_interface import WqNetworkFromWntr, WqUnitConversion
-        except ImportError as e:
-            raise QgsProcessingException(e) from e
+        import wntr
 
-        feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
+        from wntrqgis.wntr_interface import WqNetworkFromWntr, WqUnitConversion
 
         if feedback.isCanceled():
             return {}

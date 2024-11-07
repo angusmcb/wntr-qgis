@@ -178,21 +178,16 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         # PREPARE IMPORTS
         # imports are here as they are slow and only needed when processing the model.
-        self._check_and_unpack_dependencies()
+        self._ensure_wntr()
 
-        try:
-            import wntr
+        import wntr
 
-            from wntrqgis.wntr_interface import (
-                WqNetworkModelError,
-                WqNetworkToWntr,
-                WqSimulationResults,
-                WqUnitConversion,
-            )
-        except ImportError as e:
-            raise QgsProcessingException(e) from e
-
-        feedback.pushDebugInfo("WNTR version: " + wntr.__version__)
+        from wntrqgis.wntr_interface import (
+            WqNetworkModelError,
+            WqNetworkToWntr,
+            WqSimulationResults,
+            WqUnitConversion,
+        )
 
         if feedback.isCanceled():
             return {}
