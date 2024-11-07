@@ -49,7 +49,7 @@ class WqSimulationResults:
         for lyr in WqOutLayer:
             gdfs = getattr(wntr_simulation_results, lyr.wntr_attr)
             for field in lyr.wq_fields:
-                self._result_dfs[field] = gdfs[field.value]
+                self._result_dfs[field] = gdfs[field.name.lower()]
 
     def to_sink(self, sink: QgsFeatureSink, fields: list[WqInField], item_geoms):
         converted_dfs = {}
@@ -204,7 +204,9 @@ class WqUnitConversion:
         for layer, df in dfs.items():
             for fieldname, series in df.items():
                 try:
-                    conversion_param = self._get_wntr_conversion_param(WqInField(fieldname), layer)
+                    conversion_param = self._get_wntr_conversion_param(WqInField[fieldname.upper()], layer)
+                except KeyError:
+                    continue
                 except ValueError:
                     continue
                 convertor = partial(

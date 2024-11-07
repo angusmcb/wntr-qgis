@@ -15,4 +15,3 @@ category=Plugins
 icon=resources/icons/water_circle.png
 experimental=True
 deprecated=False
-plugin_dependencies=
