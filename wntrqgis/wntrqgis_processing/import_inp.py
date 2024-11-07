@@ -68,7 +68,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             QgsProcessingParameterEnum(
                 self.UNITS,
                 self.tr("Units to to convert to (leave blank to use .inp file units)"),
-                options=list(WqFlowUnit),
+                options=[fu.value for fu in WqFlowUnit],
                 allowMultiple=False,
                 usesStaticStrings=False,
                 defaultValue=None,

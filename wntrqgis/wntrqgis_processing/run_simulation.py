@@ -88,7 +88,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         param = QgsProcessingParameterEnum(
             self.UNITS,
             self.tr("Units"),
-            options=list(WqFlowUnit),
+            options=[fu.value for fu in WqFlowUnit],
             allowMultiple=False,
             usesStaticStrings=False,
         )

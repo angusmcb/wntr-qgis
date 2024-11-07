@@ -1,4 +1,4 @@
-from enum import Enum, Flag, StrEnum, auto
+from enum import Enum, Flag, auto
 from typing import Any
 
 from qgis.core import Qgis, QgsExpressionContextUtils, QgsField, QgsFields, QgsProcessing, QgsProject, QgsWkbTypes
@@ -7,7 +7,7 @@ from qgis.PyQt.QtCore import QMetaType, QVariant
 QGIS_VERSION_QMETATYPE = 33800
 
 
-class WqFlowUnit(StrEnum):
+class WqFlowUnit(Enum):
     LPS = "Litres per Second"
     LPM = "Litres per Minute"
     MLD = "Mega Litres Per Day"
@@ -20,7 +20,7 @@ class WqFlowUnit(StrEnum):
     SI = "International System of Units (SI)"
 
 
-class WqHeadlossFormula(StrEnum):
+class WqHeadlossFormula(Enum):
     HAZEN_WILLIAMS = "H-W"
     DARCY_WEISBACH = "D-W"
     CHEZY_MANNING = "C-M"
@@ -38,7 +38,7 @@ class WqAnalysisType(Flag):
     REQUIRED = auto()
 
 
-class WqLayer(StrEnum):
+class WqLayer(Enum):
     @property
     def friendly_name(self):
         return self.value.title()
