@@ -259,48 +259,48 @@ class WqInField(WqField):
     def qgs_field(self):
         return QgsField(self.name.lower(), self._qgs_wkb_type)
 
-    NAME = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    # START_NODE_NAME = auto(), str, WqAnalysisType.NOOUTPUT
-    # END_NODE_NAME = auto(), str, WqAnalysisType.NOOUTPUT
-    ELEVATION = auto(), float, WqAnalysisType.BASE
-    BASE_DEMAND = auto(), float, WqAnalysisType.BASE
-    DEMAND_PATTERN = auto(), str, WqAnalysisType.BASE
-    EMITTER_COEFFICIENT = auto(), float, WqAnalysisType.BASE
-    INIT_LEVEL = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MIN_LEVEL = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MAX_LEVEL = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    DIAMETER = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MIN_VOL = auto(), float, WqAnalysisType.BASE
-    VOL_CURVE = auto(), str, WqAnalysisType.BASE
-    OVERFLOW = auto(), bool, WqAnalysisType.BASE
-    BASE_HEAD = auto(), float, WqAnalysisType.BASE
-    HEAD_PATTERN = auto(), str, WqAnalysisType.BASE
-    LENGTH = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    ROUGHNESS = auto(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MINOR_LOSS = auto(), float, WqAnalysisType.BASE
-    INITIAL_STATUS = auto(), str, WqAnalysisType.BASE
-    CHECK_VALVE = auto(), bool, WqAnalysisType.BASE
-    PUMP_TYPE = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    PUMP_CURVE = auto(), str, WqAnalysisType.BASE
-    POWER = auto(), float, WqAnalysisType.BASE
-    BASE_SPEED = auto(), float, WqAnalysisType.BASE
-    SPEED_PATTERN = auto(), str, WqAnalysisType.BASE
-    INITIAL_SETTING = auto(), float, WqAnalysisType.BASE
-    VALVE_TYPE = auto(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    NAME = object(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    # START_NODE_NAME = object(), str, WqAnalysisType.NOOUTPUT
+    # END_NODE_NAME = object(), str, WqAnalysisType.NOOUTPUT
+    ELEVATION = object(), float, WqAnalysisType.BASE
+    BASE_DEMAND = object(), float, WqAnalysisType.BASE
+    DEMAND_PATTERN = object(), str, WqAnalysisType.BASE
+    EMITTER_COEFFICIENT = object(), float, WqAnalysisType.BASE
+    INIT_LEVEL = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MIN_LEVEL = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MAX_LEVEL = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    DIAMETER = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MIN_VOL = object(), float, WqAnalysisType.BASE
+    VOL_CURVE = object(), str, WqAnalysisType.BASE
+    OVERFLOW = object(), bool, WqAnalysisType.BASE
+    BASE_HEAD = object(), float, WqAnalysisType.BASE
+    HEAD_PATTERN = object(), str, WqAnalysisType.BASE
+    LENGTH = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    ROUGHNESS = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MINOR_LOSS = object(), float, WqAnalysisType.BASE
+    INITIAL_STATUS = object(), str, WqAnalysisType.BASE
+    CHECK_VALVE = object(), bool, WqAnalysisType.BASE
+    PUMP_TYPE = object(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    PUMP_CURVE = object(), str, WqAnalysisType.BASE
+    POWER = object(), float, WqAnalysisType.BASE
+    BASE_SPEED = object(), float, WqAnalysisType.BASE
+    SPEED_PATTERN = object(), str, WqAnalysisType.BASE
+    INITIAL_SETTING = object(), float, WqAnalysisType.BASE
+    VALVE_TYPE = object(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
 
-    INITIAL_QUALITY = auto(), float, WqAnalysisType.QUALITY
-    MIXING_FRACTION = auto(), float, WqAnalysisType.QUALITY
-    MIXING_MODEL = auto(), float, WqAnalysisType.QUALITY
-    BULK_COEFF = auto(), float, WqAnalysisType.QUALITY
-    WALL_COEFF = auto(), float, WqAnalysisType.QUALITY
+    INITIAL_QUALITY = object(), float, WqAnalysisType.QUALITY
+    MIXING_FRACTION = object(), float, WqAnalysisType.QUALITY
+    MIXING_MODEL = object(), float, WqAnalysisType.QUALITY
+    BULK_COEFF = object(), float, WqAnalysisType.QUALITY
+    WALL_COEFF = object(), float, WqAnalysisType.QUALITY
 
-    MINIMUM_PRESSURE = auto(), float, WqAnalysisType.PDA
-    REQUIRED_PRESSURE = auto(), float, WqAnalysisType.PDA
-    PRESSURE_EXPONENT = auto(), float, WqAnalysisType.PDA
+    MINIMUM_PRESSURE = object(), float, WqAnalysisType.PDA
+    REQUIRED_PRESSURE = object(), float, WqAnalysisType.PDA
+    PRESSURE_EXPONENT = object(), float, WqAnalysisType.PDA
 
-    EFFICIENCY = auto(), float, WqAnalysisType.ENERGY
-    ENERGY_PATTERN = auto(), float, WqAnalysisType.ENERGY
-    ENERGY_PRICE = auto(), float, WqAnalysisType.ENERGY
+    EFFICIENCY = object(), float, WqAnalysisType.ENERGY
+    ENERGY_PATTERN = object(), float, WqAnalysisType.ENERGY
+    ENERGY_PRICE = object(), float, WqAnalysisType.ENERGY
 
 
 class WqOutField(WqField):
@@ -308,14 +308,14 @@ class WqOutField(WqField):
     def qgs_field(self):
         return QgsField(self.name.lower(), self._get_qgs_field_type(list), subType=self._qgs_wkb_type)
 
-    DEMAND = auto(), float, WqAnalysisType.BASE
-    HEAD = auto(), float, WqAnalysisType.BASE
-    PRESSURE = auto(), float, WqAnalysisType.BASE
-    QUALITY = auto(), float, WqAnalysisType.QUALITY
+    DEMAND = object(), float, WqAnalysisType.BASE
+    HEAD = object(), float, WqAnalysisType.BASE
+    PRESSURE = object(), float, WqAnalysisType.BASE
+    QUALITY = object(), float, WqAnalysisType.QUALITY
 
-    FLOWRATE = auto(), float, WqAnalysisType.BASE
-    HEADLOSS = auto(), float, WqAnalysisType.BASE
-    VELOCITY = auto(), float, WqAnalysisType.BASE
+    FLOWRATE = object(), float, WqAnalysisType.BASE
+    HEADLOSS = object(), float, WqAnalysisType.BASE
+    VELOCITY = object(), float, WqAnalysisType.BASE
 
 
 class WqProjectVar(Enum):
