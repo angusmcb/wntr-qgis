@@ -1,7 +1,7 @@
-import platform
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
+
+import wntrqgis.dependency_management
 
 # from wntrqgis.qgis_plugin_tools.infrastructure.debugging import (
 #     setup_debugpy,
@@ -23,7 +23,6 @@ def classFactory(iface: "QgisInterface"):  # noqa N802
     return Plugin()
 
 
-major, minor, _ = platform.python_version_tuple()
-packages_path = Path(__file__).parent / "packages" / (major + minor)
-packages_path.mkdir(parents=True, exist_ok=True)
-sys.path.append(str(packages_path.resolve()))
+packages_path = wntrqgis.dependency_management.WqDependencyManagement.package_directory()
+if packages_path not in sys.path:
+    sys.path.append(packages_path)

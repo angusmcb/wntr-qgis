@@ -3,8 +3,9 @@ import math
 from qgis.core import qgsfunction
 
 
+# qgis 3.28 errors if 'feature' and 'parent' are not included
 @qgsfunction(group="Water Network Tools for Resilience")
-def wntr_result_at_current_time(column, context):
+def wntr_result_at_current_time(column, feature, parent, context):  # noqa ARG001
     """
     Gets an individual result for the specified parameter.
 

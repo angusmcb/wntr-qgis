@@ -348,7 +348,7 @@ class WqModelField(WqField):
     def qgs_field(self):
         return QgsField(self.name.lower(), self._qgs_wkb_type)
 
-    NAME = "name", str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    NAME = "name", str, WqAnalysisType.BASE
     # START_NODE_NAME = object(), str, WqAnalysisType.NOOUTPUT
     # END_NODE_NAME = object(), str, WqAnalysisType.NOOUTPUT
     ELEVATION = "elevation", float, WqAnalysisType.BASE
@@ -425,5 +425,8 @@ class WqProjectVar(Enum):
             raise TypeError(msg)
         QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), self._setting_name, value)
 
-    def get(self):
-        return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(self._setting_name)
+    def get(self, default_value=None):
+        saved_value = QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable(self._setting_name)
+        if isinstance(saved_value, self.value[1]):
+            return saved_value
+        return default_value

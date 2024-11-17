@@ -56,37 +56,46 @@ class WqDependencyManagement:
 
     @classmethod
     def _unpack_wntr(cls) -> None:
-        # Don't let PIP bet installing it twice at same time
+        # Try not to let PIP install it twice at same time
         if cls._unpacking_wntr:
             return None
         cls._unpacking_wntr = True
-
-        this_dir = os.path.dirname(os.path.realpath(__file__))
-        wheels = os.path.join(this_dir, "wheels/")
-        major, minor, _ = platform.python_version_tuple()
-        packagedir = Path(this_dir) / "packages" / (major + minor)
-        Path(packagedir).mkdir(parents=True, exist_ok=True)
 
         kwargs: dict[str, Any] = {}
         if os.name == "nt":
             kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)  # type: ignore[attr-defined]
 
-        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
-        # https://github.com/qgis/QGIS/issues/45646
         subprocess.run(
             [
-                "python" if os.name == "nt" else sys.executable,
+                cls._python_command(),
                 "-m",
                 "pip",
                 "install",
-                "--no-index",
                 "--upgrade",
                 "--force-reinstall",
-                "--target=" + str(packagedir.resolve()),
+                "--target=" + cls.package_directory(),
                 "--no-deps",
-                "--find-links=" + wheels,
+                "--find-links=" + cls.wheels_directory(),
                 "wntr",
             ],
             check=False,
             **kwargs,
         )
+
+    @classmethod
+    def package_directory(cls):
+        major, minor, _ = platform.python_version_tuple()
+        packages_path = Path(__file__).parent / "packages" / (major + minor)
+        packages_path.mkdir(parents=True, exist_ok=True)
+        return str(packages_path.resolve())
+
+    @classmethod
+    def wheels_directory(cls):
+        wheels_path = Path(__file__).parent / "wheels"
+        return str(wheels_path.resolve())
+
+    @classmethod
+    def _python_command(cls):
+        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
+        # https://github.com/qgis/QGIS/issues/45646
+        return "python" if os.name == "nt" else sys.executable

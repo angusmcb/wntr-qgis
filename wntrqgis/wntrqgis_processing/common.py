@@ -90,6 +90,9 @@ class WntrQgisProcessingBase:
         return QCoreApplication.translate("Processing", string)
 
     def _update_progress(self, prog_status: ProgStatus) -> None:
+        if self.feedback.isCanceled():
+            raise QgsProcessingException(self.tr("Execution of script cancelled by user"))
+
         time_now = time.perf_counter()
         elapsed_ms = (time_now - self.last_time) * 1000
         if self.last_progress:

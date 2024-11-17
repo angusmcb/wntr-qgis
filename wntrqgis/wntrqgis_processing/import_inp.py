@@ -104,8 +104,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         from wntrqgis.wntr_interface import WqNetworkFromWntr, WqUnitConversion
 
-        if feedback.isCanceled():
-            return {}
         self._update_progress(ProgStatus.LOADING_INP_FILE)
 
         source = self.parameterAsFile(parameters, self.INPUT, context)
@@ -115,8 +113,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         wn = wntr.network.read_inpfile(source)
 
-        if feedback.isCanceled():
-            return {}
         self._describe_model(wn)
 
         # Hadle which units to ouptut in

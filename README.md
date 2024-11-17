@@ -29,7 +29,7 @@ Feedback on this plugin would be very welcome.
 
 Install the plugin in QGIS in the normal way (see the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary).
 
-A copy of the WNTR Python package is included in the plugin.
+If WNTR is not already installed in the python environment, it will be installed within the plugin directory when first running the tools.
 
 WNTR itself has some python dependencies. A warning will appear when running any of the algorithms from the 'processing toolbox' if there are missing dependencies.
 * On *Windows* all dependencies are already included within QGIS.
