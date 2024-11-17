@@ -5,6 +5,7 @@ from qgis.core import Qgis, QgsExpressionContextUtils, QgsField, QgsFields, QgsP
 from qgis.PyQt.QtCore import QMetaType, QVariant
 
 QGIS_VERSION_QMETATYPE = 33800
+SETTING_PREFIX = "wntr_"
 
 
 class WqFlowUnit(Enum):
@@ -29,6 +30,13 @@ class WqHeadlossFormula(Enum):
         return self.name.replace("_", " ").title()
 
 
+class WqCurve(Enum):
+    HEAD = "HEAD"
+    EFFICIENCY = "EFFICIENCY"
+    VOLUME = "VOLUME"
+    HEADLOSS = "HEADLOSS"
+
+
 class WqAnalysisType(Flag):
     BASE = auto()
     QUALITY = auto()
@@ -38,6 +46,11 @@ class WqAnalysisType(Flag):
     REQUIRED = auto()
 
 
+class WqElementFamily(Enum):
+    NODE = auto()
+    LINK = auto()
+
+
 class WqLayer(Enum):
     @property
     def friendly_name(self):
@@ -45,41 +58,35 @@ class WqLayer(Enum):
 
     @property
     def qgs_wkb_type(self):
-        return QgsWkbTypes.Point if self.is_node else QgsWkbTypes.LineString
+        return QgsWkbTypes.Point if self.element_family is WqElementFamily.NODE else QgsWkbTypes.LineString
 
 
-class WqOutLayer(WqLayer):
+class WqResultLayer(WqLayer):
     NODES = "OUTPUTNODES"
     LINKS = "OUTPUTLINKS"
 
     @property
-    def is_node(self):
-        return self is WqOutLayer.NODES
+    def element_family(self):
+        return WqElementFamily.NODE if self is WqResultLayer.NODES else WqElementFamily.LINK
 
     @property
     def wntr_attr(self):
-        return "node" if self is WqOutLayer.NODES else "link"
+        return "node" if self is WqResultLayer.NODES else "link"
 
     @property
     def wq_fields(self):
-        wq_fields = []
-        match self:
-            case WqOutLayer.NODES:
-                wq_fields = [
-                    WqOutField.DEMAND,
-                    WqOutField.HEAD,
-                    WqOutField.PRESSURE,
-                    WqOutField.QUALITY,
-                ]
-            case WqOutLayer.LINKS:
-                wq_fields = [
-                    WqOutField.FLOWRATE,
-                    WqOutField.HEADLOSS,
-                    WqOutField.VELOCITY,
-                ]
-            case _:
-                raise KeyError
-        return wq_fields
+        if self is WqResultLayer.NODES:
+            return [
+                WqResultField.DEMAND,
+                WqResultField.HEAD,
+                WqResultField.PRESSURE,
+                WqResultField.QUALITY,
+            ]
+        return [
+            WqResultField.FLOWRATE,
+            WqResultField.HEADLOSS,
+            WqResultField.VELOCITY,
+        ]
 
 
 class WqModelLayer(WqLayer):
@@ -91,16 +98,24 @@ class WqModelLayer(WqLayer):
     VALVES = "VALVES"
 
     @property
-    def is_node(self):
-        return self in [WqModelLayer.JUNCTIONS, WqModelLayer.RESERVOIRS, WqModelLayer.TANKS]
-
-    @property
     def wntr_attr(self):
         return self.value.lower()
 
     @property
+    def element_family(self):
+        return (
+            WqElementFamily.NODE
+            if self in [WqModelLayer.JUNCTIONS, WqModelLayer.RESERVOIRS, WqModelLayer.TANKS]
+            else WqElementFamily.LINK
+        )
+
+    @property
     def acceptable_processing_vectors(self):
-        return [QgsProcessing.TypeVectorPoint] if self.is_node else [QgsProcessing.TypeVectorLine]
+        return (
+            [QgsProcessing.TypeVectorPoint]
+            if self.element_family is WqElementFamily.NODE
+            else [QgsProcessing.TypeVectorLine]
+        )
 
     # This will be used for fixing bug in WNTR 1.2.0
     @property
@@ -111,94 +126,168 @@ class WqModelLayer(WqLayer):
         field_list = []
         # if self.is_node:
         #     field_list = [
-        #         WqInField.NAME,
-        #         WqInField.INITIAL_QUALITY,
+        #         WqModelField.NAME,
+        #         WqModelField.INITIAL_QUALITY,
         #     ]
         # else:
         #     field_list = [
-        #         WqInField.NAME,
-        #         # WqInField.START_NODE_NAME,
-        #         # WqInField.END_NODE_NAME,
+        #         WqModelField.NAME,
+        #         # WqModelField.START_NODE_NAME,
+        #         # WqModelField.END_NODE_NAME,
         #     ]
-        match self:
-            case WqModelLayer.JUNCTIONS:
-                field_list = [
-                    WqInField.NAME,
-                    WqInField.ELEVATION,
-                    WqInField.BASE_DEMAND,
-                    WqInField.DEMAND_PATTERN,
-                    WqInField.EMITTER_COEFFICIENT,
-                    WqInField.INITIAL_QUALITY,
-                    WqInField.MINIMUM_PRESSURE,
-                    WqInField.REQUIRED_PRESSURE,
-                    WqInField.PRESSURE_EXPONENT,
-                ]
-            case WqModelLayer.TANKS:
-                field_list = [
-                    WqInField.NAME,
-                    WqInField.ELEVATION,
-                    WqInField.INIT_LEVEL,
-                    WqInField.MIN_LEVEL,
-                    WqInField.MAX_LEVEL,
-                    WqInField.DIAMETER,
-                    WqInField.MIN_VOL,
-                    WqInField.VOL_CURVE,
-                    WqInField.OVERFLOW,
-                    WqInField.INITIAL_QUALITY,
-                    WqInField.MIXING_FRACTION,
-                    WqInField.MIXING_MODEL,
-                    WqInField.BULK_COEFF,
-                ]
-            case WqModelLayer.RESERVOIRS:
-                field_list = [
-                    WqInField.NAME,
-                    WqInField.BASE_HEAD,
-                    WqInField.HEAD_PATTERN,
-                    WqInField.INITIAL_QUALITY,
-                ]
-            case WqModelLayer.PIPES:
-                field_list = [
-                    WqInField.NAME,
-                    # WqInField.START_NODE_NAME,
-                    # WqInField.END_NODE_NAME,
-                    WqInField.LENGTH,
-                    WqInField.DIAMETER,
-                    WqInField.ROUGHNESS,
-                    WqInField.MINOR_LOSS,
-                    WqInField.INITIAL_STATUS,
-                    WqInField.CHECK_VALVE,
-                    WqInField.BULK_COEFF,
-                    WqInField.WALL_COEFF,
-                ]
-            case WqModelLayer.PUMPS:
-                field_list = [
-                    WqInField.NAME,
-                    # WqInField.START_NODE_NAME,
-                    # WqInField.END_NODE_NAME,
-                    WqInField.PUMP_TYPE,
-                    WqInField.PUMP_CURVE,
-                    WqInField.POWER,
-                    WqInField.BASE_SPEED,
-                    WqInField.SPEED_PATTERN,
-                    WqInField.INITIAL_STATUS,
-                    WqInField.INITIAL_SETTING,
-                    WqInField.EFFICIENCY,
-                    WqInField.ENERGY_PATTERN,
-                    WqInField.ENERGY_PRICE,
-                ]
-            case WqModelLayer.VALVES:
-                field_list = [
-                    WqInField.NAME,
-                    # WqInField.START_NODE_NAME,
-                    # WqInField.END_NODE_NAME,
-                    WqInField.DIAMETER,
-                    WqInField.VALVE_TYPE,
-                    WqInField.MINOR_LOSS,
-                    WqInField.INITIAL_STATUS,
-                    WqInField.INITIAL_SETTING,
-                ]
-            case _:
-                raise KeyError
+        field_dict = {
+            WqModelLayer.JUNCTIONS: [
+                WqModelField.NAME,
+                WqModelField.ELEVATION,
+                WqModelField.BASE_DEMAND,
+                WqModelField.DEMAND_PATTERN,
+                WqModelField.EMITTER_COEFFICIENT,
+                WqModelField.INITIAL_QUALITY,
+                WqModelField.MINIMUM_PRESSURE,
+                WqModelField.REQUIRED_PRESSURE,
+                WqModelField.PRESSURE_EXPONENT,
+            ],
+            WqModelLayer.TANKS: [
+                WqModelField.NAME,
+                WqModelField.ELEVATION,
+                WqModelField.INIT_LEVEL,
+                WqModelField.MIN_LEVEL,
+                WqModelField.MAX_LEVEL,
+                WqModelField.DIAMETER,
+                WqModelField.MIN_VOL,
+                WqModelField.VOL_CURVE,
+                WqModelField.OVERFLOW,
+                WqModelField.INITIAL_QUALITY,
+                WqModelField.MIXING_FRACTION,
+                WqModelField.MIXING_MODEL,
+                WqModelField.BULK_COEFF,
+            ],
+            WqModelLayer.RESERVOIRS: [
+                WqModelField.NAME,
+                WqModelField.BASE_HEAD,
+                WqModelField.HEAD_PATTERN,
+                WqModelField.INITIAL_QUALITY,
+            ],
+            WqModelLayer.PIPES: [
+                WqModelField.NAME,
+                # WqModelField.START_NODE_NAME,
+                # WqModelField.END_NODE_NAME,
+                WqModelField.LENGTH,
+                WqModelField.DIAMETER,
+                WqModelField.ROUGHNESS,
+                WqModelField.MINOR_LOSS,
+                WqModelField.INITIAL_STATUS,
+                WqModelField.CHECK_VALVE,
+                WqModelField.BULK_COEFF,
+                WqModelField.WALL_COEFF,
+            ],
+            WqModelLayer.PUMPS: [
+                WqModelField.NAME,
+                # WqModelField.START_NODE_NAME,
+                # WqModelField.END_NODE_NAME,
+                WqModelField.PUMP_TYPE,
+                WqModelField.PUMP_CURVE,
+                WqModelField.POWER,
+                WqModelField.BASE_SPEED,
+                WqModelField.SPEED_PATTERN,
+                WqModelField.INITIAL_STATUS,
+                WqModelField.INITIAL_SETTING,
+                WqModelField.EFFICIENCY,
+                WqModelField.ENERGY_PATTERN,
+                WqModelField.ENERGY_PRICE,
+            ],
+            WqModelLayer.VALVES: [
+                WqModelField.NAME,
+                # WqModelField.START_NODE_NAME,
+                # WqModelField.END_NODE_NAME,
+                WqModelField.DIAMETER,
+                WqModelField.VALVE_TYPE,
+                WqModelField.MINOR_LOSS,
+                WqModelField.INITIAL_STATUS,
+                WqModelField.INITIAL_SETTING,
+            ],
+        }
+
+        # match self:
+        #     case WqModelLayer.JUNCTIONS:
+        #         field_list = [
+        #             WqModelField.NAME,
+        #             WqModelField.ELEVATION,
+        #             WqModelField.BASE_DEMAND,
+        #             WqModelField.DEMAND_PATTERN,
+        #             WqModelField.EMITTER_COEFFICIENT,
+        #             WqModelField.INITIAL_QUALITY,
+        #             WqModelField.MINIMUM_PRESSURE,
+        #             WqModelField.REQUIRED_PRESSURE,
+        #             WqModelField.PRESSURE_EXPONENT,
+        #         ]
+        #     case WqModelLayer.TANKS:
+        #         field_list = [
+        #             WqModelField.NAME,
+        #             WqModelField.ELEVATION,
+        #             WqModelField.INIT_LEVEL,
+        #             WqModelField.MIN_LEVEL,
+        #             WqModelField.MAX_LEVEL,
+        #             WqModelField.DIAMETER,
+        #             WqModelField.MIN_VOL,
+        #             WqModelField.VOL_CURVE,
+        #             WqModelField.OVERFLOW,
+        #             WqModelField.INITIAL_QUALITY,
+        #             WqModelField.MIXING_FRACTION,
+        #             WqModelField.MIXING_MODEL,
+        #             WqModelField.BULK_COEFF,
+        #         ]
+        #     case WqModelLayer.RESERVOIRS:
+        #         field_list = [
+        #             WqModelField.NAME,
+        #             WqModelField.BASE_HEAD,
+        #             WqModelField.HEAD_PATTERN,
+        #             WqModelField.INITIAL_QUALITY,
+        #         ]
+        #     case WqModelLayer.PIPES:
+        #         field_list = [
+        #             WqModelField.NAME,
+        #             # WqModelField.START_NODE_NAME,
+        #             # WqModelField.END_NODE_NAME,
+        #             WqModelField.LENGTH,
+        #             WqModelField.DIAMETER,
+        #             WqModelField.ROUGHNESS,
+        #             WqModelField.MINOR_LOSS,
+        #             WqModelField.INITIAL_STATUS,
+        #             WqModelField.CHECK_VALVE,
+        #             WqModelField.BULK_COEFF,
+        #             WqModelField.WALL_COEFF,
+        #         ]
+        #     case WqModelLayer.PUMPS:
+        #         field_list = [
+        #             WqModelField.NAME,
+        #             # WqModelField.START_NODE_NAME,
+        #             # WqModelField.END_NODE_NAME,
+        #             WqModelField.PUMP_TYPE,
+        #             WqModelField.PUMP_CURVE,
+        #             WqModelField.POWER,
+        #             WqModelField.BASE_SPEED,
+        #             WqModelField.SPEED_PATTERN,
+        #             WqModelField.INITIAL_STATUS,
+        #             WqModelField.INITIAL_SETTING,
+        #             WqModelField.EFFICIENCY,
+        #             WqModelField.ENERGY_PATTERN,
+        #             WqModelField.ENERGY_PRICE,
+        #         ]
+        #     case WqModelLayer.VALVES:
+        #         field_list = [
+        #             WqModelField.NAME,
+        #             # WqModelField.START_NODE_NAME,
+        #             # WqModelField.END_NODE_NAME,
+        #             WqModelField.DIAMETER,
+        #             WqModelField.VALVE_TYPE,
+        #             WqModelField.MINOR_LOSS,
+        #             WqModelField.INITIAL_STATUS,
+        #             WqModelField.INITIAL_SETTING,
+        #         ]
+        #     case _:
+        #         raise KeyError
+        field_list = field_dict[self]
         if analysis_type:
             return [field for field in field_list if field.analysis_type & analysis_type]
         return field_list
@@ -238,84 +327,84 @@ class WqField(Enum):
         return self._get_qgs_field_type(self.python_type)
 
     def _get_qgs_field_type(self, python_type):
-        newstyle = Qgis.versionInt() >= QGIS_VERSION_QMETATYPE
+        use_qmetatype = Qgis.versionInt() >= QGIS_VERSION_QMETATYPE
 
         if python_type is str:
-            return QMetaType.QString if newstyle else QVariant.String
+            return QMetaType.QString if use_qmetatype else QVariant.String
         if python_type is float:
-            return QMetaType.Double if newstyle else QVariant.Double
+            return QMetaType.Double if use_qmetatype else QVariant.Double
         if python_type is bool:
-            return QMetaType.Bool if newstyle else QVariant.Bool
+            return QMetaType.Bool if use_qmetatype else QVariant.Bool
         if python_type is int:
-            return QMetaType.Int if newstyle else QVariant.Int
+            return QMetaType.Int if use_qmetatype else QVariant.Int
         if python_type is list:
-            return QMetaType.QVariantList if newstyle else QVariant.List
+            return QMetaType.QVariantList if use_qmetatype else QVariant.List
 
         raise KeyError
 
 
-class WqInField(WqField):
+class WqModelField(WqField):
     @property
     def qgs_field(self):
         return QgsField(self.name.lower(), self._qgs_wkb_type)
 
-    NAME = object(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    NAME = "name", str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     # START_NODE_NAME = object(), str, WqAnalysisType.NOOUTPUT
     # END_NODE_NAME = object(), str, WqAnalysisType.NOOUTPUT
-    ELEVATION = object(), float, WqAnalysisType.BASE
-    BASE_DEMAND = object(), float, WqAnalysisType.BASE
-    DEMAND_PATTERN = object(), str, WqAnalysisType.BASE
-    EMITTER_COEFFICIENT = object(), float, WqAnalysisType.BASE
-    INIT_LEVEL = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MIN_LEVEL = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MAX_LEVEL = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    DIAMETER = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MIN_VOL = object(), float, WqAnalysisType.BASE
-    VOL_CURVE = object(), str, WqAnalysisType.BASE
-    OVERFLOW = object(), bool, WqAnalysisType.BASE
-    BASE_HEAD = object(), float, WqAnalysisType.BASE
-    HEAD_PATTERN = object(), str, WqAnalysisType.BASE
-    LENGTH = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    ROUGHNESS = object(), float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    MINOR_LOSS = object(), float, WqAnalysisType.BASE
-    INITIAL_STATUS = object(), str, WqAnalysisType.BASE
-    CHECK_VALVE = object(), bool, WqAnalysisType.BASE
-    PUMP_TYPE = object(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
-    PUMP_CURVE = object(), str, WqAnalysisType.BASE
-    POWER = object(), float, WqAnalysisType.BASE
-    BASE_SPEED = object(), float, WqAnalysisType.BASE
-    SPEED_PATTERN = object(), str, WqAnalysisType.BASE
-    INITIAL_SETTING = object(), float, WqAnalysisType.BASE
-    VALVE_TYPE = object(), str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    ELEVATION = "elevation", float, WqAnalysisType.BASE
+    BASE_DEMAND = "base_demand", float, WqAnalysisType.BASE
+    DEMAND_PATTERN = "demand_pattern", str, WqAnalysisType.BASE
+    EMITTER_COEFFICIENT = "emitter_coefficient", float, WqAnalysisType.BASE
+    INIT_LEVEL = "init_level", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MIN_LEVEL = "min_level", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MAX_LEVEL = "max_level", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    DIAMETER = "diameter", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MIN_VOL = "min_vol", float, WqAnalysisType.BASE
+    VOL_CURVE = "vol_curve", str, WqAnalysisType.BASE
+    OVERFLOW = "overflow", bool, WqAnalysisType.BASE
+    BASE_HEAD = "base_head", float, WqAnalysisType.BASE
+    HEAD_PATTERN = "head_pattern", str, WqAnalysisType.BASE
+    LENGTH = "length", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    ROUGHNESS = "roughness", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    MINOR_LOSS = "minor_loss", float, WqAnalysisType.BASE
+    INITIAL_STATUS = "initial_status", str, WqAnalysisType.BASE
+    CHECK_VALVE = "check_valve", bool, WqAnalysisType.BASE
+    PUMP_TYPE = "pump_type", str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    PUMP_CURVE = "pump_curve", str, WqAnalysisType.BASE
+    POWER = "power", float, WqAnalysisType.BASE
+    BASE_SPEED = "base_speed", float, WqAnalysisType.BASE
+    SPEED_PATTERN = "speed_pattern", str, WqAnalysisType.BASE
+    INITIAL_SETTING = "initial_setting", float, WqAnalysisType.BASE
+    VALVE_TYPE = "valve_type", str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
 
-    INITIAL_QUALITY = object(), float, WqAnalysisType.QUALITY
-    MIXING_FRACTION = object(), float, WqAnalysisType.QUALITY
-    MIXING_MODEL = object(), float, WqAnalysisType.QUALITY
-    BULK_COEFF = object(), float, WqAnalysisType.QUALITY
-    WALL_COEFF = object(), float, WqAnalysisType.QUALITY
+    INITIAL_QUALITY = "initial_quality", float, WqAnalysisType.QUALITY
+    MIXING_FRACTION = "mixing_fraction", float, WqAnalysisType.QUALITY
+    MIXING_MODEL = "mixing_model", float, WqAnalysisType.QUALITY
+    BULK_COEFF = "bulk_coeff", float, WqAnalysisType.QUALITY
+    WALL_COEFF = "wall_coeff", float, WqAnalysisType.QUALITY
 
-    MINIMUM_PRESSURE = object(), float, WqAnalysisType.PDA
-    REQUIRED_PRESSURE = object(), float, WqAnalysisType.PDA
-    PRESSURE_EXPONENT = object(), float, WqAnalysisType.PDA
+    MINIMUM_PRESSURE = "minimum_pressure", float, WqAnalysisType.PDA
+    REQUIRED_PRESSURE = "required_pressure", float, WqAnalysisType.PDA
+    PRESSURE_EXPONENT = "pressure_exponent", float, WqAnalysisType.PDA
 
-    EFFICIENCY = object(), float, WqAnalysisType.ENERGY
-    ENERGY_PATTERN = object(), float, WqAnalysisType.ENERGY
-    ENERGY_PRICE = object(), float, WqAnalysisType.ENERGY
+    EFFICIENCY = "efficiency", str, WqAnalysisType.ENERGY
+    ENERGY_PATTERN = "emergy_pattern", float, WqAnalysisType.ENERGY
+    ENERGY_PRICE = "energy_price", float, WqAnalysisType.ENERGY
 
 
-class WqOutField(WqField):
+class WqResultField(WqField):
     @property
     def qgs_field(self):
         return QgsField(self.name.lower(), self._get_qgs_field_type(list), subType=self._qgs_wkb_type)
 
-    DEMAND = object(), float, WqAnalysisType.BASE
-    HEAD = object(), float, WqAnalysisType.BASE
-    PRESSURE = object(), float, WqAnalysisType.BASE
-    QUALITY = object(), float, WqAnalysisType.QUALITY
+    DEMAND = "demand", float, WqAnalysisType.BASE
+    HEAD = "head", float, WqAnalysisType.BASE
+    PRESSURE = "pressure", float, WqAnalysisType.BASE
+    QUALITY = "quality", float, WqAnalysisType.QUALITY
 
-    FLOWRATE = object(), float, WqAnalysisType.BASE
-    HEADLOSS = object(), float, WqAnalysisType.BASE
-    VELOCITY = object(), float, WqAnalysisType.BASE
+    FLOWRATE = "flowrate", float, WqAnalysisType.BASE
+    HEADLOSS = "headloss", float, WqAnalysisType.BASE
+    VELOCITY = "velocity", float, WqAnalysisType.BASE
 
 
 class WqProjectVar(Enum):
@@ -328,7 +417,7 @@ class WqProjectVar(Enum):
 
     @property
     def _setting_name(self):
-        return "wntr_" + self.name.lower()
+        return SETTING_PREFIX + self.name.lower()
 
     def set(self, value: Any):
         if not isinstance(value, self.value[1]):

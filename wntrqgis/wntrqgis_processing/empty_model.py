@@ -50,15 +50,15 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         )
 
         for analysis_type in WqAnalysisType:
-            match analysis_type:
-                case WqAnalysisType.QUALITY:
-                    description = "Create Fields for Water Quality Analysis"
-                case WqAnalysisType.PDA:
-                    description = "Create Fields for Pressure Driven Analysis"
-                case WqAnalysisType.ENERGY:
-                    description = "Create Fields for Energy Analysis"
-                case _:
-                    continue
+            # match analysis_type:
+            if analysis_type is WqAnalysisType.QUALITY:
+                description = "Create Fields for Water Quality Analysis"
+            elif analysis_type is WqAnalysisType.PDA:
+                description = "Create Fields for Pressure Driven Analysis"
+            elif analysis_type is WqAnalysisType.ENERGY:
+                description = "Create Fields for Energy Analysis"
+            else:
+                continue
             param = QgsProcessingParameterBoolean(
                 analysis_type.name, self.tr(description), optional=True, defaultValue=False
             )

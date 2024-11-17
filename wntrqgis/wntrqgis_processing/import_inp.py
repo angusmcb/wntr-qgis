@@ -46,8 +46,9 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     def shortHelpString(self):  # noqa N802
         return self.tr("""
             Import all junctions, tanks, reservoirs, pipes, pumps and valves from an EPANET inp file.
-            This will also import all of the options from the .inp file.
-            All values will be in SI units (metres, kg, seconds, m3/s, etc).
+            This will also save selected options from the .inp file.
+            All units will be converted into the unit set selected. If not selected, it will default \
+            to the unit set in the .inp file.
             """)
 
     def initAlgorithm(self, config=None):  # noqa N802

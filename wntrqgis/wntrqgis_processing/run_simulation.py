@@ -31,7 +31,14 @@ from qgis.core import (
     QgsProject,
 )
 
-from wntrqgis.network_parts import WqFlowUnit, WqHeadlossFormula, WqInField, WqModelLayer, WqOutLayer, WqProjectVar
+from wntrqgis.network_parts import (
+    WqFlowUnit,
+    WqHeadlossFormula,
+    WqModelField,
+    WqModelLayer,
+    WqProjectVar,
+    WqResultLayer,
+)
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -44,9 +51,6 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     DURATION = "DURATION"
     HEADLOSS_FORMULA = "HEADLOSS_FORMULA"
     OUTPUTINP = "OUTPUTINP"
-
-    def flags(self):
-        return super().flags() | QgsProcessingAlgorithm.Flag.FlagRequiresMatchingCrs
 
     def createInstance(self):  # noqa N802
         return RunSimulation()
@@ -120,10 +124,10 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self.addParameter(param)
 
         self.addParameter(
-            QgsProcessingParameterFeatureSink(WqOutLayer.NODES.value, self.tr("Simulation Results - Nodes"))
+            QgsProcessingParameterFeatureSink(WqResultLayer.NODES.value, self.tr("Simulation Results - Nodes"))
         )
         self.addParameter(
-            QgsProcessingParameterFeatureSink(WqOutLayer.LINKS.value, self.tr("Simulation Results - Links"))
+            QgsProcessingParameterFeatureSink(WqResultLayer.LINKS.value, self.tr("Simulation Results - Links"))
         )
 
         # saved_options = WqProjectVar.OPTIONS.get()
@@ -264,9 +268,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         # wq_results.darcy_weisbach = wn.options.hydraulic.headloss == "D-W"
         # wq_results.flow_units = flow_units
 
-        for lyr in WqOutLayer:
+        for lyr in WqResultLayer:
             fields = QgsFields()
-            fields.append(WqInField.NAME.qgs_field)
+            fields.append(WqModelField.NAME.qgs_field)
             for f in lyr.wq_fields:
                 fields.append(f.qgs_field)
 
@@ -279,7 +283,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 network_model.crs,
             )
 
-            wq_results.to_sink(sink, lyr.wq_fields, network_model.geom_dict[lyr])
+            wq_results.to_sink(sink, lyr.wq_fields, network_model.geom_dict[lyr.element_family])
 
         logger.removeHandler(ch)
         self._update_progress(ProgStatus.FINISHED_PROCESSING)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import subprocess
 import sys
 from importlib import invalidate_caches
@@ -39,13 +40,12 @@ class WqDependencyManagement:
     @staticmethod
     def _check_dependencies():
         return [
-            package
-            for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib", "geopandas"]
-            if find_spec(package) is None
+            package for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib"] if find_spec(package) is None
         ]
 
     @staticmethod
     def _check_wntr() -> str | None:
+        invalidate_caches()
         if find_spec("wntr") is None:
             return None
         try:
@@ -63,7 +63,8 @@ class WqDependencyManagement:
 
         this_dir = os.path.dirname(os.path.realpath(__file__))
         wheels = os.path.join(this_dir, "wheels/")
-        packagedir = os.path.join(this_dir, "packages/")
+        major, minor, _ = platform.python_version_tuple()
+        packagedir = Path(this_dir) / "packages" / (major + minor)
         Path(packagedir).mkdir(parents=True, exist_ok=True)
 
         kwargs: dict[str, Any] = {}
@@ -81,7 +82,7 @@ class WqDependencyManagement:
                 "--no-index",
                 "--upgrade",
                 "--force-reinstall",
-                "--target=" + packagedir,
+                "--target=" + str(packagedir.resolve()),
                 "--no-deps",
                 "--find-links=" + wheels,
                 "wntr",

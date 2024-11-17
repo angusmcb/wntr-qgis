@@ -1,3 +1,4 @@
+import platform
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,6 +23,7 @@ def classFactory(iface: "QgisInterface"):  # noqa N802
     return Plugin()
 
 
-packages_path = Path(__file__).parent / "packages"
-packages_path.mkdir(exist_ok=True)
+major, minor, _ = platform.python_version_tuple()
+packages_path = Path(__file__).parent / "packages" / (major + minor)
+packages_path.mkdir(parents=True, exist_ok=True)
 sys.path.append(str(packages_path.resolve()))

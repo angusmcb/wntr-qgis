@@ -33,7 +33,7 @@ A copy of the WNTR Python package is included in the plugin.
 
 WNTR itself has some python dependencies. A warning will appear when running any of the algorithms from the 'processing toolbox' if there are missing dependencies.
 * On *Windows* all dependencies are already included within QGIS.
-* For *Linux / Mac* you will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, GeoPandas, NetworkX, and Matplotlib. Exactly how to do this depends on your system and how you have installed QGIS.
+* For *Linux / Mac* you will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX, and Matplotlib. Exactly how to do this depends on your system and how you have installed QGIS.
 
 ## Usage
 
