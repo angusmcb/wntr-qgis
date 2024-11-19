@@ -13,7 +13,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import WqProjectVar
+from wntrqgis.network_parts import WqProjectVar, WqModelLayer
+from wntrqgis.layer_styles import WqLayerStyles
 
 if TYPE_CHECKING:
     import wntr
@@ -29,7 +30,14 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
-        layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
+        # layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
+
+        try:
+            styler = WqLayerStyles(WqModelLayer(self.layertype))
+            layer.renderer().setSymbol(styler.symbol)
+        except ValueError:
+            pass
+
         wntr_layers = WqProjectVar.INLAYERS.get()
         if not isinstance(wntr_layers, dict):
             wntr_layers = {}
@@ -62,7 +70,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
 
 class ProgStatus(IntEnum):
     CHECKING_DEPENDENCIES = 5
-    UNPACKING_WNTR = 7
+    UNPACKING_WNTR = 10
     PREPARING_MODEL = 15
     RUNNING_SIMULATION = 40
     CREATING_OUTPUTS = 70
