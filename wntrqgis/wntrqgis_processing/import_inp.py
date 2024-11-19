@@ -26,6 +26,7 @@ from qgis.core import (
 )
 
 from wntrqgis.network_parts import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
+from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -50,6 +51,9 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             All units will be converted into the unit set selected. If not selected, it will default \
             to the unit set in the .inp file.
             """)
+
+    def icon(self):
+        return WqIcon.OPEN.q_icon
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(

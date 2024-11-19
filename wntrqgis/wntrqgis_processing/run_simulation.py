@@ -39,6 +39,7 @@ from wntrqgis.network_parts import (
     WqProjectVar,
     WqResultLayer,
 )
+from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
 
 
@@ -66,6 +67,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             Optionally, you can also output an EPANET '.inp' file which can be run / viewed \
             in other software.
             """)
+
+    def icon(self):
+        return WqIcon.RUN.q_icon
 
     def initAlgorithm(self, config=None):  # noqa N802
         default_layers = WqProjectVar.INLAYERS.get({})
@@ -97,7 +101,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         param = QgsProcessingParameterEnum(
             self.HEADLOSS_FORMULA,
             self.tr("Headloss Formula"),
-            options=[formula.friendly_name() for formula in WqHeadlossFormula],
+            options=[formula.friendly_name for formula in WqHeadlossFormula],
             allowMultiple=False,
             usesStaticStrings=False,
         )

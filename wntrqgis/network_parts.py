@@ -26,6 +26,7 @@ class WqHeadlossFormula(Enum):
     DARCY_WEISBACH = "D-W"
     CHEZY_MANNING = "C-M"
 
+    @property
     def friendly_name(self):
         return self.name.replace("_", " ").title()
 
