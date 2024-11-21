@@ -163,11 +163,22 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         filename = Path(source).stem
 
+        output_order = [
+            WqModelLayer.JUNCTIONS,
+            WqModelLayer.PIPES,
+            WqModelLayer.PUMPS,
+            WqModelLayer.VALVES,
+            WqModelLayer.RESERVOIRS,
+            WqModelLayer.TANKS,
+        ]
+
         for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(
-                    layername, self.tr(f"Model Layers ({filename})")
-                )
-                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
+                self.post_processors[lyr_id] = LayerPostProcessor.create(layername)
+
+                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
+                layer_details.setPostProcessor(self.post_processors[lyr_id])
+                layer_details.groupName = self.tr(f"Model Layers ({filename})")
+                layer_details.layerSortKey = output_order.index(WqModelLayer(layername))
 
         return outputs

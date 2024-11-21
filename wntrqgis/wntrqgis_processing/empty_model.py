@@ -96,11 +96,22 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         #    lyr.addExpressionField(**wntrqgis.fields.linked_node_field("start"))
         #    lyr.addExpressionField(**wntrqgis.fields.linked_node_field("end"))
 
+        output_order = [
+            WqModelLayer.JUNCTIONS,
+            WqModelLayer.PIPES,
+            WqModelLayer.PUMPS,
+            WqModelLayer.VALVES,
+            WqModelLayer.RESERVOIRS,
+            WqModelLayer.TANKS,
+        ]
+
         for layername, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(
-                    layername, self.tr("Model Layers (Template)"), True
-                )
-                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
+                self.post_processors[lyr_id] = LayerPostProcessor.create(layername, True)
+
+                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
+                layer_details.setPostProcessor(self.post_processors[lyr_id])
+                layer_details.groupName = self.tr("Model Layers (Template)")
+                layer_details.layerSortKey = output_order.index(WqModelLayer(layername))
 
         return outputs
