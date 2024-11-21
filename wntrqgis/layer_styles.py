@@ -1,4 +1,10 @@
+from __future__ import annotations
+
+from enum import Enum
+
 from qgis.core import (
+    QgsDefaultValue,
+    QgsEditorWidgetSetup,
     QgsLineSymbol,
     QgsMarkerLineSymbolLayer,
     QgsMarkerSymbol,
@@ -6,7 +12,43 @@ from qgis.core import (
     QgsSimpleMarkerSymbolLayer,
 )
 
-from wntrqgis.network_parts import WqLayer, WqModelLayer, WqResultLayer
+from wntrqgis.network_parts import WqField, WqLayer, WqModelField, WqModelLayer, WqResultLayer
+
+
+class WqFieldStyles:
+    @staticmethod
+    def editor_widget(field: WqField, layer: WqLayer | None = None) -> QgsEditorWidgetSetup:
+        # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
+        if field.python_type is float:
+            return QgsEditorWidgetSetup(
+                "Range",
+                {
+                    "AllowNull": False,
+                    "Max": 1.7976931348623157e308,
+                    "Min": -1.7976931348623157e308,
+                    "Precision": 1,
+                    "Step": 1.0,
+                    "Style": "SpinBox",
+                },
+            )
+        if field.python_type is bool:
+            return QgsEditorWidgetSetup(
+                "CheckBox",
+                {"AllowNullState": False, "CheckedState": None, "TextDisplayMethod": 0, "UncheckedState": None},
+            )
+        if issubclass(field.python_type, Enum):
+            value_map = [{enum_instance.value: enum_instance.value} for enum_instance in field.python_type]
+            return QgsEditorWidgetSetup(
+                "ValueMap",
+                {"map": value_map},
+            )
+        if field.python_type is str:
+            return QgsEditorWidgetSetup("TextEdit", {"IsMultiline": False, "UseHtml": False})
+        raise KeyError
+
+    def default_value(self):
+        # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
+        QgsDefaultValue("expression")
 
 
 class WqLayerStyles:

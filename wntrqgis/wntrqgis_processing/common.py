@@ -13,8 +13,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import WqProjectVar, WqModelLayer
-from wntrqgis.layer_styles import WqLayerStyles
+from wntrqgis.network_parts import WqProjectVar, WqModelLayer, WqModelField
+from wntrqgis.layer_styles import WqLayerStyles, WqFieldStyles
 
 if TYPE_CHECKING:
     import wntr
@@ -37,6 +37,10 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
             layer.renderer().setSymbol(styler.symbol)
         except ValueError:
             pass
+
+        for i, field in enumerate(layer.fields()):
+            editor_config = WqFieldStyles.editor_widget(WqModelField(field.name()), None)
+            layer.setEditorWidgetSetup(i, editor_config)
 
         wntr_layers = WqProjectVar.INLAYERS.get()
         if not isinstance(wntr_layers, dict):

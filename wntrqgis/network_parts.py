@@ -37,6 +37,16 @@ class WqCurve(Enum):
     HEADLOSS = "HEADLOSS"
 
 
+class WqPumpTypes(str, Enum):
+    POWER = "POWER"
+    HEAD = "HEAD"
+
+
+class WqInitialStatus(str, Enum):
+    OPEN = "Open"
+    CLOSED = "Closed"
+
+
 class WqAnalysisType(Flag):
     BASE = auto()
     QUALITY = auto()
@@ -329,15 +339,15 @@ class WqField(Enum):
     def _get_qgs_field_type(self, python_type):
         use_qmetatype = Qgis.versionInt() >= QGIS_VERSION_QMETATYPE
 
-        if python_type is str:
+        if issubclass(python_type, str):
             return QMetaType.QString if use_qmetatype else QVariant.String
-        if python_type is float:
+        if issubclass(python_type, float):
             return QMetaType.Double if use_qmetatype else QVariant.Double
-        if python_type is bool:
+        if issubclass(python_type, bool):
             return QMetaType.Bool if use_qmetatype else QVariant.Bool
-        if python_type is int:
+        if issubclass(python_type, int):
             return QMetaType.Int if use_qmetatype else QVariant.Int
-        if python_type is list:
+        if issubclass(python_type, list):
             return QMetaType.QVariantList if use_qmetatype else QVariant.List
 
         raise KeyError
@@ -367,9 +377,9 @@ class WqModelField(WqField):
     LENGTH = "length", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     ROUGHNESS = "roughness", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     MINOR_LOSS = "minor_loss", float, WqAnalysisType.BASE
-    INITIAL_STATUS = "initial_status", str, WqAnalysisType.BASE
+    INITIAL_STATUS = "initial_status", WqInitialStatus, WqAnalysisType.BASE
     CHECK_VALVE = "check_valve", bool, WqAnalysisType.BASE
-    PUMP_TYPE = "pump_type", str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    PUMP_TYPE = "pump_type", WqPumpTypes, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     PUMP_CURVE = "pump_curve", str, WqAnalysisType.BASE
     POWER = "power", float, WqAnalysisType.BASE
     BASE_SPEED = "base_speed", float, WqAnalysisType.BASE
