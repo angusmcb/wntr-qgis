@@ -13,8 +13,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import WqProjectVar, WqModelLayer, WqModelField
-from wntrqgis.layer_styles import WqLayerStyles, WqFieldStyles
+from wntrqgis.network_parts import WqProjectVar
+from wntrqgis.layer_styles import WqLayerStyles
 
 if TYPE_CHECKING:
     import wntr
@@ -30,17 +30,12 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
-        # layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
+        style_file = str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml"))
+        style_file = style_file + ""
+        # layer.loadNamedStyle(style_file)
 
-        try:
-            styler = WqLayerStyles(WqModelLayer(self.layertype))
-            layer.renderer().setSymbol(styler.symbol)
-        except ValueError:
-            pass
-
-        for i, field in enumerate(layer.fields()):
-            editor_config = WqFieldStyles.editor_widget(WqModelField(field.name()), None)
-            layer.setEditorWidgetSetup(i, editor_config)
+        styler = WqLayerStyles(self.layertype)
+        styler.style_layer(layer)
 
         wntr_layers = WqProjectVar.INLAYERS.get()
         if not isinstance(wntr_layers, dict):

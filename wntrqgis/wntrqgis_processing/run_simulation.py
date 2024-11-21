@@ -216,7 +216,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             for f in lyr.wq_fields:
                 fields.append(f.qgs_field)
 
-            (sink, outputs[lyr.value]) = self.parameterAsSink(
+            (sink, outputs[lyr]) = self.parameterAsSink(
                 parameters,
                 lyr.value,
                 context,

@@ -88,7 +88,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         for layer in WqModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
-            (sink, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
+            (sink, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
 
         ### add virtual fields
         # for layername in linklayers:

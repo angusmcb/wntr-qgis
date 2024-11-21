@@ -152,7 +152,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         sinks = {}
         for layer in WqModelLayer:
             fields = layer.qgs_fields(network_model.analysis_types)
-            (sink, outputs[layer.name]) = self.parameterAsSink(
+            (sink, outputs[layer]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
             sinks[layer] = (sink, fields)

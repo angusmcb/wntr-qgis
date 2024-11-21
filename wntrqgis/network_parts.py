@@ -47,6 +47,15 @@ class WqInitialStatus(str, Enum):
     CLOSED = "Closed"
 
 
+class WqValveType(str, Enum):
+    PRV = "Pressure Reducing Valve"
+    PSV = "Pressure Sustaining Valve"
+    PBV = "Pressure Breaking Valve"
+    FCV = "Flow Control Valve"
+    TCV = "Throttle Control Valve"
+    GPV = "General Purpose Valve"
+
+
 class WqAnalysisType(Flag):
     BASE = auto()
     QUALITY = auto()
@@ -61,7 +70,7 @@ class WqElementFamily(Enum):
     LINK = auto()
 
 
-class WqLayer(Enum):
+class WqLayer(str, Enum):
     @property
     def friendly_name(self):
         return self.value.title()
@@ -374,7 +383,7 @@ class WqModelField(WqField):
     OVERFLOW = "overflow", bool, WqAnalysisType.BASE
     BASE_HEAD = "base_head", float, WqAnalysisType.BASE
     HEAD_PATTERN = "head_pattern", str, WqAnalysisType.BASE
-    LENGTH = "length", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    LENGTH = "length", float, WqAnalysisType.BASE
     ROUGHNESS = "roughness", float, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
     MINOR_LOSS = "minor_loss", float, WqAnalysisType.BASE
     INITIAL_STATUS = "initial_status", WqInitialStatus, WqAnalysisType.BASE
@@ -385,7 +394,7 @@ class WqModelField(WqField):
     BASE_SPEED = "base_speed", float, WqAnalysisType.BASE
     SPEED_PATTERN = "speed_pattern", str, WqAnalysisType.BASE
     INITIAL_SETTING = "initial_setting", float, WqAnalysisType.BASE
-    VALVE_TYPE = "valve_type", str, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
+    VALVE_TYPE = "valve_type", WqValveType, WqAnalysisType.BASE | WqAnalysisType.REQUIRED
 
     INITIAL_QUALITY = "initial_quality", float, WqAnalysisType.QUALITY
     MIXING_FRACTION = "mixing_fraction", float, WqAnalysisType.QUALITY
