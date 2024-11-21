@@ -149,7 +149,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         sinks = {}
         for layer in WqModelLayer:
             fields = layer.qgs_fields(network_model.analysis_types)
-            (sink, outputs[layer.name]) = self.parameterAsSink(
+            (sink, outputs[layer]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
             sinks[layer] = (sink, fields)
@@ -176,6 +176,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
                 layer_details.setPostProcessor(self.post_processors[lyr_id])
                 layer_details.groupName = self.tr(f"Model Layers ({filename})")
-                layer_details.layerSortKey = output_order.index(WqModelLayer(layername))
+                layer_details.layerSortKey = output_order.index(layername)
 
         return outputs

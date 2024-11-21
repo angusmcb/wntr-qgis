@@ -1,6 +1,5 @@
 from __future__ import annotations  # noqa
 from typing import ClassVar, TYPE_CHECKING
-from pathlib import Path
 from enum import IntEnum
 import logging
 
@@ -14,6 +13,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.network_parts import WqProjectVar
+from wntrqgis.layer_styles import WqLayerStyles
 
 if TYPE_CHECKING:
     import wntr
@@ -29,9 +29,13 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
-        layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
 
-        wntr_layers = WqProjectVar.INLAYERS.get({})
+        styler = WqLayerStyles(self.layertype)
+        styler.style_layer(layer)
+
+        wntr_layers = WqProjectVar.INLAYERS.get()
+        if not isinstance(wntr_layers, dict):
+            wntr_layers = {}
         wntr_layers[self.layertype] = layer.id()
         WqProjectVar.INLAYERS.set(wntr_layers)
 
@@ -60,7 +64,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
 
 class ProgStatus(IntEnum):
     CHECKING_DEPENDENCIES = 5
-    UNPACKING_WNTR = 7
+    UNPACKING_WNTR = 10
     PREPARING_MODEL = 15
     RUNNING_SIMULATION = 40
     CREATING_OUTPUTS = 70

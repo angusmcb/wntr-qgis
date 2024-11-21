@@ -81,7 +81,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         for layer in WqModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
-            (_, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
+            (sink, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
 
         output_order = [
             WqModelLayer.JUNCTIONS,
