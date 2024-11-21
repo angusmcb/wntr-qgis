@@ -58,7 +58,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 self.tr("Epanet Input File (.inp)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="inp",
-                defaultValue=None,
             )
         )
         self.addParameter(
@@ -70,9 +69,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 self.UNITS,
                 self.tr("Units to to convert to (leave blank to use .inp file units)"),
                 options=[fu.value for fu in WqFlowUnit],
-                allowMultiple=False,
-                usesStaticStrings=False,
-                defaultValue=None,
                 optional=True,
             )
         )
@@ -107,8 +103,11 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
-        wn = wntr.network.read_inpfile(input_file)
-
+        try:
+            wn = wntr.network.read_inpfile(input_file)
+        except FileNotFoundError as e:
+            msg = f".inp file does not exist ({input_file})"
+            raise QgsProcessingException(msg) from e
         self._describe_model(wn)
 
         # Hadle which units to ouptut in
