@@ -49,16 +49,12 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"), "ProjectCrs")
         )
 
-        for analysis_type in WqAnalysisType:
-            # match analysis_type:
-            if analysis_type is WqAnalysisType.QUALITY:
-                description = "Create Fields for Water Quality Analysis"
-            elif analysis_type is WqAnalysisType.PDA:
-                description = "Create Fields for Pressure Driven Analysis"
-            elif analysis_type is WqAnalysisType.ENERGY:
-                description = "Create Fields for Energy Analysis"
-            else:
-                continue
+        advanced_analysis_types = [
+            (WqAnalysisType.QUALITY, "Create Fields for Water Quality Analysis"),
+            (WqAnalysisType.PDA, "Create Fields for Pressure Driven Analysis"),
+            (WqAnalysisType.ENERGY, "Create Fields for Energy Analysis"),
+        ]
+        for analysis_type, description in advanced_analysis_types:
             param = QgsProcessingParameterBoolean(
                 analysis_type.name, self.tr(description), optional=True, defaultValue=False
             )
@@ -75,10 +71,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         feedback: QgsProcessingFeedback,  # noqa ARG002
     ) -> dict:
         analysis_types_to_use = WqAnalysisType.BASE
-
         for analysis_type in WqAnalysisType:
-            if analysis_type is WqAnalysisType.BASE:
-                continue
             if self.parameterAsBoolean(parameters, analysis_type.name, context):
                 analysis_types_to_use = analysis_types_to_use | analysis_type
 
@@ -88,13 +81,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         for layer in WqModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
-            (sink, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
-
-        ### add virtual fields
-        # for layername in linklayers:
-        #    lyr = QgsProcessingUtils.mapLayerFromString(outputs[layername], context)
-        #    lyr.addExpressionField(**wntrqgis.fields.linked_node_field("start"))
-        #    lyr.addExpressionField(**wntrqgis.fields.linked_node_field("end"))
+            (_, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
 
         output_order = [
             WqModelLayer.JUNCTIONS,

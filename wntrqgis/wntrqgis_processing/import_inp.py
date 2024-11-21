@@ -96,8 +96,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     ) -> dict:
         WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
-        # PREPARE IMPORTS
-        # imports are here as they are slow and only needed when processing the model.
+        # imports are here as they are slow, will break if wntr isn't installed, and only needed in processalgorithm()
         self._ensure_wntr()
 
         import wntr
@@ -106,12 +105,9 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.LOADING_INP_FILE)
 
-        source = self.parameterAsFile(parameters, self.INPUT, context)
-        crs = self.parameterAsCrs(parameters, self.CRS, context)
-        if source is None:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
-        wn = wntr.network.read_inpfile(source)
+        wn = wntr.network.read_inpfile(input_file)
 
         self._describe_model(wn)
 
@@ -148,6 +144,8 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         if len(extra_analysis_type_names):
             feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
 
+        crs = self.parameterAsCrs(parameters, self.CRS, context)
+
         outputs = {}
         sinks = {}
         for layer in WqModelLayer:
@@ -161,7 +159,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.FINISHED_PROCESSING)
 
-        filename = Path(source).stem
+        filename = Path(input_file).stem
 
         output_order = [
             WqModelLayer.JUNCTIONS,
