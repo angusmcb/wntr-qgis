@@ -1,6 +1,5 @@
 from __future__ import annotations  # noqa
 from typing import ClassVar, TYPE_CHECKING
-from pathlib import Path
 from enum import IntEnum
 import logging
 
@@ -30,9 +29,6 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
-        style_file = str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml"))
-        style_file = style_file + ""
-        # layer.loadNamedStyle(style_file)
 
         styler = WqLayerStyles(self.layertype)
         styler.style_layer(layer)

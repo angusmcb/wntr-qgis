@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any
 
 from qgis.core import (
+    Qgis,
     QgsDefaultValue,
     QgsEditorWidgetSetup,
     QgsGradientColorRamp,
@@ -11,8 +12,10 @@ from qgis.core import (
     QgsLineSymbol,
     QgsMarkerLineSymbolLayer,
     QgsMarkerSymbol,
+    QgsProperty,
     QgsSimpleLineSymbolLayer,
     QgsSimpleMarkerSymbolLayer,
+    QgsSingleSymbolRenderer,
     QgsVectorLayer,
 )
 
@@ -74,14 +77,15 @@ class WqLayerStyles:
             self._style_result_layer(layer)
 
     def _style_model_layer(self, layer):
-        layer.renderer().setSymbol(self._symbol)
+        renderer = QgsSingleSymbolRenderer(self._symbol)
+        layer.setRenderer(renderer)
 
         for i, field in enumerate(layer.fields()):
             field_styler = WqFieldStyles(WqModelField(field.name()), self.layer_type)
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
             layer.setDefaultValueDefinition(i, field_styler.default_value)
 
-    def _style_result_layer(self, layer):
+    def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is WqResultLayer.NODES:
             attribute_expression = 'wntr_result_at_current_time("pressure")'
         else:
@@ -95,6 +99,10 @@ class WqLayerStyles:
             QgsGradientColorRamp.create(SPECTRAL_RAMP),
         )
         layer.setRenderer(renderer)
+
+        temporal_properties = layer.temporalProperties()
+        temporal_properties.setIsActive(True)
+        temporal_properties.setMode(Qgis.VectorTemporalMode.ModeRedrawLayerOnly)
 
     @property
     def _symbol(self):
@@ -125,11 +133,13 @@ class WqLayerStyles:
             return self._line_with_marker(background_line, pump_marker)
 
         if self.layer_type is WqResultLayer.NODES:
-            return QgsMarkerSymbol.createSimple(CIRCLE | NO_STROKE | JUNCTION_SIZE)
+            return QgsMarkerSymbol.createSimple(CIRCLE | NO_STROKE | NODE_SIZE)
 
         if self.layer_type is WqResultLayer.LINKS:
-            line = QgsSimpleLineSymbolLayer.create(HAIRWIDTH_LINE | TRIM_ENDS)
+            line = QgsSimpleLineSymbolLayer.create(THICK_LINE | TRIM_ENDS)
             arrow = QgsMarkerSymbol.createSimple(ARROW | THICK_STROKE)
+            exp = QgsProperty.fromExpression("if(wntr_result_at_current_time( flowrate ) <0,180,0)")
+            arrow.setDataDefinedAngle(exp)
             return self._line_with_marker(line, arrow)
 
         raise KeyError
@@ -156,11 +166,13 @@ HAIRLINE_STROKE = {"outline_color": "black", "outline_style": "solid", "outline_
 THICK_STROKE = {"outline_width": "0.4"}
 NO_STROKE = {"outline_style": "no"}
 JUNCTION_SIZE = {"size": "1.8"}
+NODE_SIZE = {"size": "2.0"}
 TANK_SIZE = {"size": "2.5"}
 RESERVOIR_SIZE = {"size": "5"}
 VALVE_SIZE = {"size": "3"}
 PUMP_SIZE = {"size": "2"}
-HAIRWIDTH_LINE = {"line_style": "solid", "line_width": "0"}
+HAIRWIDTH_LINE = {"line_width": "0"}
+THICK_LINE = {"line_width": "0.4"}
 TRIM_ENDS = {"trim_distance_end": "0.9", "trim_distance_start": "0.9"}
 DOTTY_LINE = {"line_style": "dot"}
 GREY_LINE = {"line_color": "35,35,35,255,rgb:0.13725490196078433,0.13725490196078433,0.13725490196078433,1"}
