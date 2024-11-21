@@ -43,26 +43,25 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         wntr_layers[self.layertype] = layer.id()
         WqProjectVar.INLAYERS.set(wntr_layers)
 
-        if self.group_name:
-            project = context.project()
-            root_group = project.layerTreeRoot()
-            if not root_group.findGroup(self.group_name):
-                root_group.insertGroup(0, self.group_name)
-            group1 = root_group.findGroup(self.group_name)
-            lyr_node = root_group.findLayer(layer.id())
-            if lyr_node:
-                node_clone = lyr_node.clone()
-                group1.addChildNode(node_clone)
-                lyr_node.parent().removeChildNode(lyr_node)
+        # if self.group_name:
+        #     project = context.project()
+        #     root_group = project.layerTreeRoot()
+        #     if not root_group.findGroup(self.group_name):
+        #         root_group.insertGroup(0, self.group_name)
+        #     group1 = root_group.findGroup(self.group_name)
+        #     lyr_node = root_group.findLayer(layer.id())
+        #     if lyr_node:
+        #         node_clone = lyr_node.clone()
+        #         group1.addChildNode(node_clone)
+        #         lyr_node.parent().removeChildNode(lyr_node)
 
         if self.make_editable:
             layer.startEditing()
 
     @staticmethod
-    def create(layertype: str, group_name="", make_editable=False) -> LayerPostProcessor:  # noqa FBT002
+    def create(layertype: str, make_editable=False) -> LayerPostProcessor:  # noqa FBT002
         LayerPostProcessor.instance = LayerPostProcessor()
         LayerPostProcessor.instance.layertype = layertype
-        LayerPostProcessor.instance.group_name = group_name
         LayerPostProcessor.instance.make_editable = make_editable
         return LayerPostProcessor.instance
 

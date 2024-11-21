@@ -236,11 +236,11 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         finishtime = time.strftime("%X")
         for outputname, lyr_id in outputs.items():
             if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(
-                    outputname, self.tr(f"Simulation Results ({finishtime})")
-                )
-                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
+                self.post_processors[lyr_id] = LayerPostProcessor.create(outputname)
 
+                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
+                layer_details.setPostProcessor(self.post_processors[lyr_id])
+                layer_details.groupName = self.tr(f"Simulation Results ({finishtime})")
         return outputs
 
 
