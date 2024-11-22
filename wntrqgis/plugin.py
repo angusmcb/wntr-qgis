@@ -22,7 +22,14 @@ from qgis.PyQt.QtWidgets import QAction, QFileDialog, QWidget
 from qgis.utils import iface
 
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
-from wntrqgis.network_parts import WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar, WqResultLayer
+from wntrqgis.network_parts import (
+    WqFlowUnit,
+    WqHeadlossFormula,
+    WqModelLayer,
+    WqProjectSetting,
+    WqProjectSettings,
+    WqResultLayer,
+)
 from wntrqgis.resource_manager import WqExampleInp, WqIcon, join_pixmap
 from wntrqgis.wntrqgis_processing.provider import Provider
 
@@ -238,14 +245,15 @@ class Plugin:
         )
 
     def run_simulation(self) -> None:
-        saved_layers = WqProjectVar.INLAYERS.get({})
+        project_settings = WqProjectSettings(QgsProject.instance())
+        saved_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
         input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in WqModelLayer}
         result_layers = {layer.value: self._temporary_processing_output() for layer in WqResultLayer}
-        flow_units = WqProjectVar.FLOW_UNITS.get(WqFlowUnit.LPS)
+        flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS, WqFlowUnit.LPS)
         flow_unit_id = list(WqFlowUnit).index(flow_units)
-        headloss_formula = WqProjectVar.HEADLOSS_FORMULA.get(WqHeadlossFormula.HAZEN_WILLIAMS)
+        headloss_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA, WqHeadlossFormula.HAZEN_WILLIAMS)
         headloss_formula_id = list(WqHeadlossFormula).index(headloss_formula)
-        duration = WqProjectVar.SIMULATION_DURATION.get(0)
+        duration = project_settings.get(WqProjectSetting.SIMULATION_DURATION, 0)
         parameters = {
             "UNITS": flow_unit_id,
             "HEADLOSS_FORMULA": headloss_formula_id,

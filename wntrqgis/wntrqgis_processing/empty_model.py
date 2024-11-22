@@ -84,10 +84,6 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         outputs: dict[str, str] = {}
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
-        import time
-
-        time.sleep(5)
-
         for layer in WqModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
