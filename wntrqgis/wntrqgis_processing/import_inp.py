@@ -26,7 +26,7 @@ from qgis.core import (
 )
 
 from wntrqgis.network_parts import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
-from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
 
 
 class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
@@ -145,7 +145,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
-        outputs = {}
+        outputs: dict[str, str] = {}
         sinks = {}
         for layer in WqModelLayer:
             fields = layer.qgs_fields(network_model.analysis_types)
@@ -160,22 +160,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         filename = Path(input_file).stem
 
-        output_order = [
-            WqModelLayer.JUNCTIONS,
-            WqModelLayer.PIPES,
-            WqModelLayer.PUMPS,
-            WqModelLayer.VALVES,
-            WqModelLayer.RESERVOIRS,
-            WqModelLayer.TANKS,
-        ]
-
-        for layername, lyr_id in outputs.items():
-            if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(layername)
-
-                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
-                layer_details.setPostProcessor(self.post_processors[lyr_id])
-                layer_details.groupName = self.tr(f"Model Layers ({filename})")
-                layer_details.layerSortKey = output_order.index(layername)
+        self._setup_postprocessing(outputs, f"Model Layers ({filename})", False)
 
         return outputs

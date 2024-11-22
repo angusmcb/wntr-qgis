@@ -13,7 +13,7 @@ from qgis.core import (
 )
 
 from wntrqgis.network_parts import WqAnalysisType, WqModelLayer
-from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
 
 class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
@@ -68,8 +68,10 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,  # noqa ARG002
+        feedback: QgsProcessingFeedback,
     ) -> dict:
+        WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
+
         analysis_types_to_use = WqAnalysisType.BASE
         for analysis_type in WqAnalysisType:
             if self.parameterAsBoolean(parameters, analysis_type.name, context):
@@ -81,24 +83,8 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         for layer in WqModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
-            (sink, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
+            (_, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
 
-        output_order = [
-            WqModelLayer.JUNCTIONS,
-            WqModelLayer.PIPES,
-            WqModelLayer.PUMPS,
-            WqModelLayer.VALVES,
-            WqModelLayer.RESERVOIRS,
-            WqModelLayer.TANKS,
-        ]
-
-        for layername, lyr_id in outputs.items():
-            if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(layername, True)
-
-                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
-                layer_details.setPostProcessor(self.post_processors[lyr_id])
-                layer_details.groupName = self.tr("Model Layers (Template)")
-                layer_details.layerSortKey = output_order.index(WqModelLayer(layername))
+        self._setup_postprocessing(outputs, "Model Layers", True)
 
         return outputs
