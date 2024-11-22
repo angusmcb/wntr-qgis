@@ -19,7 +19,7 @@ from qgis.gui import QgsProjectionSelectionDialog
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
 from qgis.PyQt.QtCore import QSettings
-from qgis.PyQt.QtGui import QIcon, QPixmap
+from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QWidget
 from qgis.utils import iface
 
@@ -157,7 +157,9 @@ class Plugin:
             add_to_toolbar=True,
         )
         self.add_action(
-            join_pixmap(QPixmap(":images/themes/default/propertyicons/settings.svg"), WqIcon.LOGO.q_pixmap),
+            join_pixmap(
+                QIcon(":images/themes/default/propertyicons/settings.svg").pixmap(128, 128), WqIcon.LOGO.q_pixmap
+            ),
             text="Settings",
             callback=self.open_settings,
             parent=iface.mainWindow(),
