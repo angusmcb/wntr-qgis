@@ -64,7 +64,7 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 lyr.name,
                 self.tr(lyr.friendly_name),
                 types=lyr.acceptable_processing_vectors,
-                optional=lyr is not WqModelLayer.JUNCTIONS,
+                optional=True,  # lyr is not WqModelLayer.JUNCTIONS,
             )
             savedlyr = default_layers.get(lyr.name)
             if savedlyr and param.checkValueIsAcceptable(savedlyr) and QgsProject.instance().mapLayer(savedlyr):
@@ -78,6 +78,7 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             options=[fu.value for fu in WqFlowUnit],
             allowMultiple=False,
             usesStaticStrings=False,
+            optional=True,
         )
         default_flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS)
         param.setGuiDefaultValueOverride(list(WqFlowUnit).index(default_flow_units) if default_flow_units else None)
@@ -89,6 +90,7 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             options=[formula.friendly_name for formula in WqHeadlossFormula],
             allowMultiple=False,
             usesStaticStrings=False,
+            optional=True,
         )
         default_hl_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA)
         param.setGuiDefaultValueOverride(

@@ -59,6 +59,10 @@ class WqFieldStyles:
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
         if self.field_type is WqModelField.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
+        if self.field_type is WqModelField.DIAMETER and (
+            self.layer_type is WqModelLayer.PIPES or self.layer_type is WqModelLayer.VALVES
+        ):
+            return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
         if issubclass(self.field_type.python_type, Enum):
             return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).name}'")
         if self.field_type.python_type is str:

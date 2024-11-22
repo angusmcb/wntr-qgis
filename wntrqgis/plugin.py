@@ -16,7 +16,8 @@ from qgis.core import (
     QgsRasterLayer,
 )
 from qgis.gui import QgsProjectionSelectionDialog
-from qgis.processing import execAlgorithmDialog
+
+# from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
 from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QWidget
@@ -266,6 +267,8 @@ class Plugin:
         )
 
     def open_settings(self) -> None:
+        from processing import execAlgorithmDialog
+
         execAlgorithmDialog("wntr:settings")
 
     def run_simulation(self) -> None:
