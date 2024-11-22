@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Callable
 
-from processing.gui.Postprocessing import handleAlgorithmResults
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -182,6 +181,9 @@ class Plugin:
                 )
                 iface.statusBarIface().clearMessage()
                 return
+
+            # this import is here to not break pytest
+            from processing.gui.Postprocessing import handleAlgorithmResults
 
             handleAlgorithmResults(algorithm, context, feedback, results)
             iface.statusBarIface().clearMessage()
