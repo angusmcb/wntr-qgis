@@ -27,7 +27,7 @@ from qgis.core import (
 
 from wntrqgis.network_parts import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
 from wntrqgis.resource_manager import WqIcon
-from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
 
 
 class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
@@ -62,7 +62,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 self.tr("Epanet Input File (.inp)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="inp",
-                defaultValue=None,
             )
         )
         self.addParameter(
@@ -74,9 +73,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 self.UNITS,
                 self.tr("Units to to convert to (leave blank to use .inp file units)"),
                 options=[fu.value for fu in WqFlowUnit],
-                allowMultiple=False,
-                usesStaticStrings=False,
-                defaultValue=None,
                 optional=True,
             )
         )
@@ -100,8 +96,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     ) -> dict:
         WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
-        # PREPARE IMPORTS
-        # imports are here as they are slow and only needed when processing the model.
+        # imports are here as they are slow, will break if wntr isn't installed, and only needed in processalgorithm()
         self._ensure_wntr()
 
         import wntr
@@ -110,13 +105,13 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.LOADING_INP_FILE)
 
-        source = self.parameterAsFile(parameters, self.INPUT, context)
-        crs = self.parameterAsCrs(parameters, self.CRS, context)
-        if source is None:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
-        wn = wntr.network.read_inpfile(source)
-
+        try:
+            wn = wntr.network.read_inpfile(input_file)
+        except FileNotFoundError as e:
+            msg = f".inp file does not exist ({input_file})"
+            raise QgsProcessingException(msg) from e
         self._describe_model(wn)
 
         # Hadle which units to ouptut in
@@ -152,11 +147,13 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         if len(extra_analysis_type_names):
             feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
 
-        outputs = {}
+        crs = self.parameterAsCrs(parameters, self.CRS, context)
+
+        outputs: dict[str, str] = {}
         sinks = {}
         for layer in WqModelLayer:
             fields = layer.qgs_fields(network_model.analysis_types)
-            (sink, outputs[layer.name]) = self.parameterAsSink(
+            (sink, outputs[layer]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
             sinks[layer] = (sink, fields)
@@ -165,13 +162,8 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.FINISHED_PROCESSING)
 
-        filename = Path(source).stem
+        filename = Path(input_file).stem
 
-        for layername, lyr_id in outputs.items():
-            if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(
-                    layername, self.tr(f"Model Layers ({filename})")
-                )
-                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
+        self._setup_postprocessing(outputs, f"Model Layers ({filename})", False)
 
         return outputs

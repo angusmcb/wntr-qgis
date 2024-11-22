@@ -1,6 +1,5 @@
 from __future__ import annotations  # noqa
-from typing import ClassVar, TYPE_CHECKING
-from pathlib import Path
+from typing import ClassVar, TYPE_CHECKING, Any
 from enum import IntEnum
 import logging
 
@@ -10,10 +9,12 @@ from qgis.core import (
     QgsVectorLayer,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProcessingContext,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import WqProjectVar
+from wntrqgis.network_parts import WqProjectVar, WqModelLayer, WqResultLayer
+from wntrqgis.layer_styles import WqLayerStyles
 
 if TYPE_CHECKING:
     import wntr
@@ -23,46 +24,33 @@ LOGGER = logging.getLogger("wntrqgis")
 class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     instance = None
     layertype = None
-    group_name = None
     make_editable = None
 
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
-        layer.loadNamedStyle(str(Path(__file__).parent.parent / "resources" / "styles" / (self.layertype + ".qml")))
-        wntr_layers = WqProjectVar.INLAYERS.get()
-        if not isinstance(wntr_layers, dict):
-            wntr_layers = {}
+
+        styler = WqLayerStyles(self.layertype)
+        styler.style_layer(layer)
+
+        wntr_layers = WqProjectVar.INLAYERS.get({})
         wntr_layers[self.layertype] = layer.id()
         WqProjectVar.INLAYERS.set(wntr_layers)
-
-        if self.group_name:
-            project = context.project()
-            root_group = project.layerTreeRoot()
-            if not root_group.findGroup(self.group_name):
-                root_group.insertGroup(0, self.group_name)
-            group1 = root_group.findGroup(self.group_name)
-            lyr_node = root_group.findLayer(layer.id())
-            if lyr_node:
-                node_clone = lyr_node.clone()
-                group1.addChildNode(node_clone)
-                lyr_node.parent().removeChildNode(lyr_node)
 
         if self.make_editable:
             layer.startEditing()
 
     @staticmethod
-    def create(layertype: str, group_name="", make_editable=False) -> LayerPostProcessor:  # noqa FBT002
+    def create(layertype: str, make_editable=False) -> LayerPostProcessor:  # noqa FBT002
         LayerPostProcessor.instance = LayerPostProcessor()
         LayerPostProcessor.instance.layertype = layertype
-        LayerPostProcessor.instance.group_name = group_name
         LayerPostProcessor.instance.make_editable = make_editable
         return LayerPostProcessor.instance
 
 
 class ProgStatus(IntEnum):
     CHECKING_DEPENDENCIES = 5
-    UNPACKING_WNTR = 7
+    UNPACKING_WNTR = 12
     PREPARING_MODEL = 15
     RUNNING_SIMULATION = 40
     CREATING_OUTPUTS = 70
@@ -77,14 +65,20 @@ class ProgStatus(IntEnum):
 class WntrQgisProcessingBase:
     post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
 
-    def processAlgorithm(self, parameters, context, feedback):  # noqa N802
+    def processAlgorithm(  # noqa N802
+        self,
+        parameters: dict[str, Any],  # noqa ARG002
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ):
         if feedback is None:
             feedback = QgsProcessingFeedback()
         self.feedback = feedback
+        self.context = context
 
         self.start_time = time.perf_counter()
         self.last_time = self.start_time
-        self.last_progress = None
+        self.last_progress: ProgStatus | None = None
 
     def tr(self, string: str) -> str:
         return QCoreApplication.translate("Processing", string)
@@ -116,3 +110,24 @@ class WntrQgisProcessingBase:
             raise QgsProcessingException(e) from None
 
         self.feedback.pushDebugInfo("WNTR version: " + wntrversion)
+
+    def _setup_postprocessing(self, outputs: dict[str, str], group_name: str, make_editable: bool):  # noqa FBT01
+        output_order: list[str] = [
+            WqModelLayer.JUNCTIONS,
+            WqModelLayer.PIPES,
+            WqModelLayer.PUMPS,
+            WqModelLayer.VALVES,
+            WqModelLayer.RESERVOIRS,
+            WqModelLayer.TANKS,
+            WqResultLayer.LINKS,
+            WqResultLayer.NODES,
+        ]
+
+        for layer_type, lyr_id in outputs.items():
+            if self.context.willLoadLayerOnCompletion(lyr_id):
+                self.post_processors[lyr_id] = LayerPostProcessor.create(layer_type, make_editable)
+
+                layer_details = self.context.layerToLoadOnCompletionDetails(lyr_id)
+                layer_details.setPostProcessor(self.post_processors[lyr_id])
+                layer_details.groupName = self.tr(group_name)
+                layer_details.layerSortKey = output_order.index(layer_type)

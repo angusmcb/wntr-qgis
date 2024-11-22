@@ -40,7 +40,7 @@ from wntrqgis.network_parts import (
     WqResultLayer,
 )
 from wntrqgis.resource_manager import WqIcon
-from wntrqgis.wntrqgis_processing.common import LayerPostProcessor, ProgStatus, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
 
 
 class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
@@ -192,7 +192,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._describe_model(wn)
 
-        outputs = {}
+        outputs: dict[str, str] = {}
 
         tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
         inpfile = self.parameterAsFile(parameters, self.OUTPUTINP, context)
@@ -220,7 +220,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             for f in lyr.wq_fields:
                 fields.append(f.qgs_field)
 
-            (sink, outputs[lyr.value]) = self.parameterAsSink(
+            (sink, outputs[lyr]) = self.parameterAsSink(
                 parameters,
                 lyr.value,
                 context,
@@ -236,14 +236,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         WqProjectVar.HEADLOSS_FORMULA.set(WqHeadlossFormula(wn.options.hydraulic.headloss))
         WqProjectVar.SIMULATION_DURATION.set(wn.options.time.duration / 3600)
 
-        # PREPARE TO LOAD LAYER STYLES IN MAIN THREAD ONCE FINISHED
         finishtime = time.strftime("%X")
-        for outputname, lyr_id in outputs.items():
-            if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(
-                    outputname, self.tr(f"Simulation Results ({finishtime})")
-                )
-                context.layerToLoadOnCompletionDetails(lyr_id).setPostProcessor(self.post_processors[lyr_id])
+
+        self._setup_postprocessing(outputs, f"Simulation Results ({finishtime})", False)
 
         return outputs
 
