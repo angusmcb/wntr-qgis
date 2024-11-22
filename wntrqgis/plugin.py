@@ -16,8 +16,9 @@ from qgis.core import (
     QgsRasterLayer,
 )
 from qgis.gui import QgsProjectionSelectionDialog
+from qgis.processing import execAlgorithmDialog
 from qgis.PyQt.QtCore import QSettings
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QWidget
 from qgis.utils import iface
 
@@ -155,6 +156,13 @@ class Plugin:
             add_to_toolbar=True,
         )
         self.add_action(
+            join_pixmap(QPixmap(":images/themes/default/propertyicons/settings.svg"), WqIcon.LOGO.q_pixmap),
+            text="Settings",
+            callback=self.open_settings,
+            parent=iface.mainWindow(),
+            add_to_toolbar=True,
+        )
+        self.add_action(
             "", text="Load Example", callback=self.load_example, parent=iface.mainWindow(), add_to_toolbar=False
         )
 
@@ -234,15 +242,31 @@ class Plugin:
         )
 
     def load_example(self) -> None:
+        network_crs = QgsCoordinateReferenceSystem("EPSG:3089")
+        transform_context = QgsProject.instance().transformContext()
+        transform_string = (
+            "+proj=pipeline +step +inv +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +step +inv"
+            " +proj=hgridshift +grids=us_noaa_kyhpgn.tif +step"
+            " +proj=lcc +lat_0=36.3333333333333 +lon_0=-85.75 +lat_1=37.0833333333333 +lat_2=38.6666666666667"
+            " +x_0=1500000 +y_0=999999.9998984 +ellps=GRS80 +step"
+            " +proj=unitconvert +xy_in=m +xy_out=us-ft"
+        )
+        transform_context.addCoordinateOperation(
+            QgsCoordinateReferenceSystem("EPSG:3857"), network_crs, transform_string, False
+        )
+        QgsProject.instance().setTransformContext(transform_context)
+
         inp_file = str(WqExampleInp.KY10.path)
-        crs = QgsCoordinateReferenceSystem("EPSG:3089")
-        parameters = {"INPUT": inp_file, "CRS": crs, **self._empty_model_layer_dict()}
+        parameters = {"INPUT": inp_file, "CRS": network_crs, **self._empty_model_layer_dict()}
         self.run_alg_async(
             "wntr:importinp",
             parameters,
             on_finish=self.load_osm,
             success_message="Example loaded with Open Street Map background",
         )
+
+    def open_settings(self) -> None:
+        execAlgorithmDialog("wntr:settings")
 
     def run_simulation(self) -> None:
         project_settings = WqProjectSettings(QgsProject.instance())
@@ -282,6 +306,7 @@ class Plugin:
         root = QgsProject.instance().layerTreeRoot()
         tms = "type=xyz&url=https://tile.openstreetmap.org/{z}/{x}/{y}.png&zmax=19&zmin=0"
         layer = QgsRasterLayer(tms, "Open Street Map", "wms")
+        layer.setOpacity(0.5)
         QgsProject.instance().addMapLayer(layer, False)
         root.insertChildNode(len(root.children()), QgsLayerTreeLayer(layer))
 
