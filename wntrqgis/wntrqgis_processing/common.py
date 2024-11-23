@@ -13,7 +13,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import WqProjectVar, WqModelLayer, WqResultLayer
+from wntrqgis.network_parts import WqModelLayer, WqResultLayer, WqProjectSetting, WqProjectSettings
 from wntrqgis.layer_styles import WqLayerStyles
 
 if TYPE_CHECKING:
@@ -33,9 +33,10 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         styler = WqLayerStyles(self.layertype)
         styler.style_layer(layer)
 
-        wntr_layers = WqProjectVar.INLAYERS.get({})
+        project_settings = WqProjectSettings(context.project())
+        wntr_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
         wntr_layers[self.layertype] = layer.id()
-        WqProjectVar.INLAYERS.set(wntr_layers)
+        project_settings.set(WqProjectSetting.MODEL_LAYERS, wntr_layers)
 
         if self.make_editable:
             layer.startEditing()

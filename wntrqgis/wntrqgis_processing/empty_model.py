@@ -13,6 +13,7 @@ from qgis.core import (
 )
 
 from wntrqgis.network_parts import WqAnalysisType, WqModelLayer
+from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
 
@@ -40,6 +41,9 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
     def shortHelpString(self) -> str:  # noqa N802
         return self.tr(self._short_help_string)
+
+    def icon(self):
+        return WqIcon.NEW.q_icon
 
     # def helpUrl(self) -> str:  # N802
     #    return "" # "https://www.helpsite.com"

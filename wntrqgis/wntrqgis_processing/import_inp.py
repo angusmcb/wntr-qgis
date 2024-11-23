@@ -25,7 +25,15 @@ from qgis.core import (
     QgsProcessingParameterFile,
 )
 
-from wntrqgis.network_parts import WqAnalysisType, WqFlowUnit, WqHeadlossFormula, WqModelLayer, WqProjectVar
+from wntrqgis.network_parts import (
+    WqAnalysisType,
+    WqFlowUnit,
+    WqHeadlossFormula,
+    WqModelLayer,
+    WqProjectSetting,
+    WqProjectSettings,
+)
+from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
 
 
@@ -50,6 +58,9 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             All units will be converted into the unit set selected. If not selected, it will default \
             to the unit set in the .inp file.
             """)
+
+    def icon(self):
+        return WqIcon.OPEN.q_icon
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(
@@ -126,9 +137,10 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         unit_conversion = WqUnitConversion(wq_flow_unit, wq_headloss_formula)
 
-        WqProjectVar.FLOW_UNITS.set(wq_flow_unit)
-        WqProjectVar.HEADLOSS_FORMULA.set(wq_headloss_formula)
-        WqProjectVar.SIMULATION_DURATION.set(wn.options.time.duration / 3600)
+        project_settings = WqProjectSettings(context.project())
+        project_settings.set(WqProjectSetting.FLOW_UNITS, wq_flow_unit)
+        project_settings.set(WqProjectSetting.HEADLOSS_FORMULA, wq_headloss_formula)
+        project_settings.set(WqProjectSetting.SIMULATION_DURATION, wn.options.time.duration / 3600)
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 

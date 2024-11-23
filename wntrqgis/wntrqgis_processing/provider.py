@@ -1,11 +1,10 @@
-from pathlib import Path
-
 from qgis.core import QgsProcessingProvider
-from qgis.PyQt.QtGui import QIcon
 
+from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
+from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm
 
 
 class Provider(QgsProcessingProvider):
@@ -26,9 +25,10 @@ class Provider(QgsProcessingProvider):
         return True
 
     def icon(self):
-        return QIcon(str(Path(__file__).parent.parent / "resources" / "icons" / "water_circle.png"))
+        return WqIcon.LOGO.q_icon
 
     def loadAlgorithms(self) -> None:  # noqa N802
         self.addAlgorithm(RunSimulation())
         self.addAlgorithm(ImportInp())
         self.addAlgorithm(TemplateLayers())
+        self.addAlgorithm(SettingsAlgorithm())
