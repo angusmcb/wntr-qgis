@@ -44,6 +44,10 @@ from wntrqgis.network_parts import (
 
 QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
 
+QGIS_DISTANCE_UNIT_METERS = (
+    Qgis.DistanceUnit.Meters if Qgis.versionInt() >= QGIS_VERSION_DISTANCE_UNIT_IN_QGIS else QgsUnitTypes.DistanceMeters
+)
+
 
 class WqSimulationResults:
     """Process WNTR Simulation Results, outputing to QGIS feature sinks"""
@@ -58,17 +62,43 @@ class WqSimulationResults:
                 self._result_dfs[field] = gdfs[field.value]
 
     def to_sink(self, sink: QgsFeatureSink, fields: list[WqModelField], item_geoms):
-        converted_dfs = {}
-
+        output_attributes = {}
+        # test = {}
         for field in fields:
-            # converted_dfs[field] = self._result_dfs[field].apply(self._unit_conversion.converter_from_si(field))
-            converted_dfs[field] = self._unit_conversion.whole_df_from_si(self._result_dfs[field], field)
-        for name, geom in item_geoms.items():
+            converted_df = self._unit_conversion.whole_df_from_si(self._result_dfs[field], field)
+
+            lists = converted_df.transpose().to_numpy().tolist()
+            output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+
+            # test[field.value] = converted_df.squeeze()  # for single state analysis
+
+        jointed_dataframe = pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+        namesindex = jointed_dataframe.index
+        jointed_dataframe.reset_index(inplace=True)
+        jointed_dataframe.rename(columns={"index": "name"}, inplace=True)
+        attribute_series = pd.Series(jointed_dataframe.to_numpy().tolist(), index=namesindex)
+
+        attribute_and_geom = pd.DataFrame({"geometry": item_geoms, "attributes": attribute_series}, index=namesindex)
+
+        for item in attribute_and_geom.itertuples(False):
             f = QgsFeature()
-            f.setGeometry(geom)
-            atts = [converted_dfs[field][name].to_list() for field in fields]
-            f.setAttributes([name, *atts])
+            f.setGeometry(item.geometry)
+            f.setAttributes(item.attributes)
             sink.addFeature(f, QgsFeatureSink.FastInsert)
+
+        # for name, geom in item_geoms.items():
+        #     f = QgsFeature()
+        #     f.setGeometry(geom)
+        #     atts = attribute_series.loc[name]
+        #     f.setAttributes(atts)
+        #     # sink.addFeature(f, QgsFeatureSink.FastInsert)
+
+        # for name, geom in item_geoms.items():
+        #     f = QgsFeature()
+        #     f.setGeometry(geom)
+        #     atts = [converted_dfs[field][name].to_list() for field in fields]
+        #     f.setAttributes([name, *atts])
+        #     sink.addFeature(f, QgsFeatureSink.FastInsert)
 
 
 class WqUnitConversion:
@@ -96,6 +126,7 @@ class WqUnitConversion:
             conversion_param = self._get_wntr_conversion_param(field, layer)
         except ValueError:
             return value
+
         return wntr.epanet.util.from_si(
             self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
         )
@@ -268,7 +299,7 @@ class WqNetworkToWntr:
         self._next_curve_name = 1
         self._pipe_length_warnings: list[str] = []
         self._used_names: dict[WqElementFamily, set[str]] = {WqElementFamily.NODE: set(), WqElementFamily.LINK: set()}
-
+        self._existing_patterns: dict[tuple, str] = {}
         for model_layer in WqModelLayer:
             source = feature_sources.get(model_layer)
             if source is None:
@@ -287,12 +318,7 @@ class WqNetworkToWntr:
                 coordinate_transform = None
 
             for ft in source.getFeatures():
-                # Remove QVariant types (they are null) !
-                atts = {
-                    field: attribute_value
-                    for field, attribute_value in zip(map_of_columns_to_fields, ft.attributes())
-                    if field is not None and attribute_value is not None and not isinstance(attribute_value, QVariant)
-                }
+                atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
 
                 for f, v in atts.items():
                     atts[f] = self._unit_conversion.to_si(v, f, model_layer)
@@ -319,6 +345,10 @@ class WqNetworkToWntr:
 
                 if model_layer.element_family is WqElementFamily.NODE:
                     self._add_node_to_spatial_index(geometry, element_name)
+
+                    # geometry = self._get_3d_geometry(
+                    #    geometry, atts.get(WqModelField.ELEVATION, atts.get(WqModelField.BASE_HEAD, 0))
+                    # )
                 else:
                     try:
                         geometry, start_node_name, end_node_name = self._snap_link_to_nodes(geometry)
@@ -344,11 +374,22 @@ class WqNetworkToWntr:
                         self._add_valve(wn, element_name, geometry, atts, start_node_name, end_node_name)
                 except (AssertionError, ValueError, RuntimeError) as e:
                     msg = f"in {model_layer.friendly_name} error when adding '{element_name}' to WNTR - {e}"
-                    raise WqNetworkModelError(msg) from None
+                    raise WqNetworkModelError(msg) from e
 
         self._output_pipe_length_warnings()
         self._wntr_network_error_check(wn)
         return wn
+
+    def _get_attributes_from_feature(self, map_of_columns_to_fields, feature):
+        # slightly faster than zip
+        atts = {}
+        for i, field in enumerate(map_of_columns_to_fields):
+            if field is not None:
+                att = feature[i]
+                # Remove QVariant types (they are null) !
+                if att is not None and not isinstance(att, QVariant):
+                    atts[field] = att
+        return atts
 
     def _get_element_name(self, name_from_source: str | None, layer: WqModelLayer):
         if name_from_source:
@@ -385,24 +426,29 @@ class WqNetworkToWntr:
         return geometry
 
     def _get_point_coordinates(self, geometry: QgsGeometry):
-        return geometry.get().x(), geometry.get().y()
+        point = geometry.constGet()
+        return point.x(), point.y()
+
+    def _get_3d_geometry(self, geometry: QgsGeometry, z):
+        point = geometry.constGet()
+        point_3d = QgsPoint(point.x(), point.y(), z)
+        return QgsGeometry(point_3d)
 
     def _add_node_to_spatial_index(self, geometry: QgsGeometry, element_name: str):
+        point = geometry.constGet().clone()
         feature_id = len(self._nodelist)
-        feature = QgsFeature(feature_id)
-        feature.setGeometry(geometry)
-        self._nodelist.append((geometry.asPoint(), element_name))
-        self._node_spatial_index.addFeature(feature)
+        self._nodelist.append((point, element_name))
+        self._node_spatial_index.addFeature(feature_id, point.boundingBox())
 
-    def _snapper(self, line_vertex_point: QgsPoint, measurer: QgsDistanceArea, original_length: float):
-        line_vertex_point_xy = QgsPointXY(line_vertex_point)
-        nearest = self._node_spatial_index.nearestNeighbor(line_vertex_point_xy)
+    def _snapper(self, line_vertex_point: QgsPoint, original_length: float):
+        nearest = self._node_spatial_index.nearestNeighbor(QgsPointXY(line_vertex_point))
         matched_node_point, matched_node_name = self._nodelist[nearest[0]]
-        start_snap_distance = measurer.measureLine(matched_node_point, line_vertex_point_xy)
-        if start_snap_distance > original_length * 0.1:
-            msg = f"nearest node to snap to is too far ({matched_node_name})"
+        snap_distance = matched_node_point.distance(line_vertex_point)
+        if snap_distance > original_length * 0.1:
+            msg = f"nearest node to snap to is too far ({matched_node_name})."
+            # Line length:{original_length} Snap Distance: {snap_distance}"
             raise RuntimeError(msg)
-        return (QgsPoint(matched_node_point), matched_node_name)
+        return (matched_node_point, matched_node_name)
 
     def _snap_link_to_nodes(
         self,
@@ -411,10 +457,10 @@ class WqNetworkToWntr:
         vertices = list(geometry.vertices())
         start_point = vertices.pop(0)
         end_point = vertices.pop()
-        original_length = self._measurer.measureLength(geometry)
+        original_length = geometry.length()
         try:
-            (new_start_point, start_node_name) = self._snapper(start_point, self._measurer, original_length)
-            (new_end_point, end_node_name) = self._snapper(end_point, self._measurer, original_length)
+            (new_start_point, start_node_name) = self._snapper(start_point, original_length)
+            (new_end_point, end_node_name) = self._snapper(end_point, original_length)
         except RuntimeError as e:
             msg = f"couldn't snap: {e}"
             raise RuntimeError(msg) from None
@@ -430,14 +476,8 @@ class WqNetworkToWntr:
     def _get_pipe_length(self, attribute_length: float | None, geometry: QgsGeometry, pipe_name: str):
         length = self._measurer.measureLength(geometry)
 
-        distance_unit_meters = (
-            Qgis.DistanceUnit.Meters
-            if Qgis.versionInt() >= QGIS_VERSION_DISTANCE_UNIT_IN_QGIS
-            else QgsUnitTypes.DistanceMeters
-        )
-
-        if self._measurer.lengthUnits() != distance_unit_meters:
-            length = self._measurer.convertLengthMeasurement(length, distance_unit_meters)
+        if self._measurer.lengthUnits() != QGIS_DISTANCE_UNIT_METERS:
+            length = self._measurer.convertLengthMeasurement(length, QGIS_DISTANCE_UNIT_METERS)
 
         if not attribute_length:
             return length
@@ -463,12 +503,18 @@ class WqNetworkToWntr:
         if not pattern:
             return None
         if isinstance(pattern, str) and pattern != "":
-            patternlist = ast.literal_eval(pattern)
+            patternlist = [float(item) for item in pattern.split()]
         elif isinstance(pattern, list):
             patternlist = pattern
 
+        pattern_tuple = tuple(patternlist)
+
+        if existing_pattern_name := self._existing_patterns.get(pattern_tuple):
+            return existing_pattern_name
+
         name = str(self._next_pattern_name)
         wn.add_pattern(name=name, pattern=patternlist)
+        self._existing_patterns[pattern_tuple] = name
         self._next_pattern_name += 1
         return name
 
@@ -674,7 +720,7 @@ class WqNetworkFromWntr:
             curves[curve_name] = self._unit_conversion.curve_points_from_si(curve.points, WqCurve(curve.curve_type))
 
         def _pattern_string(pn):
-            return "[" + ", ".join(map(str, wn.get_pattern(pn).multipliers)) + "]" if wn.get_pattern(pn) else None
+            return " ".join(map(str, wn.get_pattern(pn).multipliers)) if wn.get_pattern(pn) else None
 
         for lyr, df in dfs.items():
             # match lyr:
@@ -685,7 +731,7 @@ class WqNetworkFromWntr:
                 df["demand_pattern"] = wn.query_node_attribute(
                     "demand_timeseries_list", node_type=wntr.network.model.Junction
                 ).apply(
-                    lambda dtl: ("[" + ", ".join(map(str, dtl.pattern_list()[0].multipliers)) + "]")
+                    lambda dtl: (" ".join(map(str, dtl.pattern_list()[0].multipliers)))
                     if dtl.pattern_list() and dtl.pattern_list()[0]
                     else None
                 )
