@@ -7,7 +7,6 @@ from qgis.core import Qgis, QgsExpressionContextUtils, QgsField, QgsFields, QgsP
 from qgis.PyQt.QtCore import QMetaType, QVariant
 
 QGIS_VERSION_QMETATYPE = 33800
-SETTING_PREFIX = "wntr_"
 
 
 class WqFlowUnit(Enum):
@@ -69,11 +68,15 @@ class WqAnalysisType(Flag):
 
 
 class WqElementFamily(Enum):
+    """Enum for node and link types"""
+
     NODE = auto()
     LINK = auto()
 
 
 class WqLayer(str, Enum):
+    """Abstract enum for layer enums"""
+
     @property
     def friendly_name(self):
         return self.value.title()
@@ -125,6 +128,7 @@ class WqModelLayer(WqLayer):
 
     @property
     def element_family(self):
+        """Layer is a node or a link?"""
         return (
             WqElementFamily.NODE
             if self in [WqModelLayer.JUNCTIONS, WqModelLayer.RESERVOIRS, WqModelLayer.TANKS]
@@ -133,18 +137,20 @@ class WqModelLayer(WqLayer):
 
     @property
     def acceptable_processing_vectors(self):
+        """List of acceptable vector types for processing interface"""
         return (
             [QgsProcessing.TypeVectorPoint]
             if self.element_family is WqElementFamily.NODE
             else [QgsProcessing.TypeVectorLine]
         )
 
-    # This will be used for fixing bug in WNTR 1.2.0
     @property
     def node_link_type(self):
+        """This will be used for fixing bug in WNTR 1.2.0"""
         return str(self).title()[:-1]
 
     def wq_fields(self, analysis_type=None):
+        """Fields associated with each layer"""
         field_list = []
         # if self.is_node:
         #     field_list = [
@@ -430,6 +436,8 @@ class WqResultField(WqField):
 
 
 class WqProjectSetting(str, Enum):
+    """Enum of values that can be stored in project settings"""
+
     OPTIONS = "options", dict
     FLOW_UNITS = "flow_units", WqFlowUnit
     CONTROLS = "controls", str
@@ -463,13 +471,19 @@ class WqProjectSetting(str, Enum):
 
 
 class WqProjectSettings:
+    """Gets and sets WNTR project settings"""
+
+    SETTING_PREFIX = "wntr_"
+
     def __init__(self, project: QgsProject):
         self._project = project
 
     def _setting_name(self, setting):
-        return SETTING_PREFIX + setting.value
+        """Adds the setting prefix to the setting name"""
+        return self.SETTING_PREFIX + setting.value
 
     def get(self, setting: WqProjectSetting, default: Any | None = None):
+        """Get a value from project settings, with optional default value"""
         setting_name = self._setting_name(setting)
         saved_value = QgsExpressionContextUtils.projectScope(self._project).variable(setting_name)
         if not saved_value:
@@ -477,6 +491,7 @@ class WqProjectSettings:
         return setting.expected_type(saved_value)
 
     def set(self, setting: WqProjectSetting, value: Any):
+        """Save a value to project settings"""
         setting_name = self._setting_name(setting)
         if not issubclass(type(value), setting.expected_type):
             msg = f"{setting} expects to save types {type(setting.expected_type)} but got {type(value)}"

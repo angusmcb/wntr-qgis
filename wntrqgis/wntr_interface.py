@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import wntr
 from qgis.core import (
+    NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -25,7 +26,6 @@ from qgis.core import (
     QgsSpatialIndex,
     QgsUnitTypes,
 )
-from qgis.PyQt.QtCore import QVariant
 from wntr.epanet.util import HydParam, QualParam
 
 from wntrqgis.network_parts import (
@@ -260,8 +260,97 @@ class WqNetworkModelError(Exception):
     pass
 
 
+class _SpatialIndex:
+    def __init__(self):
+        self._node_spatial_index = QgsSpatialIndex()
+        self._nodelist: list[tuple[QgsPointXY, str]] = []
+
+    def add_node_to_spatial_index(self, geometry: QgsGeometry, element_name: str):
+        point = geometry.constGet().clone()
+        feature_id = len(self._nodelist)
+        self._nodelist.append((point, element_name))
+        self._node_spatial_index.addFeature(feature_id, point.boundingBox())
+
+    def _snapper(self, line_vertex_point: QgsPoint, original_length: float):
+        nearest = self._node_spatial_index.nearestNeighbor(QgsPointXY(line_vertex_point))
+        matched_node_point, matched_node_name = self._nodelist[nearest[0]]
+        snap_distance = matched_node_point.distance(line_vertex_point)
+        if snap_distance > original_length * 0.1:
+            msg = f"nearest node to snap to is too far ({matched_node_name})."
+            # Line length:{original_length} Snap Distance: {snap_distance}"
+            raise RuntimeError(msg)
+        return (matched_node_point, matched_node_name)
+
+    def snap_link_to_nodes(
+        self,
+        geometry: QgsGeometry,
+    ):
+        vertices = list(geometry.vertices())
+        start_point = vertices.pop(0)
+        end_point = vertices.pop()
+        original_length = geometry.length()
+        try:
+            (new_start_point, start_node_name) = self._snapper(start_point, original_length)
+            (new_end_point, end_node_name) = self._snapper(end_point, original_length)
+        except RuntimeError as e:
+            msg = f"couldn't snap: {e}"
+            raise RuntimeError(msg) from None
+
+        if start_node_name == end_node_name:
+            msg = f"connects to the same node on both ends ({start_node_name})"
+            raise RuntimeError(msg)
+
+        snapped_geometry = QgsGeometry.fromPolyline([new_start_point, *vertices, new_end_point])
+
+        return snapped_geometry, start_node_name, end_node_name
+
+
+class _Patterns:
+    def __init__(self, wn: wntr.network.model.WaterNetworkModel) -> None:
+        self._next_pattern_name = 2
+        self._existing_patterns: dict[tuple, str] = {}
+        self._wn = wn
+
+    def add_pattern_to_wn(self, pattern):
+        if not pattern:
+            return None
+        if isinstance(pattern, str) and pattern != "":
+            patternlist = [float(item) for item in pattern.split()]
+        elif isinstance(pattern, list):
+            patternlist = pattern
+
+        pattern_tuple = tuple(patternlist)
+
+        if existing_pattern_name := self._existing_patterns.get(pattern_tuple):
+            return existing_pattern_name
+
+        name = str(self._next_pattern_name)
+        self._wn.add_pattern(name=name, pattern=patternlist)
+        self._existing_patterns[pattern_tuple] = name
+        self._next_pattern_name += 1
+        return name
+
+
+class _Curves:
+    def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: WqUnitConversion) -> None:
+        self._wn = wn
+        self._next_curve_name = 1
+        self._unit_conversion = unit_conversion
+
+    def add_curve_to_wn(self, curve_string, curve_type: WqCurve):
+        if not curve_string:
+            return None
+
+        name = str(self._next_curve_name)
+        curve_points = ast.literal_eval(curve_string)
+        curve_points = self._unit_conversion.curve_points_to_si(curve_points, curve_type)
+        self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
+        self._next_curve_name += 1
+        return name
+
+
 class WqNetworkToWntr:
-    """Convert from QGIS feature sources / layers and WNTR models"""
+    """Convert from QGIS feature sources / layers to a WNTR model"""
 
     def __init__(
         self,
@@ -292,14 +381,14 @@ class WqNetworkToWntr:
             self._measurer.setSourceCrs(crs, self._transform_context)
             self._measurer.setEllipsoid(self._ellipsoid)
 
-    def to_wntr(self, feature_sources: dict[WqModelLayer, QgsFeatureSource], wn):
-        self._node_spatial_index = QgsSpatialIndex()
-        self._nodelist: list[tuple[QgsPointXY, str]] = []
-        self._next_pattern_name = 2
-        self._next_curve_name = 1
+    def to_wntr(self, feature_sources: dict[WqModelLayer, QgsFeatureSource], wn: wntr.network.WaterNetworkModel):
         self._pipe_length_warnings: list[str] = []
         self._used_names: dict[WqElementFamily, set[str]] = {WqElementFamily.NODE: set(), WqElementFamily.LINK: set()}
-        self._existing_patterns: dict[tuple, str] = {}
+
+        self.patterns = _Patterns(wn)
+        self.curves = _Curves(wn, self._unit_conversion)
+        spatial_index = _SpatialIndex()
+
         for model_layer in WqModelLayer:
             source = feature_sources.get(model_layer)
             if source is None:
@@ -317,6 +406,11 @@ class WqNetworkToWntr:
             else:
                 coordinate_transform = None
 
+            # df = self._source_to_df(source, map_of_columns_to_fields)
+            # for column in df.select_dtypes(include=[np.number]):
+            #     df[column] = self._unit_conversion.to_si(df[column], column, model_layer)
+
+            ft: QgsFeature
             for ft in source.getFeatures():
                 atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
 
@@ -344,14 +438,14 @@ class WqNetworkToWntr:
                     geometry.transform(coordinate_transform)
 
                 if model_layer.element_family is WqElementFamily.NODE:
-                    self._add_node_to_spatial_index(geometry, element_name)
+                    spatial_index.add_node_to_spatial_index(geometry, element_name)
 
                     # geometry = self._get_3d_geometry(
                     #    geometry, atts.get(WqModelField.ELEVATION, atts.get(WqModelField.BASE_HEAD, 0))
                     # )
                 else:
                     try:
-                        geometry, start_node_name, end_node_name = self._snap_link_to_nodes(geometry)
+                        geometry, start_node_name, end_node_name = spatial_index.snap_link_to_nodes(geometry)
                     except RuntimeError as e:
                         msg = f"in {model_layer.friendly_name} the feature {element_name}: {e} "
                         raise WqNetworkModelError(e) from None
@@ -380,14 +474,24 @@ class WqNetworkToWntr:
         self._wntr_network_error_check(wn)
         return wn
 
+    def _source_to_df(self, source: QgsFeatureSource, map_of_columns_to_fields: list[WqModelField | str | None]):
+        map_of_columns_to_fields = list(map_of_columns_to_fields)
+        map_of_columns_to_fields.append("geometry")
+        ftlist = []
+        ft: QgsFeature
+        for ft in source.getFeatures():
+            attrs = [attr if attr != NULL else None for attr in ft]
+            attrs.append(ft.geometry())
+            ftlist.append(attrs)
+        return pd.DataFrame(ftlist, columns=map_of_columns_to_fields)
+
     def _get_attributes_from_feature(self, map_of_columns_to_fields, feature):
         # slightly faster than zip
         atts = {}
         for i, field in enumerate(map_of_columns_to_fields):
             if field is not None:
                 att = feature[i]
-                # Remove QVariant types (they are null) !
-                if att is not None and not isinstance(att, QVariant):
+                if att is not None and att != NULL:
                     atts[field] = att
         return atts
 
@@ -420,11 +524,6 @@ class WqNetworkToWntr:
         possible_column_names = {field.name for field in layer.wq_fields()}  # this creates a set not dict
         return [WqModelField[cname] if cname in possible_column_names else None for cname in column_names]
 
-    def _get_geometry(self, geometry: QgsGeometry, coordinate_transform: QgsCoordinateTransform | None):
-        if coordinate_transform:
-            geometry.transform(coordinate_transform)
-        return geometry
-
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
         return point.x(), point.y()
@@ -433,45 +532,6 @@ class WqNetworkToWntr:
         point = geometry.constGet()
         point_3d = QgsPoint(point.x(), point.y(), z)
         return QgsGeometry(point_3d)
-
-    def _add_node_to_spatial_index(self, geometry: QgsGeometry, element_name: str):
-        point = geometry.constGet().clone()
-        feature_id = len(self._nodelist)
-        self._nodelist.append((point, element_name))
-        self._node_spatial_index.addFeature(feature_id, point.boundingBox())
-
-    def _snapper(self, line_vertex_point: QgsPoint, original_length: float):
-        nearest = self._node_spatial_index.nearestNeighbor(QgsPointXY(line_vertex_point))
-        matched_node_point, matched_node_name = self._nodelist[nearest[0]]
-        snap_distance = matched_node_point.distance(line_vertex_point)
-        if snap_distance > original_length * 0.1:
-            msg = f"nearest node to snap to is too far ({matched_node_name})."
-            # Line length:{original_length} Snap Distance: {snap_distance}"
-            raise RuntimeError(msg)
-        return (matched_node_point, matched_node_name)
-
-    def _snap_link_to_nodes(
-        self,
-        geometry: QgsGeometry,
-    ):
-        vertices = list(geometry.vertices())
-        start_point = vertices.pop(0)
-        end_point = vertices.pop()
-        original_length = geometry.length()
-        try:
-            (new_start_point, start_node_name) = self._snapper(start_point, original_length)
-            (new_end_point, end_node_name) = self._snapper(end_point, original_length)
-        except RuntimeError as e:
-            msg = f"couldn't snap: {e}"
-            raise RuntimeError(msg) from None
-
-        if start_node_name == end_node_name:
-            msg = f"connects to the same node on both ends ({start_node_name})"
-            raise RuntimeError(msg)
-
-        snapped_geometry = QgsGeometry.fromPolyline([new_start_point, *vertices, new_end_point])
-
-        return snapped_geometry, start_node_name, end_node_name
 
     def _get_pipe_length(self, attribute_length: float | None, geometry: QgsGeometry, pipe_name: str):
         length = self._measurer.measureLength(geometry)
@@ -499,42 +559,14 @@ class WqNetworkToWntr:
         vertices = list(geometry.vertices())
         return [(v.x(), v.y()) for v in vertices[1:-1]]
 
-    def _add_pattern_to_wn(self, pattern, wn):
-        if not pattern:
-            return None
-        if isinstance(pattern, str) and pattern != "":
-            patternlist = [float(item) for item in pattern.split()]
-        elif isinstance(pattern, list):
-            patternlist = pattern
-
-        pattern_tuple = tuple(patternlist)
-
-        if existing_pattern_name := self._existing_patterns.get(pattern_tuple):
-            return existing_pattern_name
-
-        name = str(self._next_pattern_name)
-        wn.add_pattern(name=name, pattern=patternlist)
-        self._existing_patterns[pattern_tuple] = name
-        self._next_pattern_name += 1
-        return name
-
-    def _add_curve_to_wn(self, curve_string, curve_type: WqCurve, wn):
-        if not curve_string:
-            return None
-
-        name = str(self._next_curve_name)
-        curve_points = ast.literal_eval(curve_string)
-        curve_points = self._unit_conversion.curve_points_to_si(curve_points, curve_type)
-        wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
-        self._next_curve_name += 1
-        return name
-
-    def _add_junction(self, wn, name: str, geometry: QgsGeometry, attributes: dict[WqModelField, Any]):
+    def _add_junction(
+        self, wn: wntr.network.WaterNetworkModel, name: str, geometry: QgsGeometry, attributes: dict[WqModelField, Any]
+    ):
         # Prefer adding nodes using 'add_...()' function as wntr does more error checking this way
         wn.add_junction(
             name,
             base_demand=attributes.get(WqModelField.BASE_DEMAND, 0),
-            demand_pattern=self._add_pattern_to_wn(attributes.get(WqModelField.DEMAND_PATTERN), wn),
+            demand_pattern=self.patterns.add_pattern_to_wn(attributes.get(WqModelField.DEMAND_PATTERN)),
             elevation=attributes.get(WqModelField.ELEVATION, 0),
             coordinates=self._get_point_coordinates(geometry),
             # demand_category=category,  NOT IMPLEMENTED
@@ -546,7 +578,9 @@ class WqNetworkToWntr:
         n.pressure_exponent = attributes.get(WqModelField.PRESSURE_EXPONENT)
         n.required_pressure = attributes.get(WqModelField.REQUIRED_PRESSURE)
 
-    def _add_tank(self, wn, name: str, geometry: QgsGeometry, attributes: dict[WqModelField, Any]):
+    def _add_tank(
+        self, wn: wntr.network.WaterNetworkModel, name: str, geometry: QgsGeometry, attributes: dict[WqModelField, Any]
+    ):
         wn.add_tank(
             name,
             elevation=attributes.get(WqModelField.ELEVATION, 0),
@@ -555,7 +589,7 @@ class WqNetworkToWntr:
             max_level=attributes.get(WqModelField.MAX_LEVEL),  # REQUIRED
             diameter=attributes.get(WqModelField.DIAMETER, 0),
             min_vol=attributes.get(WqModelField.MIN_VOL, 0),
-            vol_curve=self._add_curve_to_wn(attributes.get(WqModelField.VOL_CURVE), WqCurve.VOLUME, wn),
+            vol_curve=self.curves.add_curve_to_wn(attributes.get(WqModelField.VOL_CURVE), WqCurve.VOLUME),
             overflow=attributes.get(WqModelField.OVERFLOW, False),
             coordinates=self._get_point_coordinates(geometry),
         )
@@ -565,17 +599,19 @@ class WqNetworkToWntr:
             n.mixing_model = attributes.get(WqModelField.MIXING_MODEL)  # WNTR BUG : doesn't accept 'none' value
         n.bulk_coeff = attributes.get(WqModelField.BULK_COEFF)
 
-    def _add_reservoir(self, wn, name: str, geometry: QgsGeometry, attributes: dict[WqModelField, Any]):
+    def _add_reservoir(
+        self, wn: wntr.network.WaterNetworkModel, name: str, geometry: QgsGeometry, attributes: dict[WqModelField, Any]
+    ):
         wn.add_reservoir(
             name,
             base_head=attributes.get(WqModelField.BASE_HEAD, 0),
-            head_pattern=self._add_pattern_to_wn(attributes.get(WqModelField.HEAD_PATTERN), wn),
+            head_pattern=self.patterns.add_pattern_to_wn(attributes.get(WqModelField.HEAD_PATTERN)),
             coordinates=self._get_point_coordinates(geometry),
         )
 
     def _add_pipe(
         self,
-        wn,
+        wn: wntr.network.WaterNetworkModel,
         name: str,
         geometry: QgsGeometry,
         attributes: dict[WqModelField, Any],
@@ -591,9 +627,8 @@ class WqNetworkToWntr:
             roughness=attributes.get(WqModelField.ROUGHNESS),  # REQUIRED
             minor_loss=attributes.get(WqModelField.MINOR_LOSS, 0.0),
             initial_status=attributes.get(WqModelField.INITIAL_STATUS, "OPEN"),
-            check_valve=attributes.get(WqModelField.CHECK_VALVE) is True
-            or str(attributes.get(WqModelField.CHECK_VALVE)).lower() == "true"
-            or False,  # TODO: check removing this is ok
+            check_valve=attributes.get(WqModelField.CHECK_VALVE, False) is True
+            or str(attributes.get(WqModelField.CHECK_VALVE)).lower() == "true",
         )
         link = wn.get_link(name)
         link.bulk_coeff = attributes.get(WqModelField.BULK_COEFF)
@@ -602,7 +637,7 @@ class WqNetworkToWntr:
 
     def _add_pump(
         self,
-        wn,
+        wn: wntr.network.WaterNetworkModel,
         name: str,
         geometry: QgsGeometry,
         attributes: dict[WqModelField, Any],
@@ -616,27 +651,33 @@ class WqNetworkToWntr:
             pump_type=attributes.get(WqModelField.PUMP_TYPE, ""),
             pump_parameter=attributes.get(WqModelField.POWER)  # TODO: ERROR MESSAGESF OR THIS ARE NOT CLEAR
             if str(attributes.get(WqModelField.PUMP_TYPE, "")).lower() == "power"
-            else self._add_curve_to_wn(attributes.get(WqModelField.PUMP_CURVE), WqCurve.HEAD, wn),
+            else self.curves.add_curve_to_wn(attributes.get(WqModelField.PUMP_CURVE), WqCurve.HEAD),
             speed=attributes.get(WqModelField.BASE_SPEED, 1.0),
-            pattern=self._add_pattern_to_wn(attributes.get(WqModelField.SPEED_PATTERN), wn),
+            pattern=self.patterns.add_pattern_to_wn(attributes.get(WqModelField.SPEED_PATTERN)),
             initial_status=attributes.get(WqModelField.INITIAL_STATUS, "OPEN"),
         )
         link = wn.get_link(name)
-        # link.efficiency = attributes.get(WqModelField.EFFICIENCY) TODO: this is a curve
-        link.energy_pattern = self._add_pattern_to_wn(attributes.get(WqModelField.ENERGY_PATTERN), wn)
+        link.efficiency = self.curves.add_curve_to_wn(attributes.get(WqModelField.EFFICIENCY), WqCurve.EFFICIENCY)
+        link.energy_pattern = self.patterns.add_pattern_to_wn(attributes.get(WqModelField.ENERGY_PATTERN))
         link.energy_price = attributes.get(WqModelField.ENERGY_PRICE)
         link.initial_setting = attributes.get(WqModelField.INITIAL_SETTING)  # bug ???
         link.vertices = self._get_vertex_list(geometry)
 
     def _add_valve(
         self,
-        wn,
+        wn: wntr.network.WaterNetworkModel,
         name: str,
         geometry: QgsGeometry,
         attributes: dict[WqModelField, Any],
         start_node_name: str,
         end_node_name: str,
     ):
+        if str(attributes.get(WqModelField.VALVE_TYPE)).lower() == "gpv":
+            initial_setting = self.curves.add_curve_to_wn(
+                attributes.get(WqModelField.INITIAL_SETTING), WqCurve.HEADLOSS
+            )
+        else:
+            initial_setting = attributes.get(WqModelField.INITIAL_SETTING, 0)
         wn.add_valve(
             name,
             start_node_name,
@@ -644,14 +685,10 @@ class WqNetworkToWntr:
             diameter=attributes.get(WqModelField.DIAMETER),
             valve_type=attributes.get(WqModelField.VALVE_TYPE),
             minor_loss=attributes.get(WqModelField.MINOR_LOSS, 0.0),
-            initial_setting=attributes.get(WqModelField.INITIAL_SETTING, 0),
+            initial_setting=initial_setting,
             initial_status=attributes.get(WqModelField.INITIAL_STATUS, "OPEN"),
         )
         link = wn.get_link(name)
-        if str(attributes.get(WqModelField.VALVE_TYPE)).lower() == "gpv":
-            msg = "GPV headloss curves not implemented"
-            raise NotImplementedError(msg)
-            # link.headloss_curve_name = self._add_curve_to_wn(atts.get(WqModelField.), "HEAD",wn)
         link.vertices = self._get_vertex_list(geometry)
 
     def _wntr_network_error_check(self, wn) -> None:
@@ -662,7 +699,7 @@ class WqNetworkToWntr:
         if not wn.num_tanks and not wn.num_reservoirs:
             msg = "At least one tank or reservoir is required"
             raise WqNetworkModelError(msg)
-        if not wn.num_pipes and not wn.num_valves and not wn.num_pumps:
+        if not wn.num_links:
             msg = "At least one link (pipe, pump or valve) is necessary"
             raise WqNetworkModelError(msg)
         orphan_nodes = wn.nodes.unused()
@@ -672,6 +709,8 @@ class WqNetworkToWntr:
 
 
 class WqNetworkFromWntr:
+    """Converts from a WNTR network, adding to qgis feature sinks"""
+
     def __init__(self, wn, unit_conversion: WqUnitConversion):
         self._unit_conversion = unit_conversion
         self._dfs: dict[WqLayer, pd.DataFrame] = {}
