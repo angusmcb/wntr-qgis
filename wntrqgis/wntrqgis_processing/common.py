@@ -51,8 +51,8 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
 
 class ProgStatus(IntEnum):
     CHECKING_DEPENDENCIES = 5
-    UNPACKING_WNTR = 12
-    PREPARING_MODEL = 15
+    INSTALLING_WNTR = 15
+    PREPARING_MODEL = 25
     RUNNING_SIMULATION = 40
     CREATING_OUTPUTS = 70
     FINISHED_PROCESSING = 95
@@ -106,9 +106,13 @@ class WntrQgisProcessingBase:
         self._update_progress(ProgStatus.CHECKING_DEPENDENCIES)
 
         try:
-            wntrversion = WqDependencyManagement.ensure_wntr()
+            wntrversion = WqDependencyManagement.import_wntr()
         except ImportError as e:
             raise QgsProcessingException(e) from None
+
+        if not wntrversion:
+            self._update_progress(ProgStatus.INSTALLING_WNTR)
+            wntrversion = WqDependencyManagement.ensure_wntr()
 
         self.feedback.pushDebugInfo("WNTR version: " + wntrversion)
 

@@ -12,11 +12,11 @@ from typing import Any
 
 class WqDependencyManagement:
     _dependencies_available = False
-    _wntr__availalble_version: str | None = None
+    _wntr__available_version: str | None = None
     _unpacking_wntr = False
 
     @classmethod
-    def ensure_wntr(cls):
+    def import_wntr(cls):
         if not cls._dependencies_available:
             missing_deps = cls._check_dependencies()
             if len(missing_deps):
@@ -25,17 +25,22 @@ class WqDependencyManagement:
 
             cls._dependencies_available = True
 
-        if not cls._wntr__availalble_version:
-            cls._wntr__availalble_version = cls._check_wntr()
+        if not cls._wntr__available_version:
+            cls._wntr__available_version = cls._check_wntr()
 
-        if not cls._wntr__availalble_version:
+        return cls._wntr__available_version
+
+    @classmethod
+    def ensure_wntr(cls):
+        cls.import_wntr()
+
+        if not cls._wntr__available_version:
             cls._unpack_wntr()
-            invalidate_caches()
             import wntr
 
-            cls._wntr__availalble_version = wntr.__version__
+            cls._wntr__available_version = wntr.__version__
 
-        return cls._wntr__availalble_version
+        return cls._wntr__available_version
 
     @staticmethod
     def _check_dependencies():
@@ -58,7 +63,8 @@ class WqDependencyManagement:
     def _unpack_wntr(cls) -> None:
         # Try not to let PIP install it twice at same time
         if cls._unpacking_wntr:
-            return None
+            msg = "Fetching wntr twice"
+            raise RuntimeError(msg)
         cls._unpacking_wntr = True
 
         kwargs: dict[str, Any] = {}
@@ -81,6 +87,7 @@ class WqDependencyManagement:
             check=False,
             **kwargs,
         )
+        invalidate_caches()
 
     @classmethod
     def package_directory(cls):

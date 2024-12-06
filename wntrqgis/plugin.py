@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Callable
+from enum import Enum, auto
+from threading import Thread
+from typing import Any, Callable
 
 from qgis.core import (
     Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
     QgsLayerTreeLayer,
     QgsMessageLog,
     QgsProcessingAlgRunnerTask,
@@ -14,15 +17,18 @@ from qgis.core import (
     QgsProcessingOutputLayerDefinition,
     QgsProject,
     QgsRasterLayer,
+    QgsRectangle,
+    QgsSettings,
 )
 from qgis.gui import QgsProjectionSelectionDialog
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
 from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QWidget
+from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QWidget
 from qgis.utils import iface
 
+from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.network_parts import (
     WqFlowUnit,
@@ -36,6 +42,14 @@ from wntrqgis.resource_manager import WqExampleInp, WqIcon, join_pixmap
 from wntrqgis.wntrqgis_processing.provider import Provider
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
+WNTR_SETTING_VERSION = "wntrqgis/version"
+VERSION = "0.0.2"
+
+
+class _InstallStatus(Enum):
+    NO_CHANGE = auto()
+    FRESH_INSTALL = auto()
+    UPGRADE = auto()
 
 
 class Plugin:
@@ -52,8 +66,18 @@ class Plugin:
         # else:
         #     pass
 
-        self.actions: list[QAction] = []
+        self.actions: list[Any] = []
         self.menu = "Water Network Tools for Resilience"
+
+        s = QgsSettings()
+        oldversion = s.value(WNTR_SETTING_VERSION, None)
+        s.setValue(WNTR_SETTING_VERSION, VERSION)
+        if oldversion is None:
+            self._install_status = _InstallStatus.FRESH_INSTALL
+        elif oldversion != VERSION:
+            self._install_status = _InstallStatus.UPGRADE
+        else:
+            self._install_status = _InstallStatus.NO_CHANGE
 
     def add_action(
         self,
@@ -67,7 +91,7 @@ class Plugin:
         status_tip: str | None = None,
         whats_this: str | None = None,
         parent: QWidget | None = None,
-    ) -> QAction:
+    ):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -171,6 +195,31 @@ class Plugin:
 
         self.initProcessing()
 
+        self.widget = None
+        if self._install_status is _InstallStatus.FRESH_INSTALL:
+            self.widget = iface.messageBar().createMessage(
+                "WNTR-QGIS installed",
+                "Load an example to try me out",
+            )
+        elif self._install_status is _InstallStatus.UPGRADE:
+            self.widget = iface.messageBar().createMessage(
+                "WNTR-QGIS upgraded",
+                "Load an example to try me out",
+            )
+        if self.widget:
+            self.examplebutton = QPushButton(self.widget)
+            self.examplebutton.setText("Load Example")
+            self.examplebutton.pressed.connect(self.load_example_from_messagebar)
+            self.widget.layout().addWidget(self.examplebutton)
+            iface.messageBar().pushWidget(self.widget, Qgis.Success)
+
+        # wntr is slow to load so start warming it up now !
+        Thread(target=WqDependencyManagement.import_wntr).start()
+
+    def load_example_from_messagebar(self):
+        self.widget.dismiss()
+        self.load_example()
+
     def onClosePlugin(self) -> None:  # noqa N802
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
@@ -179,6 +228,8 @@ class Plugin:
         for action in self.actions:
             iface.removePluginMenu(self.menu, action)
             iface.removeToolBarIcon(action)
+        # if self.examplebutton:
+        #    self.examplebutton.disconnect()
         # teardown_logger("wntrqgis")
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
@@ -306,6 +357,22 @@ class Plugin:
 
     def _empty_model_layer_dict(self):
         return {layer.value: self._temporary_processing_output() for layer in WqModelLayer}
+
+    def finish_loading_example_ky10(self):
+        # Doesn't work due to this:
+        # https://github.com/qgis/QGIS/issues/27139
+        view_box = QgsRectangle(5765000, 3830000, 5780000, 3838000)
+
+        transform = QgsCoordinateTransform(
+            QgsCoordinateReferenceSystem("EPSG:3089"), QgsProject.instance().crs(), QgsProject.instance()
+        )
+
+        view_box = transform.transform(view_box)
+
+        iface.mapCanvas().setExtent(view_box)
+
+        iface.mapCanvas().refresh()
+        self.load_osm()
 
     def load_osm(self):
         root = QgsProject.instance().layerTreeRoot()
