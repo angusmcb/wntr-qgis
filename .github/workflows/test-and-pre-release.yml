@@ -24,6 +24,8 @@ jobs:
         working-directory: /app
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Setup Environment
         run: |
           add-apt-repository universe
