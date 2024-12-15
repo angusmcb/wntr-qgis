@@ -43,7 +43,7 @@ jobs:
 
 
       - name: Run Tests
-        run: sudo xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest -v --cov=wntrqgis --cov-report=xml tests/
+        run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest -v
 
 
 
