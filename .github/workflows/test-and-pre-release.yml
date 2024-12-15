@@ -19,10 +19,6 @@ jobs:
         QGIS_PLUGIN_IN_CI: 1
         PIP_BREAK_SYSTEM_PACKAGES: 1
 
-    defaults:
-      run:
-        working-directory: /app
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -30,11 +26,6 @@ jobs:
       # Verify that the repository contents exist (debugging step)
       - name: List repository contents
         run: ls -la /github/workflow
-
-      - name: Setup working directory
-        run: |
-          mkdir -p /app
-          cp -r /github/workflow/* /app
 
       - name: Setup Environment
         run: |
