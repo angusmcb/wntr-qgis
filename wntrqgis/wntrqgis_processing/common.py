@@ -13,7 +13,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import WqModelLayer, WqResultLayer, WqProjectSetting, WqProjectSettings
+from wntrqgis.network_parts import ModelLayer, ResultLayer
+from wntrqgis.settings import WqProjectSetting, WqProjectSettings
 from wntrqgis.layer_styles import WqLayerStyles
 
 if TYPE_CHECKING:
@@ -118,14 +119,14 @@ class WntrQgisProcessingBase:
 
     def _setup_postprocessing(self, outputs: dict[str, str], group_name: str, make_editable: bool):  # noqa FBT01
         output_order: list[str] = [
-            WqModelLayer.JUNCTIONS,
-            WqModelLayer.PIPES,
-            WqModelLayer.PUMPS,
-            WqModelLayer.VALVES,
-            WqModelLayer.RESERVOIRS,
-            WqModelLayer.TANKS,
-            WqResultLayer.LINKS,
-            WqResultLayer.NODES,
+            ModelLayer.JUNCTIONS,
+            ModelLayer.PIPES,
+            ModelLayer.PUMPS,
+            ModelLayer.VALVES,
+            ModelLayer.RESERVOIRS,
+            ModelLayer.TANKS,
+            ResultLayer.LINKS,
+            ResultLayer.NODES,
         ]
 
         for layer_type, lyr_id in outputs.items():

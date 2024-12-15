@@ -19,11 +19,18 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from wntrqgis.network_parts import WqAnalysisType, WqField, WqLayer, WqModelField, WqModelLayer, WqResultLayer
+from wntrqgis.network_parts import (
+    FieldGroup,
+    ModelField,
+    ModelLayer,
+    ResultLayer,
+    _AbstractField,
+    _AbstractLayer,
+)
 
 
 class WqFieldStyles:
-    def __init__(self, field_type: WqField, layer_type: WqLayer):
+    def __init__(self, field_type: _AbstractField, layer_type: _AbstractLayer):
         self.field_type = field_type
         self.layer_type = layer_type
 
@@ -33,7 +40,7 @@ class WqFieldStyles:
 
         if python_type_class is float:
             config: dict[str, Any] = {"Style": "SpinBox"}
-            if self.field_type.analysis_type & WqAnalysisType.REQUIRED:
+            if self.field_type.field_group & FieldGroup.REQUIRED:
                 config["AllowNull"] = False
             return QgsEditorWidgetSetup(
                 "Range",
@@ -57,10 +64,10 @@ class WqFieldStyles:
     @property
     def default_value(self):
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
-        if self.field_type is WqModelField.ROUGHNESS:
+        if self.field_type is ModelField.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
-        if self.field_type is WqModelField.DIAMETER and (
-            self.layer_type is WqModelLayer.PIPES or self.layer_type is WqModelLayer.VALVES
+        if self.field_type is ModelField.DIAMETER and (
+            self.layer_type is ModelLayer.PIPES or self.layer_type is ModelLayer.VALVES
         ):
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
         if issubclass(self.field_type.python_type, Enum):
@@ -71,13 +78,13 @@ class WqFieldStyles:
 
 
 class WqLayerStyles:
-    def __init__(self, layer_type: WqLayer):
+    def __init__(self, layer_type: _AbstractLayer):
         self.layer_type = layer_type
 
     def style_layer(self, layer: QgsVectorLayer):
-        if isinstance(self.layer_type, WqModelLayer):
+        if isinstance(self.layer_type, ModelLayer):
             self._style_model_layer(layer)
-        if isinstance(self.layer_type, WqResultLayer):
+        if isinstance(self.layer_type, ResultLayer):
             self._style_result_layer(layer)
 
     def _style_model_layer(self, layer):
@@ -85,12 +92,12 @@ class WqLayerStyles:
         layer.setRenderer(renderer)
 
         for i, field in enumerate(layer.fields()):
-            field_styler = WqFieldStyles(WqModelField(field.name()), self.layer_type)
+            field_styler = WqFieldStyles(ModelField(field.name()), self.layer_type)
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
             layer.setDefaultValueDefinition(i, field_styler.default_value)
 
     def _style_result_layer(self, layer: QgsVectorLayer):
-        if self.layer_type is WqResultLayer.NODES:
+        if self.layer_type is ResultLayer.NODES:
             attribute_expression = 'wntr_result_at_current_time("pressure")'
         else:
             attribute_expression = 'wntr_result_at_current_time("velocity")'
@@ -110,21 +117,21 @@ class WqLayerStyles:
 
     @property
     def _symbol(self):
-        if self.layer_type is WqModelLayer.JUNCTIONS:
+        if self.layer_type is ModelLayer.JUNCTIONS:
             return QgsMarkerSymbol.createSimple(CIRCLE | WHITE_FILL | HAIRLINE_STROKE | JUNCTION_SIZE)
 
-        if self.layer_type is WqModelLayer.TANKS:
+        if self.layer_type is ModelLayer.TANKS:
             return QgsMarkerSymbol.createSimple(SQUARE | WHITE_FILL | HAIRLINE_STROKE | TANK_SIZE)
 
-        if self.layer_type is WqModelLayer.RESERVOIRS:
+        if self.layer_type is ModelLayer.RESERVOIRS:
             return QgsMarkerSymbol.createSimple(TRAPEZOID | WHITE_FILL | HAIRLINE_STROKE | RESERVOIR_SIZE)
 
-        if self.layer_type is WqModelLayer.PIPES:
+        if self.layer_type is ModelLayer.PIPES:
             return QgsLineSymbol.createSimple(MEDIUM_LINE | TRIM_ENDS)
 
         background_line = QgsSimpleLineSymbolLayer.create(HAIRWIDTH_LINE | GREY_LINE | DOTTY_LINE)
 
-        if self.layer_type is WqModelLayer.VALVES:
+        if self.layer_type is ModelLayer.VALVES:
             left_triangle = QgsSimpleMarkerSymbolLayer.create(TRIANGLE | BLACK_FILL | NO_STROKE)
             right_triangle = QgsSimpleMarkerSymbolLayer.create(TRIANGLE | BLACK_FILL | NO_STROKE | ROTATE_180)
             # creating using nomral __init__ with list crashes 3.34
@@ -132,17 +139,17 @@ class WqLayerStyles:
             valve_marker.appendSymbolLayer(right_triangle)
             return self._line_with_marker(background_line, valve_marker)
 
-        if self.layer_type is WqModelLayer.PUMPS:
+        if self.layer_type is ModelLayer.PUMPS:
             pump_body = QgsSimpleMarkerSymbolLayer.create(CIRCLE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_outlet = QgsSimpleMarkerSymbolLayer.create(OUTLET_SQUARE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_marker = QgsMarkerSymbol.createSimple(pump_body.properties())
             pump_marker.appendSymbolLayer(pump_outlet)
             return self._line_with_marker(background_line, pump_marker)
 
-        if self.layer_type is WqResultLayer.NODES:
+        if self.layer_type is ResultLayer.NODES:
             return QgsMarkerSymbol.createSimple(CIRCLE | NO_STROKE | NODE_SIZE)
 
-        if self.layer_type is WqResultLayer.LINKS:
+        if self.layer_type is ResultLayer.LINKS:
             line = QgsSimpleLineSymbolLayer.create(THICK_LINE)
             arrow = QgsMarkerSymbol.createSimple(ARROW | THICK_STROKE)
             exp = QgsProperty.fromExpression("if(wntr_result_at_current_time( flowrate ) <0,180,0)")

@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/usepa/wntr/main/documentation/_static/logo.jpg" width="375"> <img src="https://raw.githubusercontent.com/qgis/QGIS/master/images/README-md/main_logo.png" width="300">
 
-# WNTR - QGIS Integration
+
 ![tests](https://github.com/angusmcb/wntr-qgis/workflows/Tests/badge.svg)
 [![codecov.io](https://codecov.io/github/angusmcb/wntr-qgis/coverage.svg?branch=main)](https://codecov.io/github/angusmcb/wntr-qgis?branch=main)
 ![release](https://github.com/angusmcb/wntr-qgis/workflows/Release/badge.svg)
@@ -9,11 +9,15 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
+<!-- sphinx content start -->
+
+# Water Network Tools for Resilience - QGIS Integration
+
 This QGIS plugin integrates the US EPA's [Water Network Tools for Resiliance (WNTR)](https://usepa.github.io/WNTR/) with [QGIS](https://qgis.org/).
 
 A plugin for doing all aspects of piped water networks analysis directly within QGIS. This includes the creation of the model, the simulation and the visualisation of results.
 
-It is compatible with and import/exports to, EPANET. It uses the EPANET solver by default.
+It is compatible with and import/exports to EPANET. It uses the EPANET solver by default.
 
 Compared to other QGIS water network modelling plugins, this plugin aims to be:
 - **Easy to use.** Accessible for those who know how to use QGIS. Well documented, good defaults, clear functionality.
@@ -25,15 +29,17 @@ Compared to other QGIS water network modelling plugins, this plugin aims to be:
 
 Feedback on this plugin would be very welcome.
 
+<!-- sphinx content end -->
+
 ## Installation
 
-Install the plugin in QGIS in the normal way (see the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary).
+Install the plugin in QGIS in the normal way (see the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary). QGIS 3.34 or greater is required.
 
 If WNTR is not already installed in the python environment, it will be installed within the plugin directory when first running the tools.
 
 WNTR itself has some python dependencies. A warning will appear when running any of the algorithms from the 'processing toolbox' if there are missing dependencies.
 * On *Windows* all dependencies are already included within QGIS.
-* For *Linux / Mac* you will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX, and Matplotlib. Exactly how to do this depends on your system and how you have installed QGIS.
+* For *Linux / Mac* you will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX,  Matplotlib and Geopandas. Exactly how to do this depends on your system and how you have installed QGIS.
 
 ## Usage
 
@@ -41,7 +47,7 @@ WNTR itself has some python dependencies. A warning will appear when running any
 
 WNTR will have created three new processing algorithms. If you can't see the processing toolbox activate it in the menu View -> Panels -> Processing Toolbox.
 
-![image](https://github.com/user-attachments/assets/6fd52fcb-91ef-430b-9f86-1fb049feaeeb)
+![image](docs/_static/screenshot_processing_tools.png)
 
 Whilst the plugin is very flexible in how it's used, the key principles are the following four steps:
 
@@ -53,7 +59,7 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
 	- Pumps
 	- Valves
 
-![input image](docs/input_screenshot.png)
+![input image](docs/_static/input_screenshot.png)
 
 
 2. **Layer Editing.** The layers are normal QGIS layers and can be edited / modified / processed / styled / automated in the same ways as any other QGIS layer. In particular:
@@ -69,7 +75,7 @@ Whilst the plugin is very flexible in how it's used, the key principles are the 
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
    - Use QGIS's temporal manager to view how your results change over time.
 
-![input image](docs/output_screenshot.png)
+![input image](docs/_static/output_screenshot.png)
 
 ## Limitations
 The plugin is currently marked as experimental. Some features which exist in WNTR / EPANET  are not yet implemented:
@@ -82,5 +88,6 @@ In addition, Shapefile support is limited (due to a limitation of attribute leng
 
 ## License
 This plugin is distributed under the terms of the [GNU General Public License, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) license.
+
 
 See [LICENSE](LICENSE) for more information.

@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
 )
 
-from wntrqgis.network_parts import WqAnalysisType, WqModelLayer
+from wntrqgis.network_parts import FieldGroup, ModelLayer
 from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
@@ -54,9 +54,9 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         )
 
         advanced_analysis_types = [
-            (WqAnalysisType.QUALITY, "Create Fields for Water Quality Analysis"),
-            (WqAnalysisType.PDA, "Create Fields for Pressure Driven Analysis"),
-            (WqAnalysisType.ENERGY, "Create Fields for Energy Analysis"),
+            (FieldGroup.WATER_QUALITY_ANALYSIS, "Create Fields for Water Quality Analysis"),
+            (FieldGroup.PRESSURE_DEPENDENT_DEMAND, "Create Fields for Pressure Driven Analysis"),
+            (FieldGroup.ENERGY, "Create Fields for Energy Analysis"),
         ]
         for analysis_type, description in advanced_analysis_types:
             param = QgsProcessingParameterBoolean(
@@ -65,7 +65,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
             self.addParameter(param)
 
-        for layer in WqModelLayer:
+        for layer in ModelLayer:
             self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
 
     def processAlgorithm(  # noqa N802
@@ -76,15 +76,15 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     ) -> dict:
         WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
-        analysis_types_to_use = WqAnalysisType.BASE
-        for analysis_type in WqAnalysisType:
+        analysis_types_to_use = FieldGroup.BASE
+        for analysis_type in FieldGroup:
             if self.parameterAsBoolean(parameters, analysis_type.name, context):
                 analysis_types_to_use = analysis_types_to_use | analysis_type
 
         outputs: dict[str, str] = {}
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
-        for layer in WqModelLayer:
+        for layer in ModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type
             (_, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
