@@ -18,9 +18,11 @@ jobs:
       env:
         QGIS_PLUGIN_IN_CI: 1
         PIP_BREAK_SYSTEM_PACKAGES: 1
-      volumes:
-        - .:/app
-      options: --cpus 1
+
+    defaults:
+      run:
+        working-directory: /app
+
     steps:
       - name: Setup Environment
         run: |
