@@ -34,10 +34,10 @@ jobs:
           apt-get -y install python3-geopandas
           apt-get -y install python3-networkx
           pip3 install -qr requirements-dev.txt
-          xvfb-run -s '+extension GLX -screen 0 1024x768x24'
+
 
       - name: Run Tests
-        run: pytest -v --cov=wntrqgis --cov-report=xml tests/
+        run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' pytest -v --cov=wntrqgis --cov-report=xml tests/
 
 
 
@@ -68,8 +68,8 @@ jobs:
         run: >
           docker run --rm --net=host --volume `pwd`:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 -e PIP_BREAK_SYSTEM_PACKAGES=1 qgis/qgis:${{ matrix.docker_tags }} sh -c
           "apt-get update &&
-          apt-get -y install python-geopandas &&
-          apt-get -y install python-networkx &&
+          apt-get -y install python3-geopandas &&
+          apt-get -y install python3-networkx &&
           pip3 install -qr requirements-dev.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24'
           pytest -v --cov=wntrqgis --cov-report=xml tests/"
 
