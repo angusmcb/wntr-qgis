@@ -127,13 +127,16 @@ class WqLayerStyles:
         if self.layer_type is WqModelLayer.VALVES:
             left_triangle = QgsSimpleMarkerSymbolLayer.create(TRIANGLE | BLACK_FILL | NO_STROKE)
             right_triangle = QgsSimpleMarkerSymbolLayer.create(TRIANGLE | BLACK_FILL | NO_STROKE | ROTATE_180)
-            valve_marker = QgsMarkerSymbol([left_triangle, right_triangle])
+            # creating using nomral __init__ with list crashes 3.34
+            valve_marker = QgsMarkerSymbol.createSimple(left_triangle.properties())  # left_triangle, right_triangle])
+            valve_marker.appendSymbolLayer(right_triangle)
             return self._line_with_marker(background_line, valve_marker)
 
         if self.layer_type is WqModelLayer.PUMPS:
             pump_body = QgsSimpleMarkerSymbolLayer.create(CIRCLE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_outlet = QgsSimpleMarkerSymbolLayer.create(OUTLET_SQUARE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
-            pump_marker = QgsMarkerSymbol([pump_body, pump_outlet])
+            pump_marker = QgsMarkerSymbol.createSimple(pump_body.properties())
+            pump_marker.appendSymbolLayer(pump_outlet)
             return self._line_with_marker(background_line, pump_marker)
 
         if self.layer_type is WqResultLayer.NODES:
@@ -151,7 +154,10 @@ class WqLayerStyles:
     def _line_with_marker(self, background_line, marker):
         marker_line = QgsMarkerLineSymbolLayer.create(CENTRAL_PLACEMENT)
         marker_line.setSubSymbol(marker)
-        return QgsLineSymbol([background_line, marker_line])
+        combined_symbol = QgsLineSymbol.createSimple(background_line.properties())
+        # combined_symbol.appendSymbolLayer(background_line)
+        combined_symbol.appendSymbolLayer(marker_line)
+        return combined_symbol
 
 
 # USE THE FOLLOWING TO DISCOVER WHAT PROPERTIES ARE AVAILABLE:
