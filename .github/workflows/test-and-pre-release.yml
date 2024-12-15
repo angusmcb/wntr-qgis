@@ -21,7 +21,12 @@ jobs:
 
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Verify that the repository contents exist (debugging step)
+      - name: List repository contents
+        run: ls -la /github/workspace
 
       - name: Setup working directory
         run: |
