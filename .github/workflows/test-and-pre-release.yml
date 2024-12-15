@@ -18,10 +18,8 @@ jobs:
       env:
         QGIS_PLUGIN_IN_CI: 1
         PIP_BREAK_SYSTEM_PACKAGES: 1
-      ports:
-        - 80
       volumes:
-        - my_docker_volume:/volume_mount
+        - .:/app
       options: --cpus 1
     steps:
       - name: Setup Environment
