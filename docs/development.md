@@ -10,7 +10,6 @@ python create_qgis_venv.py
 pip install -r requirements-dev.txt
 ```
 
-For more detailed development instructions see [development](docs/development.md).
 
 ### Testing the plugin on QGIS
 

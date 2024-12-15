@@ -1,3 +1,7 @@
+"""
+Contains utility methods for accessing the items in the resources section.
+"""
+
 from enum import Enum
 from pathlib import Path
 
@@ -12,7 +16,8 @@ class WqIcon(Enum):
     OPEN = "mActionFileOpen.svg"
     RUN = "lightning-svgrepo-com.svg"
     # LOGO = "wntr-favicon.svg"
-    LOGO = "water_circle.png"
+    #  LOGO = "water_circle.png"
+    LOGO = "logo.svg"
 
     @property
     def path(self):

@@ -26,14 +26,13 @@ from qgis.core import (
 )
 
 from wntrqgis.network_parts import (
-    WqAnalysisType,
-    WqFlowUnit,
-    WqHeadlossFormula,
-    WqModelLayer,
-    WqProjectSetting,
-    WqProjectSettings,
+    FieldGroup,
+    FlowUnit,
+    HeadlossFormula,
+    ModelLayer,
 )
 from wntrqgis.resource_manager import WqIcon
+from wntrqgis.settings import WqProjectSetting, WqProjectSettings
 from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
 
 
@@ -79,12 +78,12 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             QgsProcessingParameterEnum(
                 self.UNITS,
                 self.tr("Units to to convert to (leave blank to use .inp file units)"),
-                options=[fu.value for fu in WqFlowUnit],
+                options=[fu.value for fu in FlowUnit],
                 optional=True,
             )
         )
 
-        for layer in WqModelLayer:
+        for layer in ModelLayer:
             self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
 
     def preprocessParameters(self, parameters):  # noqa N802
@@ -108,7 +107,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         import wntr
 
-        from wntrqgis.wntr_interface import WqNetworkFromWntr, WqUnitConversion
+        from wntrqgis.wntr_interface import NetworkFromWntr, UnitConversion
 
         self._update_progress(ProgStatus.LOADING_INP_FILE)
 
@@ -125,17 +124,17 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         if parameters.get(self.UNITS) is not None:
             unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
             try:
-                wq_flow_unit = list(WqFlowUnit)[unit_enum_int]
+                wq_flow_unit = list(FlowUnit)[unit_enum_int]
             except ValueError as e:
                 msg = self.tr("Could not find flow unit specified")
                 raise QgsProcessingException(msg) from e
         else:
-            wq_flow_unit = WqFlowUnit[wn.options.hydraulic.inpfile_units]
+            wq_flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
         feedback.pushInfo("Will output with the following units: " + str(wq_flow_unit.value))
 
-        wq_headloss_formula = WqHeadlossFormula(wn.options.hydraulic.headloss)
+        wq_headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
 
-        unit_conversion = WqUnitConversion(wq_flow_unit, wq_headloss_formula)
+        unit_conversion = UnitConversion(wq_flow_unit, wq_headloss_formula)
 
         project_settings = WqProjectSettings(context.project())
         project_settings.set(WqProjectSetting.FLOW_UNITS, wq_flow_unit)
@@ -144,13 +143,13 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
-        network_model = WqNetworkFromWntr(wn, unit_conversion)
+        network_model = NetworkFromWntr(wn, unit_conversion)
 
         # this is just to give a little user output
         extra_analysis_type_names = [
             str(atype.name)
-            for atype in [WqAnalysisType.ENERGY, WqAnalysisType.QUALITY, WqAnalysisType.PDA]
-            if network_model.analysis_types is not None and atype in network_model.analysis_types
+            for atype in [FieldGroup.ENERGY, FieldGroup.WATER_QUALITY_ANALYSIS, FieldGroup.PRESSURE_DEPENDENT_DEMAND]
+            if network_model.field_groups is not None and atype in network_model.field_groups
         ]
         if len(extra_analysis_type_names):
             feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
@@ -158,15 +157,13 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
         outputs: dict[str, str] = {}
-        sinks = {}
-        for layer in WqModelLayer:
-            fields = layer.qgs_fields(network_model.analysis_types)
+
+        for layer in ModelLayer:
+            fields = layer.qgs_fields(network_model.field_groups)
             (sink, outputs[layer]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
-            sinks[layer] = (sink, fields)
-
-        network_model.write_to_sinks(sinks)
+            network_model.write_to_sink(layer, fields, sink)
 
         self._update_progress(ProgStatus.FINISHED_PROCESSING)
 

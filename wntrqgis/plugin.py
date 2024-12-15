@@ -31,14 +31,13 @@ from qgis.utils import iface
 from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.network_parts import (
-    WqFlowUnit,
-    WqHeadlossFormula,
-    WqModelLayer,
-    WqProjectSetting,
-    WqProjectSettings,
-    WqResultLayer,
+    FlowUnit,
+    HeadlossFormula,
+    ModelLayer,
+    ResultLayer,
 )
 from wntrqgis.resource_manager import WqExampleInp, WqIcon, join_pixmap
+from wntrqgis.settings import WqProjectSetting, WqProjectSettings
 from wntrqgis.wntrqgis_processing.provider import Provider
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
@@ -327,12 +326,12 @@ class Plugin:
     def run_simulation(self) -> None:
         project_settings = WqProjectSettings(QgsProject.instance())
         saved_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
-        input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in WqModelLayer}
-        result_layers = {layer.value: self._temporary_processing_output() for layer in WqResultLayer}
-        flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS, WqFlowUnit.LPS)
-        flow_unit_id = list(WqFlowUnit).index(flow_units)
-        headloss_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA, WqHeadlossFormula.HAZEN_WILLIAMS)
-        headloss_formula_id = list(WqHeadlossFormula).index(headloss_formula)
+        input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in ModelLayer}
+        result_layers = {layer.value: self._temporary_processing_output() for layer in ResultLayer}
+        flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS, FlowUnit.LPS)
+        flow_unit_id = list(FlowUnit).index(flow_units)
+        headloss_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
+        headloss_formula_id = list(HeadlossFormula).index(headloss_formula)
         duration = project_settings.get(WqProjectSetting.SIMULATION_DURATION, 0)
         parameters = {
             "UNITS": flow_unit_id,
@@ -356,7 +355,7 @@ class Plugin:
         return QgsProcessingOutputLayerDefinition("TEMPORARY_OUTPUT", QgsProject.instance())
 
     def _empty_model_layer_dict(self):
-        return {layer.value: self._temporary_processing_output() for layer in WqModelLayer}
+        return {layer.value: self._temporary_processing_output() for layer in ModelLayer}
 
     def finish_loading_example_ky10(self):
         # Doesn't work due to this:
