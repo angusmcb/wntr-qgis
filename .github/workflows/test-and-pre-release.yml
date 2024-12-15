@@ -47,6 +47,27 @@ jobs:
           fail_ci_if_error: false # set to true when upload is working
           verbose: false
 
+  windows_choco:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Choco install qgis
+        uses: crazy-max/ghaction-chocolatey@v1
+        with:
+          args: choco install qgis-ltr --version=3.34.4 -y
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          $env:PATH="C:\Program Files\QGIS 3.34.4\bin;$env:PATH"
+          $env:QGIS_PLUGIN_IN_CI=1
+          python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
+          python-qgis-ltr.bat -m pytest -v
+
   windows_tests:
     runs-on: windows-latest
 
