@@ -26,6 +26,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup working directory
+        run: |
+          mkdir -p /app
+          cp -r /github/workspace/* /app
+
       - name: Setup Environment
         run: |
           add-apt-repository universe
