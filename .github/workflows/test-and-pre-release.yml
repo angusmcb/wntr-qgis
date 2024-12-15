@@ -18,8 +18,6 @@ jobs:
       env:
         QGIS_PLUGIN_IN_CI: 1
         PIP_BREAK_SYSTEM_PACKAGES: 1
-      volumes:
-        - $GITHUB_WORKSPACE:/app
 
     defaults:
       run:
@@ -31,16 +29,12 @@ jobs:
 
       # Verify that the repository contents exist (debugging step)
       - name: List repository contents
-        run: ls -la /app
+        run: ls -la /github/workflow
 
-      #- name: Setup working directory
-      #  run: |
-      #    mkdir -p /app
-      #    cp -r /github/workspace/* /app
-
-      # Set /app as the working directory for subsequent steps
-      - name: Update default working directory
-        run: echo "cd /app" >> $GITHUB_ENV
+      - name: Setup working directory
+        run: |
+          mkdir -p /app
+          cp -r /github/workflow/* /app
 
       - name: Setup Environment
         run: |
