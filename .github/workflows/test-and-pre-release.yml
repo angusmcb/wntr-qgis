@@ -17,7 +17,7 @@ jobs:
       matrix:
         # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
         docker_tags: ['ltr','3.38.3', latest]
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, ubuntu-20.04]
       fail-fast: false
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -49,7 +49,10 @@ jobs:
 
   windows_choco:
     runs-on: windows-latest
-
+    strategy:
+      matrix:
+        qgis_version: ['3.34.0','3.40.0']
+      fail-fast: false
     steps:
       - uses: actions/checkout@v2
         with:
@@ -58,31 +61,12 @@ jobs:
       - name: Choco install qgis
         uses: crazy-max/ghaction-chocolatey@v1
         with:
-          args: install qgis-ltr --version=3.34.4 -y
+          args: install qgis --version=${{ matrix.qgis_version }} -y
 
       - name: Run tests
         shell: pwsh
         run: |
-          $env:PATH="C:\Program Files\QGIS 3.34.4\bin;$env:PATH"
+          $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
-          python-qgis-ltr.bat -m pytest -v
-
-  windows_tests:
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - run: ./.github/workflows/qgis_deploy_install_upgrade_ltr.ps1
-        shell: pwsh
-
-      - name: Run tests
-        shell: pwsh
-        run: |
-          $env:PATH="C:\Program Files\OSGeo4W_v2\bin;$env:PATH"
-          $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis-ltr.bat -m pip install -qr requirements-dev.txt
-          python-qgis-ltr.bat -m pytest -v
+          python-qgis.bat -m pip install -qr requirements-dev.txt
+          python-qgis.bat -m pytest -v
