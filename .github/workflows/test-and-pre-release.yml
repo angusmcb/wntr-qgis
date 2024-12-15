@@ -16,7 +16,9 @@ jobs:
     strategy:
       matrix:
         # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
-        docker_tags: [final-3_34_0, 'ltr','3.38.3', latest]
+        # Aim: get final-3_34_0 to work ! (python3-numpy is already the newest version (1:1.21.5-1ubuntu22.04.1).)
+        # wntr is not compatible with 1.21.5, so need to set up a virtual environment
+        docker_tags: ['ltr','3.38.3', latest]
       fail-fast: false
 
     container:
@@ -39,7 +41,6 @@ jobs:
           apt-get update
           apt-get -y install python3-geopandas
           apt-get -y install python3-networkx
-          apt-get -y install python3-numpy
           pip3 install -r requirements-dev.txt
 
 
@@ -48,47 +49,47 @@ jobs:
 
 
 
-  linux_tests:
-    # The type of runner that the job will run on
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
-        docker_tags: [final-3_34_0, 'ltr','3.38.3', latest]
-        os: [ubuntu-latest]
-      fail-fast: false
+  # linux_tests:
+  #   # The type of runner that the job will run on
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
+  #       docker_tags: [final-3_34_0, 'ltr','3.38.3', latest]
+  #       os: [ubuntu-latest]
+  #     fail-fast: false
 
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
+  #   # Steps represent a sequence of tasks that will be executed as part of the job
+  #   steps:
+  #     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: true
 
 
-      - name: Pull qgis
-        run: docker pull qgis/qgis:${{ matrix.docker_tags }}
+  #     - name: Pull qgis
+  #       run: docker pull qgis/qgis:${{ matrix.docker_tags }}
 
-      # Runs all tests
-      - name: Run tests
-        run: >
-          docker run --rm --net=host --volume `pwd`:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 -e PIP_BREAK_SYSTEM_PACKAGES=1 qgis/qgis:${{ matrix.docker_tags }} sh -c
-          "apt-get update &&
-          apt-get -y install python3-geopandas &&
-          apt-get -y install python3-networkx &&
-          pip3 install -qr requirements-dev.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24'
-          pytest -v --cov=wntrqgis --cov-report=xml tests/"
+  #     # Runs all tests
+  #     - name: Run tests
+  #       run: >
+  #         docker run --rm --net=host --volume `pwd`:/app -w=/app -e QGIS_PLUGIN_IN_CI=1 -e PIP_BREAK_SYSTEM_PACKAGES=1 qgis/qgis:${{ matrix.docker_tags }} sh -c
+  #         "apt-get update &&
+  #         apt-get -y install python3-geopandas &&
+  #         apt-get -y install python3-networkx &&
+  #         pip3 install -qr requirements-dev.txt && xvfb-run -s '+extension GLX -screen 0 1024x768x24'
+  #         pytest -v --cov=wntrqgis --cov-report=xml tests/"
 
-      # Upload coverage report. Will not work if the repo is private
-      - name: Upload coverage to Codecov
-        if: ${{ matrix.docker_tags == 'latest' && !github.event.repository.private }}
-        uses: codecov/codecov-action@v1
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          fail_ci_if_error: false # set to true when upload is working
-          verbose: false
+  #     # Upload coverage report. Will not work if the repo is private
+  #     - name: Upload coverage to Codecov
+  #       if: ${{ matrix.docker_tags == 'latest' && !github.event.repository.private }}
+  #       uses: codecov/codecov-action@v1
+  #       with:
+  #         file: ./coverage.xml
+  #         flags: unittests
+  #         fail_ci_if_error: false # set to true when upload is working
+  #         verbose: false
 
   windows_choco:
     runs-on: windows-latest
@@ -106,10 +107,13 @@ jobs:
         with:
           args: install qgis --version=${{ matrix.qgis_version }} -y
 
-      - name: Run tests
+      - name: Setup Environmment
         shell: pwsh
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis.bat -m pip install -qr requirements-dev.txt
-          python-qgis.bat -m pytest -v
+          python-qgis.bat -m pip install -r requirements-dev.txt
+
+      - name: Run tests
+        shell: pwsh
+        run: python-qgis.bat -m pytest -v
