@@ -13,8 +13,14 @@ jobs:
 
   linux_docker_tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
+        docker_tags: [final-3_34_0, 'ltr','3.38.3', latest]
+      fail-fast: false
+
     container:
-      image: qgis/qgis:ltr
+      image: qgis/qgis:${{ matrix.docker_tags }}
       env:
         QGIS_PLUGIN_IN_CI: 1
         PIP_BREAK_SYSTEM_PACKAGES: 1
