@@ -20,12 +20,17 @@ jobs:
         os: [ubuntu-latest, ubuntu-20.04]
       fail-fast: false
 
+
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
 
       - name: Pull qgis
         run: docker pull qgis/qgis:${{ matrix.docker_tags }}
