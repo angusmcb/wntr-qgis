@@ -214,7 +214,7 @@ class Plugin:
             iface.messageBar().pushWidget(self.widget, Qgis.Success)
 
         # wntr is slow to load so start warming it up now !
-        Thread(target=WqDependencyManagement.import_wntr).start()
+        # Thread(target=WqDependencyManagement.import_wntr).start()
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
