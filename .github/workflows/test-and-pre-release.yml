@@ -16,8 +16,8 @@ jobs:
     strategy:
       matrix:
         # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
-        docker_tags: ['ltr','3.38.3', latest]
-        os: [ubuntu-latest, ubuntu-20.04]
+        docker_tags: [final-3_34_0, 'ltr','3.38.3', latest]
+        os: [ubuntu-latest]
       fail-fast: false
 
 
@@ -28,9 +28,6 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
 
       - name: Pull qgis
         run: docker pull qgis/qgis:${{ matrix.docker_tags }}

@@ -36,7 +36,6 @@ class WqDependencyManagement:
 
         if not cls._wntr__available_version:
             cls._unpack_wntr()
-            invalidate_caches()
             import wntr
 
             cls._wntr__available_version = wntr.__version__
