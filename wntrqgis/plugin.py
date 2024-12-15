@@ -28,7 +28,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QWidget
 from qgis.utils import iface
 
-from wntrqgis.dependency_management import WqDependencyManagement
+# from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.network_parts import (
     WqFlowUnit,

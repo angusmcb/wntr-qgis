@@ -21,7 +21,7 @@ PyQt5-stubs
 pandas-stubs
 
 # For running within qgis
-# geopandas
-# networkx
+geopandas
+networkx
 
 qgis-plugin-ci
