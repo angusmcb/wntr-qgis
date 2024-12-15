@@ -26,6 +26,7 @@ jobs:
     steps:
       - name: Setup Environment
         run: |
+          add-apt-repository universe
           apt-get update
           apt-get -y install python-geopandas
           apt-get -y install python-networkx
