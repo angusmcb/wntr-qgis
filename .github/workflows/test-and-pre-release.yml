@@ -110,4 +110,3 @@ jobs:
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           python-qgis.bat -m pytest -v
-
