@@ -7,7 +7,7 @@ html_theme.sidebar_secondary.remove: true
 ---
 
 
-```{include} ../readme.md
+```{include} ../README.md
 :relative-docs: ../
 :relative-images:
 :start-after: <!-- sphinx content start -->
