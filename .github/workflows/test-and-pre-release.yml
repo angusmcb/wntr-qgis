@@ -15,7 +15,7 @@ jobs:
         # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
         # Aim: get final-3_34_0 to work ! (python3-numpy is already the newest version (1:1.21.5-1ubuntu22.04.1).)
         # wntr is not compatible with 1.21.5, so need to set up a virtual environment
-        docker_tags: ['ltr','3.38.3', latest]
+        docker_tags: ['final-3_34_0', 'ltr','3.38.3', latest]
       fail-fast: false
 
     container:
