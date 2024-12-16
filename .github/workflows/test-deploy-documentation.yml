@@ -1,11 +1,6 @@
 name: docs
 
-on:
-  push:
-    branches:
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
   build:
@@ -27,7 +22,9 @@ jobs:
       # - name: Build documentation
       #   run: sphinx-build docs/ _site
       - name: Upload artifact
+        id: deployment
         uses: actions/upload-pages-artifact@v3
+        with:
           path: docs/_build/html/
 
 
