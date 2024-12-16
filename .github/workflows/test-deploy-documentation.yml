@@ -8,9 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: qgis/qgis:ltr
-      env:
-        QGIS_PLUGIN_IN_CI: 1
-        PIP_BREAK_SYSTEM_PACKAGES: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -23,12 +20,8 @@ jobs:
 
       - name: Setup Environment
         run: |
-          pip3 install wntr --ignore-installed
-          pip3 install -r docs/requirements.txt --ignore-installed
-
-      # - uses: ammaraskar/sphinx-action@master
-      #   with:
-      #     docs-folder: "docs/"
+          pip3 install wntr
+          pip3 install -r docs/requirements.txt
 
       - name: Build documentation
         run: sphinx-build docs/ _site
