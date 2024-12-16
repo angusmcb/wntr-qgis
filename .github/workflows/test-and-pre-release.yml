@@ -102,12 +102,10 @@ jobs:
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           python-qgis.bat -m pip install -r requirements-ci.txt
-
-      - name: Install Geopandas on Older QGIS
-        if:  ${{matrix.qgis_version}} == '3.28.0'
-        run: |
-          $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
+          if(${{ matrix.qgis_version }} -eq '3.28.0')
+          {
           python-qgis.bat -m pip install geopandas<1.0
+          }
 
       - name: Run Tests
         shell: pwsh
