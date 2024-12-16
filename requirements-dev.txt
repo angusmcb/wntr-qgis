@@ -18,7 +18,7 @@ flake8-qgis
 
 # Stubs
 PyQt5-stubs
-pandas-stubs
+# pandas-stubs
 
 # For running within qgis
 # geopandas
