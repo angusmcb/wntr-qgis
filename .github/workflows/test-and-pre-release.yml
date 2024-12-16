@@ -12,10 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Remove unsupported versions and add more versions. Use LTR version in the cov_tests job
-        # Aim: get final-3_34_0 to work ! (python3-numpy is already the newest version (1:1.21.5-1ubuntu22.04.1).)
-        # wntr is not compatible with 1.21.5, so need to set up a virtual environment
-        docker_tags: ['ltr','3.38.3', latest]
+        # 'latest' seems to be nightly build, 'stable' is latest real release
+        docker_tags: ['final-3_34_0','final-3_36_0','3.38.0','3.40.0','ltr', 'stable', 'latest']
       fail-fast: false
 
     container:
@@ -26,11 +24,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Verify that the repository contents exist (debugging step)
-      - name: List repository contents
-        run: ls -la /github/workflow
+        uses: actions/checkout@v4
 
       - name: Setup Environment
         run: |
@@ -38,8 +32,7 @@ jobs:
           apt-get update
           apt-get -y install python3-geopandas
           apt-get -y install python3-networkx
-          pip3 install -r requirements-dev.txt
-
+          pip3 install -r requirements-ci-tests.txt
 
       - name: Run Tests
         run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest -v
@@ -92,22 +85,28 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        qgis_version: ['3.34.0','3.36.0','3.38.0','3.40.0']
+        # does not work with 3.28.0 due to missing geopandas
+        qgis_version: ['3.34.0','3.40.0']
       fail-fast: false
+    env:
+      QGIS_PLUGIN_IN_CI: 1
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Choco install qgis
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install qgis --version=${{ matrix.qgis_version }} -y
 
-      - name: Setup Environmment and Run Tests
+      - name: Setup Environmment
         shell: pwsh
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
-          $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis.bat -m pip install -r requirements-dev.txt
+          python-qgis.bat -m pip install -r requirements-ci-tests.txt
+
+      - name: Run Tests
+        shell: pwsh
+        run: |
+          $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           python-qgis.bat -m pytest -v

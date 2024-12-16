@@ -45,7 +45,9 @@ class WqDependencyManagement:
     @staticmethod
     def _check_dependencies():
         return [
-            package for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib"] if find_spec(package) is None
+            package
+            for package in ["pandas", "geopandas", "numpy", "scipy", "networkx", "matplotlib"]
+            if find_spec(package) is None
         ]
 
     @staticmethod
