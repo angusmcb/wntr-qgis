@@ -3,6 +3,4 @@ pydata-sphinx-theme
 myst-parser
 livereload
 sphinx-toolbox
-enum-tools
-sphinx-jinja2-compat #requirement of enum-toools
-sphinx-toolbox # requirement of enum-tools
+enum-tools[sphinx]
