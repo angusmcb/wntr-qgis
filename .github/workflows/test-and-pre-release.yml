@@ -38,7 +38,7 @@ jobs:
           apt-get update
           apt-get -y install python3-geopandas
           apt-get -y install python3-networkx
-          pip3 install -r requirements-dev.txt
+          pip3 install -r requirements-ci.txt
 
 
       - name: Run Tests
@@ -104,10 +104,17 @@ jobs:
         with:
           args: install qgis --version=${{ matrix.qgis_version }} -y
 
-      - name: Setup Environmment and Run Tests
+      - name: Setup Environmment
         shell: pwsh
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           $env:QGIS_PLUGIN_IN_CI=1
-          python-qgis.bat -m pip install -r requirements-dev.txt
+          python-qgis.bat -m pip install -r requirements-ci.txt
+
+      - name: Run Tests
+        shell: pwsh
+        run: |
+          $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
+          $env:QGIS_PLUGIN_IN_CI=1
           python-qgis.bat -m pytest -v
+
