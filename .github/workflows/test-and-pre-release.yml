@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        docker_tags: ['final-3_34_0','final-3_36_0','3.38.0','3.40.0','ltr', 'latest']
+        # 'latest' seems to be nightly build, 'stable' is latest real release
+        docker_tags: ['final-3_34_0','final-3_36_0','3.38.0','3.40.0','ltr', 'stable', 'latest']
       fail-fast: false
 
     container:
