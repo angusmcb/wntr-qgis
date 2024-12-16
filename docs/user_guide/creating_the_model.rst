@@ -93,21 +93,43 @@ All attributes are optional, except those marked *Required*
     +---------------------+------------------------------+
     | Attribute           | If not set                   |
     +=====================+==============================+
-    | diameter            |                              |
+    | diameter            | *Required*                   |
     +---------------------+------------------------------+
-    | roughness           |                              |
+    | roughness           | *Required*                   |
     +---------------------+------------------------------+
-    | minor_loss          |                              |
+    | minor_loss          | 0                            |
     +---------------------+------------------------------+
-    | initial_status      |                              |
+    | initial_status      | Open                         |
     +---------------------+------------------------------+
-    | check_valve         |                              |
+    | check_valve         | False                        |
     +---------------------+------------------------------+
-    | bulk_coeff          |                              |
+    | bulk_coeff          | None                         |
     +---------------------+------------------------------+
-    | wall_coeff          |                              |
+    | wall_coeff          | None                         |
     +---------------------+------------------------------+
 
-Optional:
-* Elevation (default: 0)
-*
+.. table:: Possible Pump Layer Attributes
+
+    +---------------------+------------------------------+
+    | Attribute           | If not set                   |
+    +=====================+==============================+
+    | pump_type           | POWER                        |
+    | pump_curve          | None                         |
+    | power               |                              |
+    | base_speed          | 1                            |
+    | speed_pattern       | None                         |
+    | initial_status      | Open                         |
+    | Initial_setting     | None                         |
+    +---------------------+------------------------------+
+
+.. table:: Possible Valve Layer Attributes
+
+    +---------------------+------------------------------+
+    | Attribute           | If not set                   |
+    +=====================+==============================+
+    | diameter            | *Required*                   |
+    | valve_type          | 'PRV'                        |
+    | minor_loss          | 0                            |
+    | initial_status      | Active                       |
+    | Initial_setting     |                              |
+    +---------------------+------------------------------+
