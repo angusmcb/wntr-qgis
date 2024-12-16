@@ -15,12 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup venv
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          echo PATH=$PATH >> $GITHUB_ENV
+
       - name: Setup Environment
         run: |
-          add-apt-repository universe
-          apt-get update
-          apt-get -y install python3-geopandas
-          apt-get -y install python3-networkx
+          pip3 install wntr
           pip3 install -r docs/requirements.txt
 
       # - uses: ammaraskar/sphinx-action@master
