@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        docker_tags: ['final-3_28_0', 'final-3_34_0','final-3_36_0','3.38.0','3.40.0','ltr', 'latest']
+        docker_tags: ['final-3_34_0','final-3_36_0','3.38.0','3.40.0','ltr', 'latest']
       fail-fast: false
 
     container:
@@ -84,7 +84,8 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        qgis_version: ['3.28.0','3.34.0','3.40.0']
+        # does not work with 3.28.0 due to missing geopandas
+        qgis_version: ['3.34.0','3.40.0']
       fail-fast: false
     env:
       QGIS_PLUGIN_IN_CI: 1
@@ -102,7 +103,6 @@ jobs:
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
           python-qgis.bat -m pip install -r requirements-ci-tests.txt
-          if(${{ matrix.qgis_version }} -eq 3.28.0) { python-qgis.bat -m pip install geopandas<1.0 }
 
       - name: Run Tests
         shell: pwsh
