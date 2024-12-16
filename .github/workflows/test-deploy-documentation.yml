@@ -9,23 +9,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - uses: actions/setup-python@v5
-      #   with:
-      #     python-version: '3.12'
-      # - name: Install package
-      #   run: pip install -r requirements-docs.txt
-
-      - uses: ammaraskar/sphinx-action@master
+      - uses: actions/setup-python@v5
         with:
-          docs-folder: "docs/"
+          python-version: '3.11'
+      - name: Install package
+        run: pip install -r docs/requirements.txt
 
-      # - name: Build documentation
-      #   run: sphinx-build docs/ _site
+      # - uses: ammaraskar/sphinx-action@master
+      #   with:
+      #     docs-folder: "docs/"
+
+      - name: Build documentation
+        run: sphinx-build docs/ _site
+
       - name: Upload artifact
         id: deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/_build/html/
+          path: _site/
 
 
   deploy:
