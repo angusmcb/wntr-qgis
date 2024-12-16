@@ -31,7 +31,7 @@ jobs:
           apt-get update
           apt-get -y install python3-geopandas
           apt-get -y install python3-networkx
-          pip3 install -r requirements-ci.txt
+          pip3 install -r requirements-ci-tests.txt
 
       - name: Run Tests
         run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest -v
@@ -101,11 +101,8 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH="C:\Program Files\QGIS ${{ matrix.qgis_version }}\bin;$env:PATH"
-          python-qgis.bat -m pip install -r requirements-ci.txt
-          if(${{ matrix.qgis_version }} -eq '3.28.0')
-          {
-          python-qgis.bat -m pip install geopandas<1.0
-          }
+          python-qgis.bat -m pip install -r requirements-ci-tests.txt
+          if(${{ matrix.qgis_version }} -eq 3.28.0) { python-qgis.bat -m pip install geopandas<1.0 }
 
       - name: Run Tests
         shell: pwsh
