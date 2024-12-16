@@ -1,0 +1,6 @@
+sphinx
+pydata-sphinx-theme
+myst-parser
+livereload
+sphinx-toolbox
+enum-tools
