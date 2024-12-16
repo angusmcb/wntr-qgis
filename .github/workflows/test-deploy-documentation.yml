@@ -1,4 +1,4 @@
-name: docs
+name: Documentation
 
 on: [push, pull_request]
 
@@ -34,7 +34,7 @@ jobs:
   deploy:
     name: Deploy documentation to GitHub Pages
     needs: build
-    if: github.event_name == 'push' && github.ref =='refs/heads/master'
+    # if: github.event_name == 'push' && github.ref =='refs/heads/master'
     permissions:
       pages: write      # to deploy to Pages
       id-token: write   # to verify the deployment originates from an appropriate source
