@@ -17,14 +17,14 @@ jobs:
 
       - name: Setup venv
         run: |
-          python3 -m venv .venv
+          python3 -m venv .venv --system-site-packages
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
 
       - name: Setup Environment
         run: |
-          pip3 install wntr
-          pip3 install -r docs/requirements.txt
+          pip3 install wntr --ignore-installed
+          pip3 install -r docs/requirements.txt --ignore-installed
 
       # - uses: ammaraskar/sphinx-action@master
       #   with:
