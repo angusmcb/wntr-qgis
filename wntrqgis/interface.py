@@ -281,8 +281,10 @@ class Writer:
         Args:
             layer: 'JUNCTIONS','PIPES','LINKS' etc.
         """
-
-        return QgsFields([field.qgs_field for field in self._get_fields(layer)])
+        fields = QgsFields()  # nice constructor didn't arrive until qgis 3.40
+        for f in self._get_fields(layer):
+            fields.append(f.qgs_field)
+        return fields
 
     def new_write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
         """Write a fields from a layer to a Qgis feature sink
