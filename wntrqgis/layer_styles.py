@@ -19,18 +19,17 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from wntrqgis.network_parts import (
+from wntrqgis.elements import (
     FieldGroup,
     ModelField,
     ModelLayer,
+    ResultField,
     ResultLayer,
-    _AbstractField,
-    _AbstractLayer,
 )
 
 
 class WqFieldStyles:
-    def __init__(self, field_type: _AbstractField, layer_type: _AbstractLayer):
+    def __init__(self, field_type: ModelField | ResultField, layer_type: ModelLayer | ResultLayer):
         self.field_type = field_type
         self.layer_type = layer_type
 
@@ -78,7 +77,7 @@ class WqFieldStyles:
 
 
 class WqLayerStyles:
-    def __init__(self, layer_type: _AbstractLayer):
+    def __init__(self, layer_type: ModelLayer | ResultLayer):
         self.layer_type = layer_type
 
     def style_layer(self, layer: QgsVectorLayer):

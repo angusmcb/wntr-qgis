@@ -13,7 +13,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.network_parts import ModelLayer, ResultLayer
+from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import WqProjectSetting, WqProjectSettings
 from wntrqgis.layer_styles import WqLayerStyles
 

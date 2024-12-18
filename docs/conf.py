@@ -6,8 +6,11 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
+import sys
+
 project = "Water Network Tools for Resiliance - QGIS Integration"
-copyright = "2024, Angus McBride"
+project_copyright = "2024, Angus McBride"
 author = "Angus McBride"
 release = "0.1.0"
 
@@ -20,6 +23,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "enum_tools.autoenum",
+    "sphinx_autodoc_typehints",
 ]
 
 templates_path = ["_templates"]
@@ -90,11 +94,8 @@ numfig = True
 numfig_format = {"figure": "Figure %s", "table": "Table %s", "code-block": "Listing %s"}
 
 
-import os
-import sys
-
 sys.path.insert(0, os.path.abspath(".."))
 
 autodoc_type_aliases = {"Iterable": "Iterable", "ArrayLike": "ArrayLike"}
-add_module_names = False
+# add_module_names = False
 autodoc_member_order = "bysource"

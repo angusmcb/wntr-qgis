@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
 )
 
-from wntrqgis.network_parts import FieldGroup, ModelLayer
+from wntrqgis.elements import FieldGroup, ModelLayer
 from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 

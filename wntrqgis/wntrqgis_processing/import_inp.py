@@ -25,7 +25,7 @@ from qgis.core import (
     QgsProcessingParameterFile,
 )
 
-from wntrqgis.network_parts import (
+from wntrqgis.elements import (
     FieldGroup,
     FlowUnit,
     HeadlossFormula,
@@ -107,7 +107,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         import wntr
 
-        from wntrqgis.wntr_interface import NetworkFromWntr, UnitConversion
+        from wntrqgis.interface import Writer
 
         self._update_progress(ProgStatus.LOADING_INP_FILE)
 
@@ -134,8 +134,6 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         wq_headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
 
-        unit_conversion = UnitConversion(wq_flow_unit, wq_headloss_formula)
-
         project_settings = WqProjectSettings(context.project())
         project_settings.set(WqProjectSetting.FLOW_UNITS, wq_flow_unit)
         project_settings.set(WqProjectSetting.HEADLOSS_FORMULA, wq_headloss_formula)
@@ -143,7 +141,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
-        network_model = NetworkFromWntr(wn, unit_conversion)
+        network_model = Writer(wn, units=wq_flow_unit.name)  # TODO: FlowUnits should be string that doesn't need 'name'
 
         # this is just to give a little user output
         extra_analysis_type_names = [
@@ -159,11 +157,11 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         outputs: dict[str, str] = {}
 
         for layer in ModelLayer:
-            fields = layer.qgs_fields(network_model.field_groups)
+            fields = network_model.get_qgsfields(layer)
             (sink, outputs[layer]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
-            network_model.write_to_sink(layer, fields, sink)
+            network_model.write(layer, sink)
 
         self._update_progress(ProgStatus.FINISHED_PROCESSING)
 

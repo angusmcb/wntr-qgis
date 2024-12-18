@@ -16,7 +16,6 @@ import time
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
-    QgsFields,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingException,
@@ -31,10 +30,9 @@ from qgis.core import (
     QgsProject,
 )
 
-from wntrqgis.network_parts import (
+from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
-    ModelField,
     ModelLayer,
     ResultLayer,
 )
@@ -143,16 +141,16 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         # only import wntr-using modules once we are sure wntr is installed.
         import wntr
 
-        from wntrqgis.wntr_interface import (
+        from wntrqgis.interface import (
             NetworkModelError,
-            NetworkToWntr,
             SimulationResults,
-            UnitConversion,
+            _UnitConversion,
+            check_network,
+            read,
         )
 
         self._update_progress(ProgStatus.PREPARING_MODEL)
 
-        # create logger
         logger = logging.getLogger("wntr")
         wntr_logger_handler = LoggingHandler(feedback, logging.INFO, "%(levelname)s - %(message)s")
         logger.addHandler(wntr_logger_handler)
@@ -178,11 +176,14 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
-        unit_conversion = UnitConversion(wq_flow_unit, headloss_formula)
+        unit_conversion = _UnitConversion(wq_flow_unit, headloss_formula)
 
-        network_model = NetworkToWntr(unit_conversion, context.transformContext(), context.ellipsoid())
+        # network_model = _Reader(unit_conversion, project=context.project())
+        crs = sources[ModelLayer.JUNCTIONS].sourceCrs()
         try:
-            wn = network_model.to_wntr(sources, wn)
+            # network_model.add_features_to_network_model(sources, wn)
+            read(sources, wn, context.project(), crs=crs, units=wq_flow_unit.name)
+            check_network(wn)
         except NetworkModelError as e:
             raise QgsProcessingException(self.tr("Error preparing model - " + str(e))) from None
 
@@ -201,31 +202,24 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
         sim = wntr.sim.EpanetSimulator(wn)
         try:
-            sim_results = sim.run_sim(file_prefix=tempfolder)  # by default, this runs EPANET 2.2.0
+            sim_results = sim.run_sim(file_prefix=tempfolder)
         except wntr.epanet.exceptions.EpanetException as e:
             raise QgsProcessingException("Epanet error: " + str(e)) from None
 
         self._update_progress(ProgStatus.CREATING_OUTPUTS)
 
-        # PROCESS SIMULATION RESULTS
-        wq_results = SimulationResults(sim_results, unit_conversion)
+        wq_results = SimulationResults(wn, sim_results, unit_conversion)
 
         for lyr in ResultLayer:
-            fields = QgsFields()
-            fields.append(ModelField.NAME.qgs_field)
-            for f in lyr.wq_fields:
-                fields.append(f.qgs_field)
-
             (sink, outputs[lyr]) = self.parameterAsSink(
                 parameters,
                 lyr.value,
                 context,
-                fields,
+                wq_results.get_qgsfields(lyr),
                 lyr.qgs_wkb_type,
-                network_model.crs,
+                crs,
             )
-
-            wq_results.write_to_sink(sink, lyr.wq_fields, network_model.name_geometry_map(lyr.element_family))
+            wq_results.write(lyr, sink)
 
         logger.removeHandler(wntr_logger_handler)
         self._update_progress(ProgStatus.FINISHED_PROCESSING)

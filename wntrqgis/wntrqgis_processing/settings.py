@@ -23,7 +23,7 @@ from qgis.core import (
     QgsProject,
 )
 
-from wntrqgis.network_parts import (
+from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
     ModelLayer,

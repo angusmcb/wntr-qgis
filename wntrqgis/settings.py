@@ -5,7 +5,7 @@ from typing import Any
 
 from qgis.core import QgsExpressionContextUtils, QgsProject
 
-from wntrqgis.network_parts import FlowUnit, HeadlossFormula
+from wntrqgis.elements import FlowUnit, HeadlossFormula
 
 
 class WqProjectSetting(str, Enum):

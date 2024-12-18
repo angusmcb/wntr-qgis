@@ -1,5 +1,5 @@
 """
-Classes for converting to and from WNTR models and results, and QGIS layers.
+This module contains the interfaces for for converting between WNTR and QGIS, both model layers and simulation results.
 """
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ import ast
 import math
 import warnings
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
@@ -17,22 +17,23 @@ from qgis.core import (
     NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
-    QgsCoordinateTransformContext,
     QgsDistanceArea,
     QgsFeature,
+    QgsFeatureRequest,
     QgsFeatureSink,
     QgsFeatureSource,
     QgsFields,
     QgsGeometry,
     QgsPoint,
     QgsPointXY,
+    QgsProject,
     QgsSpatialIndex,
     QgsUnitTypes,
+    QgsVectorLayer,  # noqa F401
 )
 from wntr.epanet.util import HydParam, QualParam
 
-from wntrqgis.network_parts import (
+from wntrqgis.elements import (
     ElementFamily,
     FieldGroup,
     FlowUnit,
@@ -41,8 +42,6 @@ from wntrqgis.network_parts import (
     ModelLayer,
     ResultField,
     ResultLayer,
-    _AbstractField,
-    _AbstractLayer,
 )
 
 if TYPE_CHECKING:
@@ -55,7 +54,7 @@ QGIS_DISTANCE_UNIT_METERS = (
 )
 
 
-class UnitConversion:
+class _UnitConversion:
     """Manages conversion to and from SI units
 
     Args:
@@ -71,7 +70,12 @@ class UnitConversion:
 
         self._darcy_weisbach = headloss_formula is HeadlossFormula.DARCY_WEISBACH
 
-    def to_si(self, value: float | ArrayLike | dict, field: _AbstractField, layer: _AbstractLayer | None = None):
+    def to_si(
+        self,
+        value: float | ArrayLike | dict,
+        field: ModelField | ResultField,
+        layer: ModelLayer | ResultLayer | None = None,
+    ):
         if field.python_type not in [int, float] or field.python_type is bool:
             return value
         try:
@@ -82,7 +86,12 @@ class UnitConversion:
             self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
         )
 
-    def from_si(self, value: float | ArrayLike | dict, field: _AbstractField, layer: _AbstractLayer | None = None):
+    def from_si(
+        self,
+        value: float | ArrayLike | dict,
+        field: ModelField | ResultField,
+        layer: ModelLayer | ResultLayer | None = None,
+    ):
         if field.python_type not in [int, float] or field.python_type is bool:
             return value
         try:
@@ -95,7 +104,7 @@ class UnitConversion:
         )
 
     def _get_wntr_conversion_param(
-        self, field: _AbstractField, layer: _AbstractLayer | None = None
+        self, field: ModelField | ResultField, layer: ModelLayer | ResultLayer | None = None
     ) -> QualParam | HydParam:
         # match field:
         if field is ModelField.ELEVATION:
@@ -141,16 +150,20 @@ class UnitConversion:
         msg = f"no param found for {field}"
         raise ValueError(msg)
 
-    def curve_points_to_si(self, points: list[tuple[float, float]], curve_type: _CurveType):
+    def curve_points_to_si(
+        self, points: list[tuple[float, float]], curve_type: _CurveType
+    ) -> list[tuple[float, float]]:
         return self._convert_curve_points(points, curve_type, wntr.epanet.util.to_si)
 
-    def curve_points_from_si(self, points: list[tuple[float, float]], curve_type: _CurveType):
+    def curve_points_from_si(
+        self, points: list[tuple[float, float]], curve_type: _CurveType
+    ) -> list[tuple[float, float]]:
         return self._convert_curve_points(points, curve_type, wntr.epanet.util.from_si)
 
-    def _convert_curve_points(self, points, curve_type: _CurveType, conversion_function):
+    def _convert_curve_points(self, points, curve_type: _CurveType, conversion_function) -> list[tuple[float, float]]:
         flow_units = self._flow_units
-        converted_points = []
-        # match curve_type:
+        converted_points: list[tuple[float, float]] = []
+
         if curve_type is _CurveType.VOLUME:
             for point in points:
                 x = conversion_function(flow_units, point[0], HydParam.Length)
@@ -179,60 +192,66 @@ class UnitConversion:
             #     converted_points.append((x, y))
         return converted_points
 
-    # def converter_from_si(self, field, layer=None):
-    #     try:
-    #         conversion_param = self._get_wntr_conversion_param(field, layer)
-    #     except ValueError:
-    #         return lambda v: v
-    #     return partial(
-    #         wntr.epanet.util.from_si,
-    #         self._flow_units,
-    #         param=conversion_param,
-    #         darcy_weisbach=self._darcy_weisbach,
-    #     )
 
-    # def whole_df_from_si(self, df: pd.DataFrame, field: WqField, layer: WqLayer | None = None):
-    #     try:
-    #         conversion_param = self._get_wntr_conversion_param(field, layer)
-    #     except ValueError:
-    #         return df
-    #     return wntr.epanet.util.from_si(
-    #         self._flow_units,
-    #         df,
-    #         param=conversion_param,
-    #         darcy_weisbach=self._darcy_weisbach,
-    #     )
-
-    # def convert_dfs_from_si(self, dfs: dict[WqLayer, pd.DataFrame]):
-    #     for layer, df in dfs.items():
-    #         for fieldname, series in df.items():
-    #             try:
-    #                 conversion_param = self._get_wntr_conversion_param(WqModelField[str(fieldname).upper()], layer)
-    #             except KeyError:
-    #                 continue
-    #             except ValueError:
-    #                 continue
-    #             convertor = partial(
-    #                 wntr.epanet.util.from_si,
-    #                 self._flow_units,
-    #                 param=conversion_param,
-    #                 darcy_weisbach=self._darcy_weisbach,
-    #             )
-    #             df[fieldname] = series.apply(convertor)  # , by_row=False)
+# def write(
+#     wn: wntr.network.WaterNetworkModel,
+#     results: wntr.sim.SimulationResults | None = None,
+#     crs: QgsCoordinateReferenceSystem | None = None,
+#     units: str | None = None,
+#     layers: str | None = None,
+#     fields: list | None = None,
+#     filename: str | None = None,
+# ) -> dict[str, QgsVectorLayer] | None:
+#     """Write from WNTR network model to QGIS Layers"""
+#     return None
 
 
-class NetworkFromWntr:
-    """Converts from a WNTR network, adding to qgis feature sinks
+class Writer:
+    """Writes a WNTR water network model, and optionally simulation results, to QGIS layers / feature sinks.
 
     Args:
-        wn: The WNTR water network model that we will import from
-        unit_conversion: The unit set to convert to
+        wn: The WNTR water network model that we will write from
+        results: The simulation results. Default is that there are no simulation results.
+        units: The units that it should be written in values include 'LPS','GPM'.
+            Default is to use the units within the WaterNetworkModel options
     """
 
-    def __init__(self, wn: wntr.network.model.WaterNetworkModel, unit_conversion: UnitConversion):
+    def __init__(
+        self,
+        wn: wntr.network.WaterNetworkModel,
+        results: wntr.sim.SimulationResults | None = None,  # noqa ARG002
+        units: str | None = None,
+    ) -> None:
+        flow_units = (
+            wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
+        )
+        unit_conversion = _UnitConversion(flow_units, HeadlossFormula(wn.options.hydraulic.headloss))
+
         self._dfs = self._create_gis(wn)
-        self._get_pattern_from_wn(self._dfs, wn, unit_conversion)
-        self._convert_dfs_from_si(unit_conversion)
+        self._process_dfs(self._dfs, wn, unit_conversion)
+
+        self._geometries = self._get_geometries(wn)
+
+        field_group = self.field_groups
+        self.fields = [str(field.value) for field in ModelField if field.field_group & field_group]
+
+    def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
+        """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
+
+        This function loads the geometries from a WaterNetworkModel"""
+        geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
+
+        for name, node in wn.nodes():
+            geometries[ElementFamily.NODE][name] = QgsGeometry(QgsPoint(*node.coordinates))
+
+        for name, link in wn.links():
+            point_list = []
+            point_list.append(QgsPoint(*link.start_node.coordinates))
+            point_list.extend(QgsPoint(*vertex) for vertex in link.vertices)
+            point_list.append(QgsPoint(*link.end_node.coordinates))
+            geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
+
+        return geometries
 
     @property
     def field_groups(self) -> FieldGroup:
@@ -248,15 +267,60 @@ class NetworkFromWntr:
                     continue
         return analysis_types
 
-    def write_to_sink(self, model_layer: ModelLayer, fields: QgsFields, sink: QgsFeatureSink):
+    def _get_fields(self, layer: ModelLayer) -> list[ModelField]:
+        layer_fields = layer.wq_fields()
+
+        return [ModelField(field) for field in self.fields if ModelField(field) in layer_fields]
+
+    def get_qgsfields(self, layer: ModelLayer) -> QgsFields:
+        """Get the set of QgsFields that will be written by 'write'.
+
+        This set of fields will need to be used when creating any sink/layer
+        which will be written to by write_to_sink
+
+        Args:
+            layer: 'JUNCTIONS','PIPES','LINKS' etc.
+        """
+
+        return QgsFields([field.qgs_field for field in self._get_fields(layer)])
+
+    def new_write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
         """Write a fields from a layer to a Qgis feature sink
 
         Args:
-            model_layer: which layer should be written to the sink
-            fields: set of fields the sink uses
-            sink: the sink itself to write to
+            layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
+            sink: the sink to write to
         """
-        df = self._dfs[model_layer]
+        fields = self._get_fields(layer)
+        df = self._dfs[layer]
+        df = df.rename(columns={field.value: field for field in fields})
+        df[ModelField.NAME] = df.index
+
+        existingcols: list[ModelField] = cast(list, df.columns)
+        cols = list(set(fields) - set(existingcols))
+
+        if len(cols) > 0:
+            df[cols] = None
+
+        attributes_df = df[fields]
+
+        attribute_series = pd.Series(attributes_df.to_numpy().tolist(), index=attributes_df.index)
+
+        for name, attributes in attribute_series.items():
+            f = QgsFeature()
+            f.setGeometry(self._geometries[layer.element_family][name])
+            f.setAttributes(attributes)
+            sink.addFeature(f, QgsFeatureSink.FastInsert)
+
+    def write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
+        """Write a fields from a layer to a Qgis feature sink
+
+        Args:
+            layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
+            sink: the sink to write to
+        """
+        fields = self.get_qgsfields(layer)
+        df = self._dfs[layer]
         df.reset_index(inplace=True)  # , names="name")
         df.rename(columns={"index": "name"}, inplace=True)
         for row in df.itertuples():
@@ -267,55 +331,47 @@ class NetworkFromWntr:
                 f[fieldname] = getattr(row, fieldname, None)
             sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-    def _convert_dfs_from_si(self, unit_conversion):
-        for layer, df in self._dfs.items():
+    def _process_dfs(
+        self, dfs: dict[ModelLayer, pd.DataFrame], wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion
+    ) -> None:
+        patterns = _Patterns(wn)
+        curves = _Curves(wn, unit_conversion)
+
+        for lyr, df in dfs.items():
+            if lyr is ModelLayer.JUNCTIONS:
+                # Secial case for demands
+                df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
+
+                # 'demand_pattern' didn't exist on node prior to wntr 1.3.0 so we have to go searching:
+                df["demand_pattern"] = wn.query_node_attribute(
+                    "demand_timeseries_list", node_type=wntr.network.model.Junction
+                ).apply(lambda dtl: patterns.get_pattern_string(dtl.pattern_list()[0]))
+
+            elif lyr is ModelLayer.RESERVOIRS:
+                if "head_pattern_name" in df:
+                    df["head_pattern"] = df["head_pattern_name"].apply(patterns.get_pattern_string_from_name)
+
+            elif lyr is ModelLayer.TANKS:
+                if "vol_curve_name" in df:
+                    df["vol_curve"] = df["vol_curve_name"].apply(curves.get_curve_string_from_name)
+
+            elif lyr is ModelLayer.PUMPS:
+                # not all pumps will have a pump curve (power pumps)!
+                if "pump_curve_name" in df:
+                    df["pump_curve"] = df["pump_curve_name"].apply(curves.get_curve_string_from_name)
+
+                if "speed_pattern_name" in df:
+                    df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get_pattern_string_from_name)
+                # 'energy pattern' is not called energy pattern name!
+                if "energy_pattern" in df:
+                    df["energy_pattern"] = df["energy_pattern"].apply(patterns.get_pattern_string_from_name)
+
             for fieldname, series in df.items():
                 try:
                     field = ModelField[str(fieldname).upper()]
                 except KeyError:
                     continue
-
-                df[fieldname] = unit_conversion.from_si(series, field, layer)
-
-    def _get_pattern_from_wn(self, dfs, wn, unit_conversion):
-        curves = {}
-        for curve_name in list(wn.curve_name_list):
-            curve = wn.get_curve(curve_name)
-            curves[curve_name] = unit_conversion.curve_points_from_si(curve.points, _CurveType(curve.curve_type))
-
-        def _pattern_string(pn):
-            return " ".join(map(str, wn.get_pattern(pn).multipliers)) if wn.get_pattern(pn) else None
-
-        for lyr, df in dfs.items():
-            # match lyr:
-            if lyr is ModelLayer.JUNCTIONS:
-                # Secial case for demands
-                df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
-
-                df["demand_pattern"] = wn.query_node_attribute(
-                    "demand_timeseries_list", node_type=wntr.network.model.Junction
-                ).apply(
-                    lambda dtl: (" ".join(map(str, dtl.pattern_list()[0].multipliers)))
-                    if dtl.pattern_list() and dtl.pattern_list()[0]
-                    else None
-                )
-            elif lyr is ModelLayer.RESERVOIRS:
-                if "head_pattern_name" in df:
-                    df["head_pattern"] = df["head_pattern_name"].apply(_pattern_string)
-            elif lyr is ModelLayer.TANKS:
-                if "vol_curve_name" in df:
-                    df["vol_curve"] = df["vol_curve_name"].apply(lambda cn: repr(curves[cn]) if curves[cn] else None)
-            elif lyr is ModelLayer.PUMPS:
-                # not all pumps will have a pump curve (power pumps)!
-                if "pump_curve_name" in df:
-                    df["pump_curve"] = df["pump_curve_name"].apply(
-                        lambda cn: repr(curves[cn]) if isinstance(cn, str) and curves[cn] else None
-                    )
-                if "speed_pattern_name" in df:
-                    df["speed_pattern"] = df["speed_pattern_name"].apply(_pattern_string)
-                # 'energy pattern' is not called energy pattern name!
-                if "energy_pattern" in df:
-                    df["energy_pattern"] = df["energy_pattern"].apply(_pattern_string)
+                df[fieldname] = unit_conversion.from_si(series, field, lyr)
 
     def _create_gis(self, wn) -> dict[ModelLayer, pd.DataFrame]:
         def _extract_dataframe(df, valid_base_names=None) -> pd.DataFrame:
@@ -409,7 +465,7 @@ class NetworkFromWntr:
 
 
 class _SpatialIndex:
-    def __init__(self):
+    def __init__(self) -> None:
         self._node_spatial_index = QgsSpatialIndex()
         self._nodelist: list[tuple[QgsPointXY, str]] = []
 
@@ -459,7 +515,7 @@ class _Patterns:
         self._existing_patterns: dict[tuple, str] = {}
         self._wn = wn
 
-    def add_pattern_to_wn(self, pattern):
+    def add_pattern_to_wn(self, pattern: str | list | None):
         if not pattern:
             return None
         if isinstance(pattern, str) and pattern != "":
@@ -478,6 +534,17 @@ class _Patterns:
         self._next_pattern_name += 1
         return name
 
+    def get_pattern_string_from_name(self, pattern_name: str | None) -> str | None:
+        if not pattern_name:
+            return None
+        # Do we need ever try to get non existant patterns? For now that will error
+        return self.get_pattern_string(self._wn.get_pattern(pattern_name))
+
+    def get_pattern_string(self, pattern: wntr.network.elements.Pattern | None) -> str | None:
+        if not pattern:
+            return None
+        return " ".join(map(str, pattern.multipliers))
+
 
 class _CurveType(Enum):
     HEAD = "HEAD"
@@ -487,10 +554,12 @@ class _CurveType(Enum):
 
 
 class _Curves:
-    def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: UnitConversion) -> None:
+    def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion) -> None:
         self._wn = wn
         self._next_curve_name = 1
         self._unit_conversion = unit_conversion
+
+        self._converted_curves = self._read_existing_curves()  # curve 'cache'
 
     def add_curve_to_wn(self, curve_string, curve_type: _CurveType):
         if not curve_string:
@@ -503,30 +572,71 @@ class _Curves:
         self._next_curve_name += 1
         return name
 
+    def _read_existing_curves(self) -> dict[str, list[tuple[float, float]]]:
+        """Sets up a sort of 'cache' of converted curves so we don't have to repeat over and over"""
+        curves = {}
 
-class NetworkToWntr:
-    """Convert from QGIS feature sources / layers to a WNTR model"""
+        for name, curve in self._wn.curves():
+            curves[name] = self._unit_conversion.curve_points_from_si(curve.points, _CurveType(curve.curve_type))
+        return curves
+
+    def get_curve_string_from_name(self, curve_name: str) -> str:
+        return repr(self._converted_curves[curve_name])
+
+
+def read(
+    layers: dict[ModelLayer, QgsFeatureSource],
+    wn: wntr.network.WaterNetworkModel,
+    project: QgsProject | None = None,
+    crs: QgsCoordinateReferenceSystem | None = None,
+    units: str | None = None,
+    # headloss_formula: str | None = None,
+) -> None:
+    """Read from layers to a water network model
+
+    Args:
+        layers: layers to read
+        wn: the model that the layers will be read into
+        project: QgsProject instance, if none will use the current QgsProject.instance()
+        crs: all geometry will be transformed into this crs for adding to the water network model
+        units: the flow units to use. If not set will defualt to units in the water network model.
+        headloss_formula: the headloss formula to use. If not set will defualt to option in the water network model."""
+    if not wn:
+        wn = wntr.network.WaterNetworkModel()
+    flow_units = (
+        wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
+    )
+    headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
+    unit_conversion = _UnitConversion(flow_units, headloss_formula_type)
+
+    reader = _Reader(unit_conversion, project)
+    reader.crs = crs
+    reader.add_features_to_network_model(layers, wn)
+
+    # return wn
+
+
+class _Reader:
+    """Read from QGIS feature sources / layers to a WNTR model"""
 
     def __init__(
         self,
-        unit_conversion: UnitConversion,
-        transform_context: QgsCoordinateTransformContext | None = None,
-        ellipsoid: str | None = "EPSG:7030",
+        unit_conversion: _UnitConversion,
+        project: QgsProject | None = None,
+        # transform_context: QgsCoordinateTransformContext | None = None,
+        # ellipsoid: str | None = "EPSG:7030",
     ):
-        self._transform_context = (
-            transform_context if transform_context is not None else QgsCoordinateTransformContext()
-        )
-        self._ellipsoid = ellipsoid
-        self._geom_dict: dict[ElementFamily, dict[str, QgsGeometry]] = {
-            ElementFamily.LINK: {},
-            ElementFamily.NODE: {},
-        }
+        if not project:
+            project = QgsProject.instance()
+
+        # self._transform_context = (
+        #     transform_context if transform_context is not None else QgsCoordinateTransformContext()
+        # )
+        # self._ellipsoid = ellipsoid
+        self._transform_context = project.transformContext()
+        self._ellipsoid = project.ellipsoid()
         self._unit_conversion = unit_conversion
         self.crs = None
-
-    def name_geometry_map(self, element_family: ElementFamily) -> dict[str, QgsGeometry]:
-        "Gets a mappping from element names to geometries"
-        return self._geom_dict[element_family]
 
     @property
     def crs(self) -> QgsCoordinateReferenceSystem | None:
@@ -541,24 +651,18 @@ class NetworkToWntr:
             self._measurer.setSourceCrs(crs, self._transform_context)
             self._measurer.setEllipsoid(self._ellipsoid)
 
-    def to_wntr(
-        self, feature_sources: dict[ModelLayer, QgsFeatureSource], wn: wntr.network.WaterNetworkModel | None = None
-    ) -> wntr.network.WaterNetworkModel:
+    def add_features_to_network_model(
+        self, feature_sources: dict[ModelLayer, QgsFeatureSource], wn: wntr.network.WaterNetworkModel
+    ) -> None:
         """Do the conversion to WNTR
 
         Args:
             feature_sources: dictionary of layers/feature sources from which to take features
-            wn: add the features to an existing model, if *None* then start a new model
+            wn: The model to which features should be added
 
         Raises:
             NetworkModelError: if the network cannot be created
-
-        Returns:
-            model with features added
         """
-
-        if not wn:
-            wn = wntr.network.WaterNetworkModel()
 
         self._pipe_length_warnings: list[str] = []
         self._used_names: dict[ElementFamily, set[str]] = {ElementFamily.NODE: set(), ElementFamily.LINK: set()}
@@ -579,17 +683,16 @@ class NetworkToWntr:
             if not self.crs:
                 self.crs = source.sourceCrs()
 
+            feature_request = QgsFeatureRequest()
             if source.sourceCrs() != self.crs:
-                coordinate_transform = QgsCoordinateTransform(source.sourceCrs(), self.crs, self._transform_context)
-            else:
-                coordinate_transform = None
+                feature_request = feature_request.setDestinationCrs(self.crs, self._transform_context)
 
             # df = self._source_to_df(source, map_of_columns_to_fields)
             # for column in df.select_dtypes(include=[np.number]):
             #     df[column] = self._unit_conversion.to_si(df[column], column, model_layer)
 
-            ft: QgsFeature
-            for ft in source.getFeatures():
+            for ft in source.getFeatures(feature_request):
+                ft = cast(QgsFeature, ft)
                 atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
 
                 for f, v in atts.items():
@@ -606,14 +709,11 @@ class NetworkToWntr:
                         )
                         raise NetworkModelError(msg)
 
-                geometry: QgsGeometry = ft.geometry()
+                geometry = ft.geometry()
 
                 if geometry.isNull():
                     msg = f"in {model_layer.friendly_name} the feature {element_name} has no geometry"
                     raise NetworkModelError(msg)
-
-                if coordinate_transform:
-                    geometry.transform(coordinate_transform)
 
                 if model_layer.element_family is ElementFamily.NODE:
                     spatial_index.add_node_to_spatial_index(geometry, element_name)
@@ -628,10 +728,7 @@ class NetworkToWntr:
                         msg = f"in {model_layer.friendly_name} the feature {element_name}: {e} "
                         raise NetworkModelError(e) from None
 
-                self._geom_dict[model_layer.element_family][element_name] = geometry
-
                 try:
-                    # match model_layer:
                     if model_layer is ModelLayer.JUNCTIONS:
                         self._add_junction(wn, element_name, geometry, atts)
                     elif model_layer is ModelLayer.TANKS:
@@ -649,8 +746,6 @@ class NetworkToWntr:
                     raise NetworkModelError(msg) from e
 
         self._output_pipe_length_warnings()
-        self._wntr_network_error_check(wn)
-        return wn
 
     def _source_to_df(self, source: QgsFeatureSource, map_of_columns_to_fields: list[ModelField | str | None]):
         map_of_columns_to_fields = list(map_of_columns_to_fields)
@@ -663,7 +758,9 @@ class NetworkToWntr:
             ftlist.append(attrs)
         return pd.DataFrame(ftlist, columns=map_of_columns_to_fields)
 
-    def _get_attributes_from_feature(self, map_of_columns_to_fields, feature):
+    def _get_attributes_from_feature(
+        self, map_of_columns_to_fields: list[ModelField | None], feature: QgsFeature
+    ) -> dict[ModelField, Any]:
         # slightly faster than zip
         atts = {}
         for i, field in enumerate(map_of_columns_to_fields):
@@ -673,7 +770,7 @@ class NetworkToWntr:
                     atts[field] = att
         return atts
 
-    def _get_element_name(self, name_from_source: str | None, layer: ModelLayer):
+    def _get_element_name(self, name_from_source: str | None, layer: ModelLayer) -> str:
         if name_from_source:
             if name_from_source in self._used_names[layer.element_family]:
                 msg = (
@@ -872,41 +969,90 @@ class NetworkToWntr:
         link = wn.get_link(name)
         link.vertices = self._get_vertex_list(geometry)
 
-    def _wntr_network_error_check(self, wn) -> None:
-        """Checks for errors in the network that will otherwise not get good error messages from wntr/epanet"""
-        if not wn.num_junctions:
-            msg = "At least one junction is necessary"
-            raise NetworkModelError(msg)
-        if not wn.num_tanks and not wn.num_reservoirs:
-            msg = "At least one tank or reservoir is required"
-            raise NetworkModelError(msg)
-        if not wn.num_links:
-            msg = "At least one link (pipe, pump or valve) is necessary"
-            raise NetworkModelError(msg)
-        orphan_nodes = wn.nodes.unused()
-        if len(orphan_nodes):
-            msg = "the following nodes are not connected to any links: " + ", ".join(orphan_nodes)
-            raise NetworkModelError(msg)
+
+def check_network(wn: wntr.network.WaterNetworkModel) -> None:
+    """Checks for simple errors in the network that will otherwise not get good error messages from wntr/epanet
+
+    This is a utility function. WNTR will already error on any of these problems, but the messages WNTR gives
+    are not always so clear.
+
+    Args:
+        wn: WaterNetworkModel to check
+
+    Raises:
+        NetworkModelError: if any checks fail
+    """
+
+    if not wn.num_junctions:
+        msg = "At least one junction is necessary"
+        raise NetworkModelError(msg)
+    if not wn.num_tanks and not wn.num_reservoirs:
+        msg = "At least one tank or reservoir is required"
+        raise NetworkModelError(msg)
+    if not wn.num_links:
+        msg = "At least one link (pipe, pump or valve) is necessary"
+        raise NetworkModelError(msg)
+    orphan_nodes = wn.nodes.unused()
+    if len(orphan_nodes):
+        msg = "the following nodes are not connected to any links: " + ", ".join(orphan_nodes)
+        raise NetworkModelError(msg)
 
 
 class SimulationResults:
     """Process WNTR Simulation Results, outputing to QGIS feature sinks
 
     Args:
-        wntr_simulation_results: simulation result's from wntr's simulation module
+        results: simulation result's from wntr's simulation module
         unit_conversion: set of units to convert to
     """
 
-    def __init__(self, wntr_simulation_results: wntr.sim.results.SimulationResults, unit_conversion: UnitConversion):
+    def __init__(
+        self,
+        wn: wntr.network.WaterNetworkModel,
+        results: wntr.sim.SimulationResults,
+        unit_conversion: _UnitConversion,
+    ) -> None:
         self._unit_conversion = unit_conversion
 
         self._result_dfs = {}
         for lyr in ResultLayer:
-            gdfs = getattr(wntr_simulation_results, lyr.wntr_attr)
+            gdfs = getattr(results, lyr.wntr_attr)
             for field in lyr.wq_fields:
                 self._result_dfs[field] = gdfs[field.value]
 
-    def write_to_sink(self, sink: QgsFeatureSink, fields: list[ModelField], name_geometry_map: dict[str, QgsGeometry]):
+        self._geometries = self._get_geometries(wn)
+
+    def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
+        """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
+
+        This function loads the geometries from a WaterNetworkModel"""
+        geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
+
+        for name, node in wn.nodes():
+            geometries[ElementFamily.NODE][name] = QgsGeometry(QgsPoint(*node.coordinates))
+
+        for name, link in wn.links():
+            point_list = []
+            point_list.append(QgsPoint(*link.start_node.coordinates))
+            point_list.extend(QgsPoint(*vertex) for vertex in link.vertices)
+            point_list.append(QgsPoint(*link.end_node.coordinates))
+            geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
+
+        return geometries
+
+    def get_qgsfields(self, layer: ResultLayer) -> QgsFields:
+        """Get the set of QgsFields that will be written by 'write_to_sink'.
+
+        This set of fields will need to be used when creating any sink/layer
+        which will be written to by write_to_sink
+        """
+        fields = QgsFields()
+        fields.append(ModelField.NAME.qgs_field)
+        for f in layer.wq_fields:
+            fields.append(f.qgs_field)
+        return fields
+
+    def write(self, layer: ResultLayer, sink: QgsFeatureSink) -> None:
         """Add results to a feature sink
 
         Args:
@@ -915,8 +1061,9 @@ class SimulationResults:
             name_geometry_map: dictionary mapping item names to geometries
         """
         output_attributes = {}
+
         # test = {}
-        for field in fields:
+        for field in layer.wq_fields:
             converted_df = self._unit_conversion.from_si(self._result_dfs[field], field)
 
             lists = converted_df.transpose().to_numpy().tolist()
@@ -931,7 +1078,7 @@ class SimulationResults:
         attribute_series = pd.Series(jointed_dataframe.to_numpy().tolist(), index=namesindex)
 
         attribute_and_geom = pd.DataFrame(
-            {"geometry": name_geometry_map, "attributes": attribute_series}, index=namesindex
+            {"geometry": self._geometries[layer.element_family], "attributes": attribute_series}, index=namesindex
         )
 
         for item in attribute_and_geom.itertuples(False):

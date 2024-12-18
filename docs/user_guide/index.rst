@@ -24,5 +24,5 @@ User Guide
     :caption: API
 
     api
-    wntr_interface
-    network_parts
+    interface
+    elements

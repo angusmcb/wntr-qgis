@@ -29,13 +29,13 @@ from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QWidget
 from qgis.utils import iface
 
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
-from wntrqgis.network_parts import (
+from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
     ModelLayer,
     ResultLayer,
 )
+from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
 from wntrqgis.resource_manager import WqExampleInp, WqIcon, join_pixmap
 from wntrqgis.settings import WqProjectSetting, WqProjectSettings
 from wntrqgis.wntrqgis_processing.provider import Provider
