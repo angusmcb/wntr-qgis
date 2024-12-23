@@ -36,4 +36,4 @@ jobs:
         run: pytest
       - name: Run Tests (Ubuntu)
         if: ${{ matrix.os =='ubuntu-latest' }}
-        run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest -v
+        run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' pytest -v
