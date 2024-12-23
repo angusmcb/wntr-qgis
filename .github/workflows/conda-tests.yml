@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   conda-tests:
-    name: '${{ matrix.python-version }} x ${{ matrix.os }} x WNTR ${{matrix.wntr-version}} x ${{matrix.qgis}}'
+    name: '${{ matrix.python-version }}, ${{ matrix.os }}, ${{matrix.wntr-version}}, ${{matrix.qgis}}'
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -30,7 +30,7 @@ jobs:
           auto-activate-base: false
       - name: Install packages
         run: |
-          conda install -y qgis pytest geopandas ${{ matrix.wntr-version}}
+          conda install -y pytest geopandas ${{ matrix.wntr-version}} ${{ matrix.qgis }}
           pip install pytest-qgis pytest-cov
       - name: Conda info
         run: |
