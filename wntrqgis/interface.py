@@ -13,8 +13,6 @@ import pathlib
 import warnings
 from typing import TYPE_CHECKING, Any, cast
 
-import numpy as np
-import pandas as pd
 from qgis.core import (
     NULL,
     Qgis,
@@ -49,6 +47,7 @@ from wntrqgis.elements import (
 
 if TYPE_CHECKING:
     import wntr  # noqa
+    import pandas as pd  # noqa
     from numpy.typing import ArrayLike
 
 QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
@@ -58,23 +57,26 @@ QGIS_DISTANCE_UNIT_METERS = (
 )
 
 
-def needs_wntr(func):
+def needs_wntr_pandas(func):
     @functools.wraps(func)
     def check_wntr(*args, **kwargs):
         try:
+            pd
             wntr  # noqa
         except NameError:
             importlib.invalidate_caches()
+            import pandas as pd
             import wntr
 
             globals()["wntr"] = wntr
+            globals()["pd"] = pd
 
         return func(*args, **kwargs)
 
     return check_wntr
 
 
-@needs_wntr
+@needs_wntr_pandas
 class _UnitConversion:
     """Manages conversion to and from SI units
 
@@ -217,7 +219,7 @@ class _UnitConversion:
         return converted_points
 
 
-@needs_wntr
+@needs_wntr_pandas
 def to_qgis(
     wn: wntr.network.WaterNetworkModel | pathlib.Path | str,
     results: wntr.sim.SimulationResults | None = None,
@@ -263,7 +265,7 @@ def to_qgis(
     return map_layers
 
 
-@needs_wntr
+@needs_wntr_pandas
 class Writer:
     """Writes to QGIS layers (feature sinks) from a WNTR water network model, and optionally WNTR simulation results.
 
@@ -487,7 +489,9 @@ class Writer:
             #         drop_cols.append(col)
 
             drop_cols = [
-                col for col in df.columns if not isinstance(df.iloc[0][col], (str, float, int, bool, np.bool_))
+                col
+                for col in df.columns
+                if not isinstance(df.iloc[0][col], (str, float, int, bool))  # np.bool_))
             ]
             df = df.drop(columns=drop_cols)
 
@@ -581,7 +585,7 @@ class _SpatialIndex:
         return snapped_geometry, start_node_name, end_node_name
 
 
-@needs_wntr
+@needs_wntr_pandas
 class _Patterns:
     def __init__(self, wn: wntr.network.model.WaterNetworkModel) -> None:
         self._next_pattern_name = 2
@@ -626,7 +630,7 @@ class _CurveType(enum.Enum):
     HEADLOSS = "HEADLOSS"
 
 
-@needs_wntr
+@needs_wntr_pandas
 class _Curves:
     def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion) -> None:
         self._wn = wn
@@ -658,7 +662,7 @@ class _Curves:
         return repr(self._converted_curves[curve_name])
 
 
-@needs_wntr
+@needs_wntr_pandas
 def from_qgis(
     layers: dict[ModelLayer, QgsFeatureSource],
     wn: wntr.network.WaterNetworkModel | None = None,
@@ -694,7 +698,7 @@ def from_qgis(
     return wn
 
 
-@needs_wntr
+@needs_wntr_pandas
 class _FromGis:
     """Read from QGIS feature sources / layers to a WNTR model"""
 
@@ -1047,7 +1051,7 @@ class _FromGis:
         link.vertices = self._get_vertex_list(geometry)
 
 
-@needs_wntr
+@needs_wntr_pandas
 def check_network(wn: wntr.network.WaterNetworkModel) -> None:
     """Checks for simple errors in the network that will otherwise not get good error messages from wntr/epanet
 
@@ -1075,7 +1079,7 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
         raise NetworkModelError(msg)
 
 
-@needs_wntr
+@needs_wntr_pandas
 def _get_field_groups(wn: wntr.network.WaterNetworkModel):
     field_groups = FieldGroup(0)
     if wn.options.quality.parameter.upper() != "NONE":  # intentional string 'none'
@@ -1088,7 +1092,7 @@ def _get_field_groups(wn: wntr.network.WaterNetworkModel):
     return field_groups
 
 
-@needs_wntr
+@needs_wntr_pandas
 class SimulationResults:
     """Process WNTR Simulation Results, outputing to QGIS feature sinks
 
