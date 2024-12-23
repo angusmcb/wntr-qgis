@@ -15,7 +15,7 @@ jobs:
         os: ["ubuntu-latest", "macos-13"]
         python-version: ["3.9", "3.10","3.11", "3.12"]
         wntr-version: ["","wntr=v1.2.0"] # no wntr, then versions
-        qgis: ["qgis","qgis=3.34.0"]
+        qgis: ["qgis","conda-forge/label/qgis_ltr::qgis"]
         exclude:
           - os: "ubuntu-latest"
             wntr-version: ""
@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           miniconda-version: 'latest'
-          channels: conda-forge
+          channels: conda-forge, default
           channel-priority: true
           auto-activate-base: false
       - name: Install packages
