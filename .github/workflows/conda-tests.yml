@@ -25,7 +25,7 @@ jobs:
           auto-activate-base: false
       - name: Install packages
         run: |
-          conda install -y qgis wntr=1.2.0 pytest geopandas
+          conda install -y qgis wntr=v1.2.0 pytest geopandas
           pip install pytest-qgis pytest-cov
       - name: Conda info
         run: |
