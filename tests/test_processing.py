@@ -5,13 +5,11 @@ import numpy as np
 import pytest
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
-from wntrqgis.plugin import Plugin
 
-# WqDependencyManagemet.install_wntr()
+def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):
+    import wntrqgis.plugin
 
-
-def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):  # noqa ARG001
-    wntrplugin = Plugin()
+    wntrplugin = wntrqgis.plugin.Plugin()
     assert wntrplugin
 
 
@@ -40,12 +38,12 @@ def output_params(params, tmp_path, filetype="TEMPORARY_OUTPUT"):
     return outputfilesets[filetype]
 
 
-def test_processing_providers(qgis_app, qgis_processing):  # noqa ARG001
+def test_processing_providers(qgis_app, qgis_processing):
     assert "wntr" in [provider.id() for provider in qgis_app.processingRegistry().providers()]
 
 
 @pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson"])
-def test_alg_template_layers(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):  # noqa ARG001
+def test_alg_template_layers(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):
     from qgis import processing
 
     fileset = output_params(expected_model_layers, tmp_path, filetype)
@@ -60,7 +58,7 @@ def test_alg_template_layers(qgis_processing, qgis_iface, qgis_new_project, exam
 
 
 @pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
-def test_alg_import_inp_show_map(qgis_processing, qgis_iface, qgis_new_project, example_dir):  # noqa ARG001
+def test_alg_import_inp_show_map(qgis_processing, qgis_iface, qgis_new_project, example_dir):
     from qgis import processing
 
     result = processing.run(
@@ -84,9 +82,9 @@ def test_alg_import_inp_show_map(qgis_processing, qgis_iface, qgis_new_project, 
 
 @pytest.mark.parametrize("example_name", examples_list())
 def test_alg_import_inp_all_examples(
-    qgis_processing,  # noqa: ARG001
-    qgis_iface,  # noqa: ARG001
-    qgis_new_project,  # noqa: ARG001
+    qgis_processing,
+    qgis_iface,
+    qgis_new_project,
     example_dir,
     example_name,
 ):
@@ -97,7 +95,7 @@ def test_alg_import_inp_all_examples(
     result = processing.run(
         "wntr:importinp",
         {
-            "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
+            "CRS": "EPSG:32629",
             "INPUT": str(example_dir / example_name),
             "JUNCTIONS": "TEMPORARY_OUTPUT",
             "PIPES": "TEMPORARY_OUTPUT",
@@ -110,7 +108,7 @@ def test_alg_import_inp_all_examples(
     assert all(outkey in expectedoutputs for outkey in result)
 
 
-def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_project):  # noqa ARG001
+def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_project):
     from qgis import processing
 
     # note this doesn't really work to actually load results, but should test style loader doesn't have errors
@@ -119,7 +117,7 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
         processing.runAndLoadResults(
             "wntr:importinp",
             {
-                "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
+                "CRS": "EPSG:32629",
                 "INPUT": str(
                     Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.simplified.inp"
                 ),
@@ -134,7 +132,7 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
 
 
 @pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
-def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):  # noqa ARG001
+def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):
     import wntr
     from qgis import processing
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from enum import Enum, auto
-from threading import Thread
-from typing import Any, Callable
+import enum
+import threading
+import typing
 
+import processing
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -28,6 +29,8 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QWidget
 from qgis.utils import iface
 
+import wntrqgis
+import wntrqgis.expressions
 from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.elements import (
     FlowUnit,
@@ -35,20 +38,18 @@ from wntrqgis.elements import (
     ModelLayer,
     ResultLayer,
 )
-from wntrqgis.expressions.wntr_result_at_current_time import wntr_result_at_current_time  # noqa F401
-from wntrqgis.resource_manager import WqExampleInp, WqIcon, join_pixmap
-from wntrqgis.settings import WqProjectSetting, WqProjectSettings
+from wntrqgis.resource_manager import WqIcon, join_pixmap
+from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.provider import Provider
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
-VERSION = "0.0.2"
 
 
-class _InstallStatus(Enum):
-    NO_CHANGE = auto()
-    FRESH_INSTALL = auto()
-    UPGRADE = auto()
+class _InstallStatus(enum.Enum):
+    NO_CHANGE = enum.auto()
+    FRESH_INSTALL = enum.auto()
+    UPGRADE = enum.auto()
 
 
 class Plugin:
@@ -65,24 +66,38 @@ class Plugin:
         # else:
         #     pass
 
-        self.actions: list[Any] = []
+        self.actions: list[typing.Any] = []
         self.menu = "Water Network Tools for Resilience"
 
         s = QgsSettings()
         oldversion = s.value(WNTR_SETTING_VERSION, None)
-        s.setValue(WNTR_SETTING_VERSION, VERSION)
+        s.setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
         if oldversion is None:
             self._install_status = _InstallStatus.FRESH_INSTALL
-        elif oldversion != VERSION:
+        elif oldversion != wntrqgis.__version__:
             self._install_status = _InstallStatus.UPGRADE
         else:
             self._install_status = _InstallStatus.NO_CHANGE
+
+        import console
+
+        console.console_sci._init_statements.extend(  # noqa SLF001
+            [
+                "import wntrqgis as wq",
+                """
+try:
+    import wntr
+except ModuleNotFoundError:
+    pass
+""",
+            ]
+        )
 
     def add_action(
         self,
         icon_path: str,
         text: str,
-        callback: Callable,
+        callback: typing.Callable,
         *,
         enabled_flag: bool = True,
         add_to_menu: bool = True,
@@ -213,7 +228,7 @@ class Plugin:
             iface.messageBar().pushWidget(self.widget, Qgis.Success)
 
         # wntr is slow to load so start warming it up now !
-        Thread(target=WqDependencyManagement.import_wntr).start()
+        threading.Thread(target=WqDependencyManagement.import_wntr).start()
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
@@ -250,10 +265,7 @@ class Plugin:
                 iface.statusBarIface().clearMessage()
                 return
 
-            # this import is here to not break pytest
-            from processing.gui.Postprocessing import handleAlgorithmResults
-
-            handleAlgorithmResults(algorithm, context, feedback, results)
+            processing.gui.Postprocessing.handleAlgorithmResults(algorithm, context, feedback, results)
             iface.statusBarIface().clearMessage()
             if on_finish:
                 on_finish()
@@ -309,8 +321,7 @@ class Plugin:
         )
         QgsProject.instance().setTransformContext(transform_context)
 
-        inp_file = str(WqExampleInp.KY10.path)
-        parameters = {"INPUT": inp_file, "CRS": network_crs, **self._empty_model_layer_dict()}
+        parameters = {"INPUT": wntrqgis.Example.KY10, "CRS": network_crs, **self._empty_model_layer_dict()}
         self.run_alg_async(
             "wntr:importinp",
             parameters,
@@ -319,20 +330,18 @@ class Plugin:
         )
 
     def open_settings(self) -> None:
-        from processing import execAlgorithmDialog
-
-        execAlgorithmDialog("wntr:settings")
+        processing.execAlgorithmDialog("wntr:settings")
 
     def run_simulation(self) -> None:
-        project_settings = WqProjectSettings(QgsProject.instance())
-        saved_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
+        project_settings = ProjectSettings(QgsProject.instance())
+        saved_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
         input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in ModelLayer}
         result_layers = {layer.value: self._temporary_processing_output() for layer in ResultLayer}
-        flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS, FlowUnit.LPS)
+        flow_units = project_settings.get(SettingKey.FLOW_UNITS, FlowUnit.LPS)
         flow_unit_id = list(FlowUnit).index(flow_units)
-        headloss_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
+        headloss_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
         headloss_formula_id = list(HeadlossFormula).index(headloss_formula)
-        duration = project_settings.get(WqProjectSetting.SIMULATION_DURATION, 0)
+        duration = project_settings.get(SettingKey.SIMULATION_DURATION, 0)
         parameters = {
             "UNITS": flow_unit_id,
             "HEADLOSS_FORMULA": headloss_formula_id,

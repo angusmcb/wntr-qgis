@@ -14,8 +14,8 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication
 from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.elements import ModelLayer, ResultLayer
-from wntrqgis.settings import WqProjectSetting, WqProjectSettings
-from wntrqgis.layer_styles import WqLayerStyles
+from wntrqgis.settings import SettingKey, ProjectSettings
+from wntrqgis.style import style
 
 if TYPE_CHECKING:
     import wntr
@@ -31,13 +31,12 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         if not isinstance(layer, QgsVectorLayer):
             return
 
-        styler = WqLayerStyles(self.layertype)
-        styler.style_layer(layer)
+        style(layer, self.layertype)
 
-        project_settings = WqProjectSettings(context.project())
-        wntr_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
+        project_settings = ProjectSettings(context.project())
+        wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
         wntr_layers[self.layertype] = layer.id()
-        project_settings.set(WqProjectSetting.MODEL_LAYERS, wntr_layers)
+        project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)
 
         if self.make_editable:
             layer.startEditing()
@@ -50,7 +49,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         return LayerPostProcessor.instance
 
 
-class ProgStatus(IntEnum):
+class Progression(IntEnum):
     CHECKING_DEPENDENCIES = 5
     INSTALLING_WNTR = 15
     PREPARING_MODEL = 25
@@ -80,12 +79,12 @@ class WntrQgisProcessingBase:
 
         self.start_time = time.perf_counter()
         self.last_time = self.start_time
-        self.last_progress: ProgStatus | None = None
+        self.last_progress: Progression | None = None
 
     def tr(self, string: str) -> str:
         return QCoreApplication.translate("Processing", string)
 
-    def _update_progress(self, prog_status: ProgStatus) -> None:
+    def _update_progress(self, prog_status: Progression) -> None:
         if self.feedback.isCanceled():
             raise QgsProcessingException(self.tr("Execution of script cancelled by user"))
 
@@ -104,7 +103,7 @@ class WntrQgisProcessingBase:
         self.feedback.pushInfo(str(wn.describe(level=0)))
 
     def _ensure_wntr(self) -> None:
-        self._update_progress(ProgStatus.CHECKING_DEPENDENCIES)
+        self._update_progress(Progression.CHECKING_DEPENDENCIES)
 
         try:
             wntrversion = WqDependencyManagement.import_wntr()
@@ -112,7 +111,7 @@ class WntrQgisProcessingBase:
             raise QgsProcessingException(e) from None
 
         if not wntrversion:
-            self._update_progress(ProgStatus.INSTALLING_WNTR)
+            self._update_progress(Progression.INSTALLING_WNTR)
             wntrversion = WqDependencyManagement.ensure_wntr()
 
         self.feedback.pushDebugInfo("WNTR version: " + wntrversion)

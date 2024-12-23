@@ -24,5 +24,3 @@ User Guide
     :caption: API
 
     api
-    interface
-    elements

@@ -30,15 +30,22 @@ from qgis.core import (
     QgsProject,
 )
 
+import wntrqgis
 from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
     ModelLayer,
     ResultLayer,
 )
+from wntrqgis.interface import (
+    NetworkModelError,
+    SimulationResults,
+    _UnitConversion,
+    check_network,
+)
 from wntrqgis.resource_manager import WqIcon
-from wntrqgis.settings import WqProjectSetting, WqProjectSettings
-from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
+from wntrqgis.settings import ProjectSettings, SettingKey
+from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
 
 
 class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
@@ -70,9 +77,9 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return WqIcon.RUN.q_icon
 
     def initAlgorithm(self, config=None):  # noqa N802
-        project_settings = WqProjectSettings(QgsProject.instance())
+        project_settings = ProjectSettings(QgsProject.instance())
 
-        default_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
+        default_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
         for lyr in ModelLayer:
             param = QgsProcessingParameterFeatureSource(
                 lyr.name,
@@ -93,7 +100,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             allowMultiple=False,
             usesStaticStrings=False,
         )
-        default_flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS)
+        default_flow_units = project_settings.get(SettingKey.FLOW_UNITS)
         param.setGuiDefaultValueOverride(list(FlowUnit).index(default_flow_units) if default_flow_units else None)
         self.addParameter(param)
 
@@ -104,7 +111,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             allowMultiple=False,
             usesStaticStrings=False,
         )
-        default_hl_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA)
+        default_hl_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA)
         param.setGuiDefaultValueOverride(
             list(HeadlossFormula).index(default_hl_formula) if default_hl_formula else None
         )
@@ -113,7 +120,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         param = QgsProcessingParameterNumber(
             self.DURATION, self.tr("Simulation duration in hours (or 0 for single period)"), minValue=0
         )
-        param.setGuiDefaultValueOverride(project_settings.get(WqProjectSetting.SIMULATION_DURATION, 0))
+        param.setGuiDefaultValueOverride(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         self.addParameter(param)
 
         self.addParameter(
@@ -141,21 +148,13 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         # only import wntr-using modules once we are sure wntr is installed.
         import wntr
 
-        from wntrqgis.interface import (
-            NetworkModelError,
-            SimulationResults,
-            _UnitConversion,
-            check_network,
-            read,
-        )
-
-        self._update_progress(ProgStatus.PREPARING_MODEL)
+        self._update_progress(Progression.PREPARING_MODEL)
 
         logger = logging.getLogger("wntr")
         wntr_logger_handler = LoggingHandler(feedback, logging.INFO, "%(levelname)s - %(message)s")
         logger.addHandler(wntr_logger_handler)
 
-        project_settings = WqProjectSettings(context.project())
+        project_settings = ProjectSettings(context.project())
 
         # start wntr model
         # add to model order to be: options, patterns/cruves, nodes, then links
@@ -163,15 +162,15 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
         wq_flow_unit = list(FlowUnit)[flow_unit_index]
-        project_settings.set(WqProjectSetting.FLOW_UNITS, wq_flow_unit)
+        project_settings.set(SettingKey.FLOW_UNITS, wq_flow_unit)
 
         headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
         headloss_formula = list(HeadlossFormula)[headloss_formula_index]
-        project_settings.set(WqProjectSetting.HEADLOSS_FORMULA, headloss_formula)
+        project_settings.set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
         wn.options.hydraulic.headloss = headloss_formula.value
 
         duration = self.parameterAsDouble(parameters, self.DURATION, context)
-        project_settings.set(WqProjectSetting.SIMULATION_DURATION, duration)
+        project_settings.set(SettingKey.SIMULATION_DURATION, duration)
         wn.options.time.duration = duration * 3600
 
         sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
@@ -182,7 +181,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         crs = sources[ModelLayer.JUNCTIONS].sourceCrs()
         try:
             # network_model.add_features_to_network_model(sources, wn)
-            read(sources, wn, context.project(), crs=crs, units=wq_flow_unit.name)
+            wntrqgis.from_qgis(sources, wn, context.project(), crs=crs, units=wq_flow_unit.name)
             check_network(wn)
         except NetworkModelError as e:
             raise QgsProcessingException(self.tr("Error preparing model - " + str(e))) from None
@@ -197,7 +196,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             outputs[self.OUTPUTINP] = inpfile
             feedback.pushInfo(".inp file written to: " + inpfile)
 
-        self._update_progress(ProgStatus.RUNNING_SIMULATION)
+        self._update_progress(Progression.RUNNING_SIMULATION)
 
         tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
         sim = wntr.sim.EpanetSimulator(wn)
@@ -206,26 +205,25 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         except wntr.epanet.exceptions.EpanetException as e:
             raise QgsProcessingException("Epanet error: " + str(e)) from None
 
-        self._update_progress(ProgStatus.CREATING_OUTPUTS)
+        self._update_progress(Progression.CREATING_OUTPUTS)
 
-        wq_results = SimulationResults(wn, sim_results, unit_conversion)
+        result_writer = SimulationResults(wn, sim_results, unit_conversion)
 
         for lyr in ResultLayer:
             (sink, outputs[lyr]) = self.parameterAsSink(
                 parameters,
                 lyr.value,
                 context,
-                wq_results.get_qgsfields(lyr),
+                result_writer.get_qgsfields(lyr),
                 lyr.qgs_wkb_type,
                 crs,
             )
-            wq_results.write(lyr, sink)
+            result_writer.write(lyr, sink)
 
         logger.removeHandler(wntr_logger_handler)
-        self._update_progress(ProgStatus.FINISHED_PROCESSING)
+        self._update_progress(Progression.FINISHED_PROCESSING)
 
         finishtime = time.strftime("%X")
-
         self._setup_postprocessing(outputs, f"Simulation Results ({finishtime})", False)
 
         return outputs

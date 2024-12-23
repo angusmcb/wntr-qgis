@@ -26,14 +26,15 @@ from qgis.core import (
 )
 
 from wntrqgis.elements import (
-    FieldGroup,
+    # FieldGroup,
     FlowUnit,
     HeadlossFormula,
     ModelLayer,
 )
+from wntrqgis.interface import Writer
 from wntrqgis.resource_manager import WqIcon
-from wntrqgis.settings import WqProjectSetting, WqProjectSettings
-from wntrqgis.wntrqgis_processing.common import ProgStatus, WntrQgisProcessingBase
+from wntrqgis.settings import ProjectSettings, SettingKey
+from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
 
 
 class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
@@ -107,9 +108,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         import wntr
 
-        from wntrqgis.interface import Writer
-
-        self._update_progress(ProgStatus.LOADING_INP_FILE)
+        self._update_progress(Progression.LOADING_INP_FILE)
 
         input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
@@ -134,36 +133,38 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         wq_headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
 
-        project_settings = WqProjectSettings(context.project())
-        project_settings.set(WqProjectSetting.FLOW_UNITS, wq_flow_unit)
-        project_settings.set(WqProjectSetting.HEADLOSS_FORMULA, wq_headloss_formula)
-        project_settings.set(WqProjectSetting.SIMULATION_DURATION, wn.options.time.duration / 3600)
+        project_settings = ProjectSettings(context.project())
+        project_settings.set(SettingKey.FLOW_UNITS, wq_flow_unit)
+        project_settings.set(SettingKey.HEADLOSS_FORMULA, wq_headloss_formula)
+        project_settings.set(SettingKey.SIMULATION_DURATION, wn.options.time.duration / 3600)
 
-        self._update_progress(ProgStatus.CREATING_OUTPUTS)
+        self._update_progress(Progression.CREATING_OUTPUTS)
 
-        network_model = Writer(wn, units=wq_flow_unit.name)  # TODO: FlowUnits should be string that doesn't need 'name'
+        network_writer = Writer(
+            wn, units=wq_flow_unit.name
+        )  # TODO: FlowUnits should be string that doesn't need 'name'
 
         # this is just to give a little user output
-        extra_analysis_type_names = [
-            str(atype.name)
-            for atype in [FieldGroup.ENERGY, FieldGroup.WATER_QUALITY_ANALYSIS, FieldGroup.PRESSURE_DEPENDENT_DEMAND]
-            if network_model.field_groups is not None and atype in network_model.field_groups
-        ]
-        if len(extra_analysis_type_names):
-            feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
+        # extra_analysis_type_names = [
+        #     str(atype.name)
+        #     for atype in [FieldGroup.ENERGY, FieldGroup.WATER_QUALITY_ANALYSIS, FieldGroup.PRESSURE_DEPENDENT_DEMAND]
+        #     if network_model.field_groups is not None and atype in network_model.field_groups
+        # ]
+        # if len(extra_analysis_type_names):
+        #     feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
 
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
         outputs: dict[str, str] = {}
 
         for layer in ModelLayer:
-            fields = network_model.get_qgsfields(layer)
+            fields = network_writer.get_qgsfields(layer)
             (sink, outputs[layer]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
-            network_model.write(layer, sink)
+            network_writer.write(layer, sink)
 
-        self._update_progress(ProgStatus.FINISHED_PROCESSING)
+        self._update_progress(Progression.FINISHED_PROCESSING)
 
         filename = Path(input_file).stem
 

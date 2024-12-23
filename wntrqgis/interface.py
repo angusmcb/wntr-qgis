@@ -5,14 +5,16 @@ This module contains the interfaces for for converting between WNTR and QGIS, bo
 from __future__ import annotations
 
 import ast
+import enum
+import functools
+import importlib
 import math
+import pathlib
 import warnings
-from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
-import wntr
 from qgis.core import (
     NULL,
     Qgis,
@@ -29,10 +31,11 @@ from qgis.core import (
     QgsProject,
     QgsSpatialIndex,
     QgsUnitTypes,
-    QgsVectorLayer,  # noqa F401
+    QgsVectorLayer,
+    QgsWkbTypes,
 )
-from wntr.epanet.util import HydParam, QualParam
 
+import wntrqgis.style
 from wntrqgis.elements import (
     ElementFamily,
     FieldGroup,
@@ -45,6 +48,7 @@ from wntrqgis.elements import (
 )
 
 if TYPE_CHECKING:
+    import wntr  # noqa
     from numpy.typing import ArrayLike
 
 QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
@@ -54,6 +58,23 @@ QGIS_DISTANCE_UNIT_METERS = (
 )
 
 
+def needs_wntr(func):
+    @functools.wraps(func)
+    def check_wntr(*args, **kwargs):
+        try:
+            wntr  # noqa
+        except NameError:
+            importlib.invalidate_caches()
+            import wntr
+
+            globals()["wntr"] = wntr
+
+        return func(*args, **kwargs)
+
+    return check_wntr
+
+
+@needs_wntr
 class _UnitConversion:
     """Manages conversion to and from SI units
 
@@ -105,8 +126,9 @@ class _UnitConversion:
 
     def _get_wntr_conversion_param(
         self, field: ModelField | ResultField, layer: ModelLayer | ResultLayer | None = None
-    ) -> QualParam | HydParam:
-        # match field:
+    ) -> wntr.epanet.QualParam | wntr.epanet.HydParam:
+        QualParam = wntr.epanet.QualParam  # noqa
+        HydParam = wntr.epanet.HydParam  # noqa
         if field is ModelField.ELEVATION:
             return HydParam.Elevation
         if field is ModelField.BASE_DEMAND or field is ResultField.DEMAND:
@@ -163,6 +185,8 @@ class _UnitConversion:
     def _convert_curve_points(self, points, curve_type: _CurveType, conversion_function) -> list[tuple[float, float]]:
         flow_units = self._flow_units
         converted_points: list[tuple[float, float]] = []
+        QualParam = wntr.epanet.QualParam  # noqa
+        HydParam = wntr.epanet.HydParam  # noqa
 
         if curve_type is _CurveType.VOLUME:
             for point in points:
@@ -193,27 +217,67 @@ class _UnitConversion:
         return converted_points
 
 
-# def write(
-#     wn: wntr.network.WaterNetworkModel,
-#     results: wntr.sim.SimulationResults | None = None,
-#     crs: QgsCoordinateReferenceSystem | None = None,
-#     units: str | None = None,
-#     layers: str | None = None,
-#     fields: list | None = None,
-#     filename: str | None = None,
-# ) -> dict[str, QgsVectorLayer] | None:
-#     """Write from WNTR network model to QGIS Layers"""
-#     return None
+@needs_wntr
+def to_qgis(
+    wn: wntr.network.WaterNetworkModel | pathlib.Path | str,
+    results: wntr.sim.SimulationResults | None = None,
+    crs: QgsCoordinateReferenceSystem | str | None = None,
+    units: str | None = None,
+    # layers: str | None = None,
+    # fields: list | None = None,
+    # filename: str | None = None,
+) -> dict[ModelLayer, QgsVectorLayer] | None:
+    """Write from WNTR network model to QGIS Layers
+
+    Args:
+        wn: the water network model, or a path (strin or path object) to an input file
+        results: simulation results, if any.
+        crs: The coordinate Reference System of the coordinates in the wntr model / inp file.
+
+    """
+
+    if isinstance(wn, (str, pathlib.Path)):
+        wn = wntr.network.WaterNetworkModel(str(wn))
+
+    writer = Writer(wn, results, units)
+    map_layers: dict[ModelLayer, QgsVectorLayer] = {}
+    for model_layer in ModelLayer:
+        layer = QgsVectorLayer(
+            "Point" if model_layer.qgs_wkb_type is QgsWkbTypes.Point else "LineString",
+            model_layer.friendly_name,
+            "memory",
+        )
+        if crs:
+            crs = QgsCoordinateReferenceSystem(crs)
+            layer.setCrs(crs)
+        data_provider = layer.dataProvider()
+        data_provider.addAttributes(writer.get_qgsfields(model_layer))
+        writer.write(model_layer, data_provider)
+
+        layer.updateFields()
+        layer.updateExtents()
+        wntrqgis.style.style(layer, model_layer)
+        QgsProject.instance().addMapLayer(layer)
+        map_layers[model_layer] = layer
+
+    return map_layers
 
 
+@needs_wntr
 class Writer:
-    """Writes a WNTR water network model, and optionally simulation results, to QGIS layers / feature sinks.
+    """Writes to QGIS layers (feature sinks) from a WNTR water network model, and optionally WNTR simulation results.
 
     Args:
         wn: The WNTR water network model that we will write from
         results: The simulation results. Default is that there are no simulation results.
-        units: The units that it should be written in values include 'LPS','GPM'.
+        units: The units that it should be written in values include ``"LPS"``, ``"GPM"`` etc.
             Default is to use the units within the WaterNetworkModel options
+
+    Example:
+        Writing a set of model layers:
+            >>> writer = Writer(wn, units="LPS")
+            >>> writer.fields.append("length")
+            >>> etc...
     """
 
     def __init__(
@@ -232,8 +296,14 @@ class Writer:
 
         self._geometries = self._get_geometries(wn)
 
-        field_group = self.field_groups
-        self.fields = [str(field.value) for field in ModelField if field.field_group & field_group]
+        field_group = FieldGroup.BASE | _get_field_groups(wn)
+
+        self.fields: list[str] = [str(field.value) for field in ModelField if field.field_group & field_group]
+        """A list of field names to be written
+
+        * The default set of fields will depend on ``wn`` and ``results``
+        * When writing only those fields related to the layer being written will be used.
+        """
 
     def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
         """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
@@ -254,7 +324,7 @@ class Writer:
         return geometries
 
     @property
-    def field_groups(self) -> FieldGroup:
+    def _field_groups(self) -> FieldGroup:
         """The groups of field used in the model"""
 
         analysis_types = FieldGroup.BASE
@@ -378,7 +448,7 @@ class Writer:
     def _create_gis(self, wn) -> dict[ModelLayer, pd.DataFrame]:
         def _extract_dataframe(df, valid_base_names=None) -> pd.DataFrame:
             if valid_base_names is None:
-                valid_base_names = []
+                valid_base_names = ["node_type", "link_type"]
 
             # Drop any column with all NaN, this removes excess attributes
             # Valid base attributes that have all None values are added back
@@ -511,6 +581,7 @@ class _SpatialIndex:
         return snapped_geometry, start_node_name, end_node_name
 
 
+@needs_wntr
 class _Patterns:
     def __init__(self, wn: wntr.network.model.WaterNetworkModel) -> None:
         self._next_pattern_name = 2
@@ -548,13 +619,14 @@ class _Patterns:
         return " ".join(map(str, pattern.multipliers))
 
 
-class _CurveType(Enum):
+class _CurveType(enum.Enum):
     HEAD = "HEAD"
     EFFICIENCY = "EFFICIENCY"
     VOLUME = "VOLUME"
     HEADLOSS = "HEADLOSS"
 
 
+@needs_wntr
 class _Curves:
     def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion) -> None:
         self._wn = wn
@@ -586,23 +658,26 @@ class _Curves:
         return repr(self._converted_curves[curve_name])
 
 
-def read(
+@needs_wntr
+def from_qgis(
     layers: dict[ModelLayer, QgsFeatureSource],
-    wn: wntr.network.WaterNetworkModel,
+    wn: wntr.network.WaterNetworkModel | None = None,
     project: QgsProject | None = None,
-    crs: QgsCoordinateReferenceSystem | None = None,
+    crs: QgsCoordinateReferenceSystem | str | None = None,
     units: str | None = None,
     # headloss_formula: str | None = None,
-) -> None:
-    """Read from layers to a water network model
+) -> wntr.network.WaterNetworkModel:
+    """Read from QGIS layers or feature sources to a WNTR ``WaterNetworkModel``
 
     Args:
-        layers: layers to read
-        wn: the model that the layers will be read into
+        layers: layers to read from
+        wn: the model that the layers will be read into. Will create a new model if left blank.
         project: QgsProject instance, if none will use the current QgsProject.instance()
         crs: all geometry will be transformed into this crs for adding to the water network model
-        units: the flow units to use. If not set will defualt to units in the water network model.
+        units: The flow unit set that the layers being read use.
+            If not set it will default to the value in ``wn.options.hydraulic.inpfile_units``.
         headloss_formula: the headloss formula to use. If not set will defualt to option in the water network model."""
+
     if not wn:
         wn = wntr.network.WaterNetworkModel()
     flow_units = (
@@ -611,14 +686,16 @@ def read(
     headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
     unit_conversion = _UnitConversion(flow_units, headloss_formula_type)
 
-    reader = _Reader(unit_conversion, project)
-    reader.crs = crs
+    reader = _FromGis(unit_conversion, project)
+    if crs:
+        reader.crs = QgsCoordinateReferenceSystem(crs)
     reader.add_features_to_network_model(layers, wn)
 
-    # return wn
+    return wn
 
 
-class _Reader:
+@needs_wntr
+class _FromGis:
     """Read from QGIS feature sources / layers to a WNTR model"""
 
     def __init__(
@@ -685,9 +762,7 @@ class _Reader:
             if not self.crs:
                 self.crs = source.sourceCrs()
 
-            feature_request = QgsFeatureRequest()
-            if source.sourceCrs() != self.crs:
-                feature_request = feature_request.setDestinationCrs(self.crs, self._transform_context)
+            feature_request = QgsFeatureRequest().setDestinationCrs(self.crs, self._transform_context)
 
             # df = self._source_to_df(source, map_of_columns_to_fields)
             # for column in df.select_dtypes(include=[np.number]):
@@ -972,6 +1047,7 @@ class _Reader:
         link.vertices = self._get_vertex_list(geometry)
 
 
+@needs_wntr
 def check_network(wn: wntr.network.WaterNetworkModel) -> None:
     """Checks for simple errors in the network that will otherwise not get good error messages from wntr/epanet
 
@@ -984,7 +1060,6 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
     Raises:
         NetworkModelError: if any checks fail
     """
-
     if not wn.num_junctions:
         msg = "At least one junction is necessary"
         raise NetworkModelError(msg)
@@ -1000,6 +1075,20 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
         raise NetworkModelError(msg)
 
 
+@needs_wntr
+def _get_field_groups(wn: wntr.network.WaterNetworkModel):
+    field_groups = FieldGroup(0)
+    if wn.options.quality.parameter.upper() != "NONE":  # intentional string 'none'
+        field_groups = field_groups | FieldGroup.WATER_QUALITY_ANALYSIS
+    if wn.options.report.energy != "NO":
+        field_groups = field_groups | FieldGroup.ENERGY
+    if wn.options.hydraulic.demand_model == "PDA":
+        field_groups = field_groups | FieldGroup.PRESSURE_DEPENDENT_DEMAND
+
+    return field_groups
+
+
+@needs_wntr
 class SimulationResults:
     """Process WNTR Simulation Results, outputing to QGIS feature sinks
 

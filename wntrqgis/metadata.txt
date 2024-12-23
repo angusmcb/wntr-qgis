@@ -12,6 +12,6 @@ repository=https://github.com/angusmcb/wntr-qgis
 tracker=https://github.com/angusmcb/wntr-qgis/issues
 homepage=https://angusmcb.com/wntr-qgis/
 category=Plugins
-icon=resources/icons/water_circle.png
+icon=resources/icons/logo.svg
 experimental=True
 deprecated=False

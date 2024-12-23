@@ -8,7 +8,7 @@ from qgis.core import QgsExpressionContextUtils, QgsProject
 from wntrqgis.elements import FlowUnit, HeadlossFormula
 
 
-class WqProjectSetting(str, Enum):
+class SettingKey(str, Enum):
     """Enum of values that can be stored in project settings"""
 
     OPTIONS = "options", dict
@@ -43,7 +43,7 @@ class WqProjectSetting(str, Enum):
     #     return default_value
 
 
-class WqProjectSettings:
+class ProjectSettings:
     """Gets and sets WNTR project settings"""
 
     SETTING_PREFIX = "wntr_"
@@ -55,7 +55,7 @@ class WqProjectSettings:
         """Adds the setting prefix to the setting name"""
         return self.SETTING_PREFIX + setting.value
 
-    def get(self, setting: WqProjectSetting, default: Any | None = None):
+    def get(self, setting: SettingKey, default: Any | None = None):
         """Get a value from project settings, with optional default value"""
         setting_name = self._setting_name(setting)
         saved_value = QgsExpressionContextUtils.projectScope(self._project).variable(setting_name)
@@ -63,7 +63,7 @@ class WqProjectSettings:
             return default
         return setting.expected_type(saved_value)
 
-    def set(self, setting: WqProjectSetting, value: Any):
+    def set(self, setting: SettingKey, value: Any):
         """Save a value to project settings"""
         setting_name = self._setting_name(setting)
         if not issubclass(type(value), setting.expected_type):

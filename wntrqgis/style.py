@@ -28,7 +28,12 @@ from wntrqgis.elements import (
 )
 
 
-class WqFieldStyles:
+def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
+    styler = _LayerStyler(layer_type)
+    styler.style_layer(layer)
+
+
+class _FieldStyles:
     def __init__(self, field_type: ModelField | ResultField, layer_type: ModelLayer | ResultLayer):
         self.field_type = field_type
         self.layer_type = layer_type
@@ -76,7 +81,7 @@ class WqFieldStyles:
         return QgsDefaultValue()
 
 
-class WqLayerStyles:
+class _LayerStyler:
     def __init__(self, layer_type: ModelLayer | ResultLayer):
         self.layer_type = layer_type
 
@@ -86,12 +91,12 @@ class WqLayerStyles:
         if isinstance(self.layer_type, ResultLayer):
             self._style_result_layer(layer)
 
-    def _style_model_layer(self, layer):
+    def _style_model_layer(self, layer: QgsVectorLayer):
         renderer = QgsSingleSymbolRenderer(self._symbol)
         layer.setRenderer(renderer)
 
         for i, field in enumerate(layer.fields()):
-            field_styler = WqFieldStyles(ModelField(field.name()), self.layer_type)
+            field_styler = _FieldStyles(ModelField(field.name()), self.layer_type)
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
             layer.setDefaultValueDefinition(i, field_styler.default_value)
 
