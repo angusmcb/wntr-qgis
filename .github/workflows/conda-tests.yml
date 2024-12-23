@@ -19,6 +19,9 @@ jobs:
         exclude:
           - os: "ubuntu-latest"
             wntr-version: ""
+          - os: "macos-13"
+            python-version: "3.12"
+            qgis: "conda-forge/label/qgis_ltr::qgis"
     steps:
       - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
