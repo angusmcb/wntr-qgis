@@ -79,19 +79,22 @@ class Plugin:
         else:
             self._install_status = _InstallStatus.NO_CHANGE
 
-        import console
+        try:
+            import console
 
-        console.console_sci._init_statements.extend(  # noqa SLF001
-            [
-                "import wntrqgis as wq",
-                """
+            console.console_sci._init_statements.extend(  # noqa SLF001
+                [
+                    "import wntrqgis as wq",
+                    """
 try:
     import wntr
 except ModuleNotFoundError:
     pass
 """,
-            ]
-        )
+                ]
+            )
+        except ModuleNotFoundError:
+            pass
 
     def add_action(
         self,
