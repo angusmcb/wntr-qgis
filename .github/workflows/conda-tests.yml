@@ -14,8 +14,12 @@ jobs:
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: true
+          auto-update-conda: false
           python-version: ${{ matrix.python-version }}
+          miniconda-version: 'latest'
+          channels: conda-forge
+          channel-priority: true
+          auto-activate-base: false
       - name: Install packages
         shell: bash -el {0}
         run: |
