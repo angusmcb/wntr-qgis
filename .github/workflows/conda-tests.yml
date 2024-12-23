@@ -23,16 +23,13 @@ jobs:
           channel-priority: true
           auto-activate-base: false
       - name: Install packages
-        shell: bash -el {0}
         run: |
           conda install -y qgis wntr pytest pytest-cov geopandas
           pip install pytest-qgis
       - name: Conda info
-        shell: bash -el {0}
         run: conda info
       - name: Run tests (non-Ubuntu)
         if: ${{ matrix.os !='ubuntu-latest' }}
-        shell: bash -el {0}
         run: pytest
       - name: Run Tests (Ubuntu)
         if: ${{ matrix.os =='ubuntu-latest' }}
