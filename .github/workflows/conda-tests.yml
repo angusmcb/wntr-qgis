@@ -12,6 +12,7 @@ jobs:
         os: ["ubuntu-latest", "macos-13", "windows-latest"]
         python-version: ["3.8", "3.11"]
     steps:
+      - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: false
@@ -23,11 +24,11 @@ jobs:
       - name: Install packages
         shell: bash -el {0}
         run: |
-          conda install -y -c conda-forge qgis wntr pytest pytest-cov geopandas pip
+          conda install -y -c conda-forge qgis wntr pytest pytest-cov geopandas pip ptest-xvfb
           pip install pytest-qgis
       - name: Conda info
         shell: bash -el {0}
         run: conda info
       - name: Run tests
         shell: bash -el {0}
-        run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' python3 -m pytest -v
+        run: pytest
