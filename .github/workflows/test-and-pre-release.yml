@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         # 'latest' seems to be nightly build, 'stable' is latest real release
-        docker_tags: ['final-3_34_0','final-3_36_0','3.38.0','3.40.0','ltr', 'stable', 'latest']
+        docker_tags: ['final-3_34_0','3.34-jammy','3.34-bookworm','final-3_36_0','3.38.0','3.40.0','3.40-jammy','3.40-bookworm','ltr', 'stable', 'latest']
       fail-fast: false
 
     container:
