@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.wntrqgis_processing.provider import Provider
 
 
@@ -43,3 +44,6 @@ def get_example():
         return str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / file_name)
 
     return _
+
+
+WqDependencyManagement.ensure_wntr()
