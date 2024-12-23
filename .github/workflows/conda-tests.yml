@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   conda-tests:
-    name: Conda ${{ matrix.python-version }}, OS ${{ matrix.os }} WNTR ${{matrix.wntr}} QGIS: ${{matrix.qgis}}
+    name: 'Conda ${{ matrix.python-version }}, OS ${{ matrix.os }} WNTR ${{matrix.wntr}} QGIS: ${{matrix.qgis}}'
     runs-on: ${{ matrix.os }}
     defaults:
       run:
