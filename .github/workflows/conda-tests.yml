@@ -19,9 +19,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           miniconda-version: 'latest'
-          channels:
-            conda-forge
-            default
+          channels: conda-forge
           channel-priority: true
           auto-activate-base: false
       - name: Install packages
