@@ -24,7 +24,7 @@ jobs:
       - name: Install packages
         shell: bash -el {0}
         run: |
-          conda install -y -c conda-forge qgis wntr pytest pytest-cov geopandas pip ptest-xvfb
+          conda install -y -c conda-forge qgis wntr pytest pytest-cov geopandas pip pytest-xvfb
           pip install pytest-qgis
       - name: Conda info
         shell: bash -el {0}
