@@ -6,6 +6,9 @@ jobs:
   conda-tests:
     name: Conda (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
     env:
       QT_DEBUG_PLUGINS: 1
     strategy:
