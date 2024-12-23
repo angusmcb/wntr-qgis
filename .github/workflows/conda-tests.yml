@@ -6,25 +6,28 @@ jobs:
   conda-tests:
     name: Conda (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      QT_DEBUG_PLUGINS: 1
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-13", "windows-latest"]
-        python-version: ["3.8", "3.11"]
+        python-version: ["3.9", "3.10","3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: false
           python-version: ${{ matrix.python-version }}
           miniconda-version: 'latest'
-          channels: conda-forge
+          channels:
+            conda-forge
+            default
           channel-priority: true
           auto-activate-base: false
       - name: Install packages
         shell: bash -el {0}
         run: |
-          conda install -y -c conda-forge qgis wntr pytest pytest-cov geopandas pip pytest-xvfb
+          conda install -y -c conda-forge qgis wntr pytest pytest-cov geopandas pytest-xvfb
           pip install pytest-qgis
       - name: Conda info
         shell: bash -el {0}
