@@ -10,9 +10,9 @@ import wntrqgis.dependency_management
 from wntrqgis.interface import from_qgis, to_qgis
 from wntrqgis.resource_manager import Example
 
-packages_path = wntrqgis.dependency_management.WqDependencyManagement.package_directory()
-if packages_path not in sys.path:
-    sys.path.append(packages_path)
+_packages_path = wntrqgis.dependency_management.WqDependencyManagement.package_directory()
+if _packages_path not in sys.path:
+    sys.path.append(_packages_path)
 
 
 # from wntrqgis.qgis_plugin_tools.infrastructure.debugging import (
@@ -29,11 +29,10 @@ if TYPE_CHECKING:
 #     locals()["setup_" + debugger]()
 
 
-metadata_file = Path(__file__).parent / "metadata.txt"
-cp = configparser.ConfigParser()
-with codecs.open(str(metadata_file), "r", "utf8") as f:
-    cp.read_file(f)
-__version__ = cp.get("general", "version")
+_cp = configparser.ConfigParser()
+with codecs.open(str(Path(__file__).parent / "metadata.txt"), "r", "utf8") as f:
+    _cp.read_file(f)
+__version__ = _cp.get("general", "version")
 
 
 def classFactory(iface: "QgisInterface"):  # noqa N802
