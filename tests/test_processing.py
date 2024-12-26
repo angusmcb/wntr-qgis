@@ -3,14 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
-
-
-def test_start_plugin(qgis_app, qgis_processing, qgis_new_project):
-    import wntrqgis.plugin
-
-    wntrplugin = wntrqgis.plugin.Plugin()
-    assert wntrplugin
+from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingFeedback, QgsProject, QgsVectorLayer
 
 
 # the examples are store in the plugin folder as they are used in the plugin
@@ -131,6 +124,50 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
         )
 
 
+def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
+    """todo: add test to feedback from processing"""
+    from qgis import processing
+
+    class TestFeedback(QgsProcessingFeedback):
+        warningreceived = False
+
+        def pushWarning(self, msg):  # noqa: N802
+            self.warningreceived = True
+
+    feedbacktest = TestFeedback()
+
+    inputinp = str(example_dir / "valves.inp")
+
+    fileset = output_params(expected_model_layers, tmp_path, "TEMPORARY_OUTPUT")
+    units = 0
+    inp_result = processing.run(
+        "wntr:importinp",
+        {
+            "CRS": "32637",
+            "INPUT": inputinp,
+            "UNITS": units,
+            **fileset,
+        },
+    )
+
+    assert all(outkey in expected_model_layers for outkey in inp_result)
+
+    processing.run(
+        "wntr:run",
+        {
+            "OUTPUTNODES": "TEMPORARY_OUTPUT",
+            "OUTPUTLINKS": "TEMPORARY_OUTPUT",
+            "OUTPUTINP": "TEMPORARY_OUTPUT",
+            "UNITS": units,
+            "HEADLOSS_FORMULA": 0,
+            "DURATION": 0,
+            **inp_result,
+        },
+        feedback=feedbacktest,
+    )
+    assert feedbacktest.warningreceived
+
+
 @pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
 def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):
     import wntr
@@ -180,3 +217,25 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
         assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i]))
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(all(sublist) for sublist in np.isclose(inputresults.link[i], outputresults.link[i]))
+
+
+def test_settings(qgis_processing, qgis_new_project, example_dir, tmp_path):
+    """todo: add test to feedback from processing"""
+
+    from qgis import processing
+
+    from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm
+
+    inputinp = str(example_dir / "valves.inp")
+
+    fileset = output_params(expected_model_layers, tmp_path, "TEMPORARY_OUTPUT")
+    units = 0
+    processing.run(
+        SettingsAlgorithm(),
+        {
+            "CRS": "32637",
+            "INPUT": inputinp,
+            "UNITS": units,
+            **fileset,
+        },
+    )

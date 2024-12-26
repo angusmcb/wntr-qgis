@@ -1,14 +1,11 @@
-name: wntrqgis-testing
+name: wntrqgis-testing2
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9
+  - python
   - qgis
-  - wntr
-  - geopandas
-  - pytest
-  - pytest-cov
+  - wntr=v1.2.0
   - pip:
       - pytest-qgis
-
+      - pytest-cov

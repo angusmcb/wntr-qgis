@@ -150,9 +150,15 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(Progression.PREPARING_MODEL)
 
+        class FeedbackHandler(logging.Handler):
+            def emit(self, record):
+                feedback.pushWarning(record.getMessage())
+
         logger = logging.getLogger("wntr")
-        wntr_logger_handler = LoggingHandler(feedback, logging.INFO, "%(levelname)s - %(message)s")
-        logger.addHandler(wntr_logger_handler)
+        logger.propagate = False
+        logging_handler = FeedbackHandler()
+        logging_handler.setLevel("INFO")
+        logger.addHandler(logging_handler)
 
         project_settings = ProjectSettings(context.project())
 
@@ -220,22 +226,10 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             )
             result_writer.write(lyr, sink)
 
-        logger.removeHandler(wntr_logger_handler)
+        logger.removeHandler(logging_handler)
         self._update_progress(Progression.FINISHED_PROCESSING)
 
         finishtime = time.strftime("%X")
         self._setup_postprocessing(outputs, f"Simulation Results ({finishtime})", False)
 
         return outputs
-
-
-class LoggingHandler(logging.StreamHandler):
-    def __init__(self, feedback, logging_level, format_string):
-        logging.StreamHandler.__init__(self)
-        self.feedback = feedback
-        self.setLevel(logging_level)
-        self.setFormatter(logging.Formatter(format_string))
-
-    def emit(self, record):
-        msg = self.format(record)
-        self.feedback.pushWarning(msg)

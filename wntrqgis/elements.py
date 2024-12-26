@@ -94,10 +94,6 @@ class ModelLayer(_AbstractLayer):
     VALVES = "VALVES"
 
     @property
-    def wntr_attr(self):
-        return self.value.lower()
-
-    @property
     def element_family(self) -> ElementFamily:
         """Layer is a node or a link?"""
         return (
@@ -113,11 +109,6 @@ class ModelLayer(_AbstractLayer):
             if self.element_family is ElementFamily.NODE
             else [QgsProcessing.TypeVectorLine]
         )
-
-    @property
-    def node_link_type(self):
-        """This will be used for fixing bug in WNTR 1.2.0"""
-        return str(self).title()[:-1]
 
     def wq_fields(self, field_group: FieldGroup | None = None) -> list[ModelField]:
         """Mapping of fields associated with each layer"""
@@ -239,10 +230,6 @@ class _AbstractField(Enum):
     def __init__(self, *args):
         self._python_type = args[1]
         self._field_group = args[2]
-
-    @staticmethod
-    def _generate_next_value_(name, start, count, last_values):  # noqa ARG004
-        return name.lower()
 
     @property
     def python_type(self) -> type:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import enum
 import threading
 import typing
@@ -79,7 +80,7 @@ class Plugin:
         else:
             self._install_status = _InstallStatus.NO_CHANGE
 
-        try:
+        with contextlib.suppress(ModuleNotFoundError, AttributeError):
             import console
 
             console.console_sci._init_statements.extend(  # noqa SLF001
@@ -93,8 +94,6 @@ except ModuleNotFoundError:
 """,
                 ]
             )
-        except ModuleNotFoundError:
-            pass
 
     def add_action(
         self,
@@ -214,10 +213,12 @@ except ModuleNotFoundError:
 
         self.widget = None
         if self._install_status is _InstallStatus.FRESH_INSTALL:
-            self.widget = iface.messageBar().createMessage(
-                "WNTR-QGIS installed",
-                "Load an example to try me out",
-            )
+            with contextlib.suppress(AttributeError):
+                self.widget = iface.messageBar().createMessage(
+                    "WNTR-QGIS installed",
+                    "Load an example to try me out",
+                )
+
         elif self._install_status is _InstallStatus.UPGRADE:
             self.widget = iface.messageBar().createMessage(
                 "WNTR-QGIS upgraded",
