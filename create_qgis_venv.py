@@ -24,9 +24,10 @@ import subprocess
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator, Protocol, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict, cast
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
 
     class CliArgsType(TypedDict, total=False):
         qgis_installation: Path | None

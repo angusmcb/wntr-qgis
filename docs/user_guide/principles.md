@@ -10,10 +10,10 @@ To experiment quickly, you can load an example from the 'plugins' menu.
 Whilst the plugin is very flexible in how it's used, the key principles are the following four steps:
 
 1. **Model Creation.**
-The model is a set of regular QGIS layers from any data source. Layers can either be created using the 'Create Template Layers' processing algorithm; or imported from EPANET files using the tools provided in the processing toolbox; or you can create them manually.  
+The model is a set of regular QGIS layers from any data source. Layers can either be created using the 'Create Template Layers' processing algorithm; or imported from EPANET files using the tools provided in the processing toolbox; or you can create them manually.
     -   *Node layers* are junctions, reservoirs and tanks. They are represented by point geometry
     -   *Link layer* are pipes, pumps and valves. They are represented by line geometry.
-    -   You only need to create and use the layers that you want. 
+    -   You only need to create and use the layers that you want.
 
 1. **Model Editing.**
 The layers are normal QGIS layers and can be edited / modified / processed / styled / automated in the same ways as any other QGIS layer. In particular:
@@ -23,11 +23,11 @@ The layers are normal QGIS layers and can be edited / modified / processed / sty
     - *Elevations* can be added to nodes from other sources using either expressions or processing tools..
     - *External data sources* or any other layers can be used as background maps or data sources for drawing the network.
 
-1. **Running the simulation.** 
+1. **Running the simulation.**
 The plugin will load your nodes, linkes, patterns, curves and options into WNTR and run the model It will then process the output into a new link and node layer containing all calculated results. Configure your analysis options to exploit the full power or WNTR and EPANET.
 
 
-1. **Viewing the results.** 
+1. **Viewing the results.**
 Use all the power of QGIS to view and analyse your results.
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
    - Use QGIS's temporal manager to view how your results change over time.

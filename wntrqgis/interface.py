@@ -61,7 +61,7 @@ def needs_wntr_pandas(func):
     @functools.wraps(func)
     def check_wntr(*args, **kwargs):
         try:
-            pd
+            pd  # noqa: B018, F823
             wntr  # noqa
         except NameError:
             importlib.invalidate_caches()

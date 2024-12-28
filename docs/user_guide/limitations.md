@@ -1,6 +1,6 @@
 # Limitations
 
-The plugin is currently marked as experimental. 
+The plugin is currently marked as experimental.
 
 The aim is not to replicate all WNTR features, but instead to provide a subset so that they can easily be used within QGIS. For accessing all features of WNTR the API can be used.
 
