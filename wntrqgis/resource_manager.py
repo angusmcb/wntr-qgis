@@ -62,6 +62,13 @@ class Example:
 
     :meta hide-value: """
 
+    VALVES: str = _inp_path("valves")
+    """Valves
+
+    An example of all the different valve available.
+
+    :meta hide-value: """
+
 
 # def example(file):
 #     """Get an example file path.

@@ -285,7 +285,7 @@ class Writer:
     def __init__(
         self,
         wn: wntr.network.WaterNetworkModel,
-        results: wntr.sim.SimulationResults | None = None,  # noqa ARG002
+        results: wntr.sim.SimulationResults | None = None,
         units: str | None = None,
     ) -> None:
         flow_units = (
@@ -300,12 +300,17 @@ class Writer:
 
         field_group = FieldGroup.BASE | _get_field_groups(wn)
 
-        self.fields: list[str] = [str(field.value) for field in ModelField if field.field_group & field_group]
+        self.fields: list[str]
         """A list of field names to be written
 
         * The default set of fields will depend on ``wn`` and ``results``
         * When writing only those fields related to the layer being written will be used.
         """
+        if results:
+            self.fields = ["name"]
+            self.fields.extend([field.value for field in ResultField if field.field_group & field_group])
+        else:
+            self.fields = [field.value for field in ModelField if field.field_group & field_group]
 
     def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
         """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
@@ -325,19 +330,19 @@ class Writer:
 
         return geometries
 
-    @property
-    def _field_groups(self) -> FieldGroup:
-        """The groups of field used in the model"""
+    # @property
+    # def _field_groups(self) -> FieldGroup:
+    #     """The groups of field used in the model"""
 
-        analysis_types = FieldGroup.BASE
-        for lyr in ModelLayer:
-            cols = list(self._dfs[lyr].loc[:, ~self._dfs[lyr].isna().all()].columns)
-            for col in cols:
-                try:
-                    analysis_types = analysis_types | ModelField(col).field_group
-                except ValueError:
-                    continue
-        return analysis_types
+    #     analysis_types = FieldGroup.BASE
+    #     for lyr in ModelLayer:
+    #         cols = list(self._dfs[lyr].loc[:, ~self._dfs[lyr].isna().all()].columns)
+    #         for col in cols:
+    #             try:
+    #                 analysis_types = analysis_types | ModelField(col).field_group
+    #             except ValueError:
+    #                 continue
+    #     return analysis_types
 
     def _get_fields(self, layer: ModelLayer) -> list[ModelField]:
         layer_fields = layer.wq_fields()
@@ -1109,11 +1114,13 @@ class SimulationResults:
     ) -> None:
         self._unit_conversion = unit_conversion
 
-        self._result_dfs = {}
-        for lyr in ResultLayer:
-            gdfs = getattr(results, lyr.wntr_attr)
-            for field in lyr.wq_fields:
-                self._result_dfs[field] = gdfs[field.value]
+        # self._result_dfs = {}
+        # for lyr in ResultLayer:
+        #     gdfs = getattr(results, lyr.wntr_attr)
+        #     for field in lyr.wq_fields:
+        #         self._result_dfs[field] = gdfs[field.value]
+
+        self._result_df = self._process_results(results)
 
         self._geometries = self._get_geometries(wn)
 
@@ -1155,21 +1162,24 @@ class SimulationResults:
             fields: list of fields that should be written
             name_geometry_map: dictionary mapping item names to geometries
         """
-        output_attributes = {}
+        # output_attributes = {}
 
-        # test = {}
-        for field in layer.wq_fields:
-            converted_df = self._unit_conversion.from_si(self._result_dfs[field], field)
+        # for field in layer.wq_fields:
+        #     converted_df = self._unit_conversion.from_si(self._result_dfs[field].copy(), field)
 
-            lists = converted_df.transpose().to_numpy().tolist()
-            output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+        #     lists = converted_df.transpose().to_numpy().tolist()
+        #     output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
 
-            # test[field.value] = converted_df.squeeze()  # for single state analysis
+        #     # test[field.value] = converted_df.squeeze()  # for single state analysis
 
-        jointed_dataframe = pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+        # jointed_dataframe = pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+
+        jointed_dataframe = self._result_df[layer]
+
         namesindex = jointed_dataframe.index
-        jointed_dataframe.reset_index(inplace=True)
-        jointed_dataframe.rename(columns={"index": "name"}, inplace=True)
+        jointed_dataframe["name"] = namesindex
+        jointed_dataframe = jointed_dataframe[self.get_qgsfields(layer).names()]
+
         attribute_series = pd.Series(jointed_dataframe.to_numpy().tolist(), index=namesindex)
 
         attribute_and_geom = pd.DataFrame(
@@ -1195,6 +1205,27 @@ class SimulationResults:
         #     atts = [converted_dfs[field][name].to_list() for field in fields]
         #     f.setAttributes([name, *atts])
         #     sink.addFeature(f, QgsFeatureSink.FastInsert)
+
+    def _process_results(self, results: wntr.sim.SimulationResults):
+        result_df = {}
+        for layer in ResultLayer:
+            results_dfs = results.node if layer is ResultLayer.NODES else results.link
+
+            result_df[layer] = self._process_results_layer(layer, results_dfs)
+        return result_df
+
+    def _process_results_layer(self, layer, results_dfs):
+        output_attributes = {}
+
+        for field in layer.wq_fields:
+            converted_df = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
+
+            lists = converted_df.transpose().to_numpy().tolist()
+            output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+
+            # test[field.value] = converted_df.squeeze()  # for single state analysis
+
+        return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
 
 class NetworkModelError(Exception):
