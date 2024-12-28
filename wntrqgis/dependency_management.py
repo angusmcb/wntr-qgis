@@ -17,6 +17,12 @@ class WqDependencyManagement:
 
     @classmethod
     def import_wntr(cls):
+        if not cls._wntr__available_version:
+            cls._wntr__available_version = cls._check_wntr()
+
+        if cls._wntr__available_version:
+            return cls._wntr__available_version
+
         if not cls._dependencies_available:
             missing_deps = cls._check_dependencies()
             if len(missing_deps):
@@ -25,10 +31,7 @@ class WqDependencyManagement:
 
             cls._dependencies_available = True
 
-        if not cls._wntr__available_version:
-            cls._wntr__available_version = cls._check_wntr()
-
-        return cls._wntr__available_version
+        return None
 
     @classmethod
     def ensure_wntr(cls):
@@ -52,7 +55,6 @@ class WqDependencyManagement:
 
     @staticmethod
     def _check_wntr() -> str | None:
-        invalidate_caches()
         if find_spec("wntr") is None:
             return None
         try:

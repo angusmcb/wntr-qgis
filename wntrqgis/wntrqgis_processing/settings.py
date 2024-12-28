@@ -23,13 +23,12 @@ from qgis.core import (
     QgsProject,
 )
 
-from wntrqgis.network_parts import (
-    WqFlowUnit,
-    WqHeadlossFormula,
-    WqModelLayer,
-    WqProjectSetting,
-    WqProjectSettings,
+from wntrqgis.elements import (
+    FlowUnit,
+    HeadlossFormula,
+    ModelLayer,
 )
+from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
 
@@ -56,10 +55,10 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return self.FlagHideFromToolbox
 
     def initAlgorithm(self, config=None):  # noqa N802
-        project_settings = WqProjectSettings(QgsProject.instance())
+        project_settings = ProjectSettings(QgsProject.instance())
 
-        default_layers = project_settings.get(WqProjectSetting.MODEL_LAYERS, {})
-        for lyr in WqModelLayer:
+        default_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+        for lyr in ModelLayer:
             param = QgsProcessingParameterVectorLayer(
                 lyr.name,
                 self.tr(lyr.friendly_name),
@@ -75,33 +74,33 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         param = QgsProcessingParameterEnum(
             self.UNITS,
             self.tr("Units"),
-            options=[fu.value for fu in WqFlowUnit],
+            options=[fu.value for fu in FlowUnit],
             allowMultiple=False,
             usesStaticStrings=False,
             optional=True,
         )
-        default_flow_units = project_settings.get(WqProjectSetting.FLOW_UNITS)
-        param.setGuiDefaultValueOverride(list(WqFlowUnit).index(default_flow_units) if default_flow_units else None)
+        default_flow_units = project_settings.get(SettingKey.FLOW_UNITS)
+        param.setGuiDefaultValueOverride(list(FlowUnit).index(default_flow_units) if default_flow_units else None)
         self.addParameter(param)
 
         param = QgsProcessingParameterEnum(
             self.HEADLOSS_FORMULA,
             self.tr("Headloss Formula"),
-            options=[formula.friendly_name for formula in WqHeadlossFormula],
+            options=[formula.friendly_name for formula in HeadlossFormula],
             allowMultiple=False,
             usesStaticStrings=False,
             optional=True,
         )
-        default_hl_formula = project_settings.get(WqProjectSetting.HEADLOSS_FORMULA)
+        default_hl_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA)
         param.setGuiDefaultValueOverride(
-            list(WqHeadlossFormula).index(default_hl_formula) if default_hl_formula else None
+            list(HeadlossFormula).index(default_hl_formula) if default_hl_formula else None
         )
         self.addParameter(param)
 
         param = QgsProcessingParameterNumber(
             self.DURATION, self.tr("Simulation duration in hours (or 0 for single period)"), minValue=0
         )
-        param.setGuiDefaultValueOverride(project_settings.get(WqProjectSetting.SIMULATION_DURATION, 0))
+        param.setGuiDefaultValueOverride(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         self.addParameter(param)
 
     def processAlgorithm(  # noqa N802
@@ -112,24 +111,24 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     ) -> dict:
         WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
-        project_settings = WqProjectSettings(context.project())
+        project_settings = ProjectSettings(context.project())
 
         flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
-        wq_flow_unit = list(WqFlowUnit)[flow_unit_index]
-        project_settings.set(WqProjectSetting.FLOW_UNITS, wq_flow_unit)
+        wq_flow_unit = list(FlowUnit)[flow_unit_index]
+        project_settings.set(SettingKey.FLOW_UNITS, wq_flow_unit)
 
         headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
-        headloss_formula = list(WqHeadlossFormula)[headloss_formula_index]
-        project_settings.set(WqProjectSetting.HEADLOSS_FORMULA, headloss_formula)
+        headloss_formula = list(HeadlossFormula)[headloss_formula_index]
+        project_settings.set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
 
         duration = self.parameterAsDouble(parameters, self.DURATION, context)
-        project_settings.set(WqProjectSetting.SIMULATION_DURATION, duration)
+        project_settings.set(SettingKey.SIMULATION_DURATION, duration)
 
         sources = {
             lyr: input_layer.id()
-            for lyr in WqModelLayer
+            for lyr in ModelLayer
             if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
         }
 
-        project_settings.set(WqProjectSetting.MODEL_LAYERS, sources)
+        project_settings.set(SettingKey.MODEL_LAYERS, sources)
         return {}

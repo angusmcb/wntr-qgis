@@ -23,7 +23,7 @@ from wntrqgis.wntrqgis_processing.provider import Provider
 
 
 @pytest.fixture(autouse=True, scope="session")
-def plugin_provider(qgis_app, qgis_processing):  # noqa ARG001
+def plugin_provider(qgis_app, qgis_processing):
     provider = Provider()
 
     qgis_app.processingRegistry().addProvider(provider)

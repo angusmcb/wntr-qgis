@@ -1,0 +1,50 @@
+name: Conda
+
+on: [push, pull_request]
+
+jobs:
+  conda-tests:
+    name: '${{ matrix.python-version }}, ${{ matrix.os }}, ${{matrix.wntr-version}}, ${{matrix.qgis}}'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-13"]
+        python-version: ["3.9", "3.10","3.11", "3.12"]
+        wntr-version: ["wntr=v1.2.0"] # don't test no-wntr then versions
+        #can optinally add a test for wntr install by installing dependencies geopandas, networkx
+        qgis: ["qgis","conda-forge/label/qgis_ltr::qgis"]
+        exclude:
+          - os: "ubuntu-latest"
+            wntr-version: ""
+          - os: "macos-13"
+            python-version: "3.12"
+            qgis: "conda-forge/label/qgis_ltr::qgis"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          miniconda-version: 'latest'
+          channels: conda-forge, default
+          channel-priority: true
+          auto-activate-base: false
+      - name: Install packages
+        run: |
+          conda install -y pytest ${{ matrix.wntr-version}} ${{ matrix.qgis }}
+          pip install pytest-qgis pytest-cov
+      - name: Conda info
+        run: |
+          conda info
+          conda list
+      - name: Python Path
+        run: python -c "import sys; print(sys.path)"
+      - name: Run tests (non-Ubuntu)
+        if: ${{ matrix.os !='ubuntu-latest' }}
+        run: python -m pytest -v
+      - name: Run Tests (Ubuntu)
+        if: ${{ matrix.os =='ubuntu-latest' }}
+        run: xvfb-run -s '+extension GLX -screen 0 1024x768x24' python -m pytest -v

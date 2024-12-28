@@ -1,0 +1,49 @@
+name: Documentation
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build the documentation with Sphinx
+    runs-on: ubuntu-latest
+    container:
+      image: qgis/qgis:ltr
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup venv
+        run: |
+          python3 -m venv .venv --system-site-packages
+          . .venv/bin/activate
+          echo PATH=$PATH >> $GITHUB_ENV
+
+      - name: Setup Environment
+        run: |
+          pip3 install wntr
+          pip3 install -r docs/requirements.txt
+
+      - name: Build documentation
+        run: sphinx-build docs/ _site   --fail-on-warning
+
+      - name: Upload artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+
+
+  deploy:
+    name: Deploy documentation to GitHub Pages
+    needs: build
+    if: github.event_name == 'push' && github.ref =='refs/heads/master'
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

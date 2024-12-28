@@ -25,3 +25,10 @@ pandas-stubs
 # networkx
 
 qgis-plugin-ci
+
+sphinx
+pydata-sphinx-theme
+myst-parser
+livereload
+sphinx-toolbox
+enum-tools
