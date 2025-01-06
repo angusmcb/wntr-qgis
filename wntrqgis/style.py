@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from qgis.core import (
     Qgis,
+    QgsClassificationQuantile,
     QgsDefaultValue,
     QgsEditorWidgetSetup,
-    QgsGradientColorRamp,
+    QgsField,
     QgsGraduatedSymbolRenderer,
     QgsLineSymbol,
     QgsMarkerLineSymbolLayer,
@@ -16,7 +17,9 @@ from qgis.core import (
     QgsSimpleLineSymbolLayer,
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
+    QgsStyle,
     QgsVectorLayer,
+    QgsVectorLayerTemporalProperties,
 )
 
 from wntrqgis.elements import (
@@ -28,8 +31,8 @@ from wntrqgis.elements import (
 )
 
 
-def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
-    styler = _LayerStyler(layer_type)
+def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Literal["extended"] | None = None):
+    styler = _LayerStyler(layer_type, theme)
     styler.style_layer(layer)
 
 
@@ -82,8 +85,9 @@ class _FieldStyles:
 
 
 class _LayerStyler:
-    def __init__(self, layer_type: ModelLayer | ResultLayer):
+    def __init__(self, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
         self.layer_type = layer_type
+        self.theme = theme
 
     def style_layer(self, layer: QgsVectorLayer):
         if isinstance(self.layer_type, ModelLayer):
@@ -95,6 +99,7 @@ class _LayerStyler:
         renderer = QgsSingleSymbolRenderer(self._symbol)
         layer.setRenderer(renderer)
 
+        field: QgsField
         for i, field in enumerate(layer.fields()):
             field_styler = _FieldStyles(ModelField(field.name()), self.layer_type)
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
@@ -102,22 +107,30 @@ class _LayerStyler:
 
     def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is ResultLayer.NODES:
-            attribute_expression = 'wntr_result_at_current_time("pressure")'
+            attribute_expression = 'wntr_result_at_current_time("pressure")' if self.theme == "extended" else "pressure"
         else:
-            attribute_expression = 'wntr_result_at_current_time("velocity")'
-        renderer = QgsGraduatedSymbolRenderer.createRenderer(
-            layer,
-            attribute_expression,
-            8,
-            QgsGraduatedSymbolRenderer.Mode.Quantile,
-            self._symbol,
-            QgsGradientColorRamp.create(SPECTRAL_RAMP),
-        )
+            attribute_expression = 'wntr_result_at_current_time("velocity")' if self.theme == "extended" else "velocity"
+
+        renderer = QgsGraduatedSymbolRenderer()
+        renderer.setClassAttribute(attribute_expression)
+        renderer.setSourceSymbol(self._symbol)
+        classification_method = QgsClassificationQuantile()
+        classification_method.setLabelPrecision(1)
+        classification_method.setLabelTrimTrailingZeroes(False)
+        renderer.setClassificationMethod(classification_method)
+
+        renderer.updateClasses(layer, 8)
+
+        color_ramp = QgsStyle().defaultStyle().colorRamp("Spectral")
+        color_ramp.invert()
+        renderer.updateColorRamp(color_ramp)
+
         layer.setRenderer(renderer)
 
-        temporal_properties = layer.temporalProperties()
-        temporal_properties.setIsActive(True)
-        temporal_properties.setMode(Qgis.VectorTemporalMode.ModeRedrawLayerOnly)
+        if self.theme == "extended":
+            temporal_properties: QgsVectorLayerTemporalProperties = layer.temporalProperties()
+            temporal_properties.setIsActive(True)
+            temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
 
     @property
     def _symbol(self):
@@ -179,7 +192,7 @@ CIRCLE = {"name": "circle"}
 SQUARE = {"name": "square", "joinstyle": "miter"}
 TRAPEZOID = {"name": "trapezoid", "angle": "180", "joinstyle": "miter"}
 TRIANGLE = {"name": "filled_arrowhead"}
-ARROW = {"name": "arrowhead", "offset": "0.5,0", "size": "3.0"}
+ARROW = {"name": "arrowhead", "offset": "0.5,0", "size": "2.0"}
 OUTLET_SQUARE = {"name": "half_square", "vertical_anchor_point": "2", "angle": "90"}
 WHITE_FILL = {"color": "white"}
 BLACK_FILL = {"color": "black"}
@@ -200,19 +213,3 @@ DOTTY_LINE = {"line_style": "dot"}
 GREY_LINE = {"line_color": "35,35,35,255,rgb:0.13725490196078433,0.13725490196078433,0.13725490196078433,1"}
 ROTATE_180 = {"angle": "180"}
 CENTRAL_PLACEMENT = {"placements": "CentralPoint"}
-
-
-# iface.activeLayer().renderer().sourceColorRamp().properties()
-SPECTRAL_RAMP = {
-    "color1": "43,131,186,255,rgb:0.16862745098039217,0.51372549019607838,0.72941176470588232,1",
-    "color2": "215,25,28,255,rgb:0.84313725490196079,0.09803921568627451,0.10980392156862745,1",
-    "direction": "cw",
-    "discrete": "0",
-    "rampType": "gradient",
-    "spec": "rgb",
-    "stops": (
-        "0.25;171,221,164,255,rgb:0.6705882352941176,0.8666666666666667,0.64313725490196083,1;rgb;cw:"
-        "0.5;255,255,191,255,rgb:1,1,0.74901960784313726,1;rgb;cw:"
-        "0.75;253,174,97,255,rgb:0.99215686274509807,0.68235294117647061,0.38039215686274508,1;rgb;cw"
-    ),
-}
