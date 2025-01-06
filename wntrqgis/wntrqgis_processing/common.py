@@ -26,12 +26,13 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     instance = None
     layertype = None
     make_editable = None
+    style_theme = None
 
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
         if not isinstance(layer, QgsVectorLayer):
             return
 
-        style(layer, self.layertype)
+        style(layer, self.layertype, self.style_theme)
 
         project_settings = ProjectSettings(context.project())
         wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
@@ -42,10 +43,11 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
             layer.startEditing()
 
     @staticmethod
-    def create(layertype: str, make_editable=False) -> LayerPostProcessor:  # noqa FBT002
+    def create(layertype: str, make_editable=False, style_theme=None) -> LayerPostProcessor:  # noqa FBT002
         LayerPostProcessor.instance = LayerPostProcessor()
         LayerPostProcessor.instance.layertype = layertype
         LayerPostProcessor.instance.make_editable = make_editable
+        LayerPostProcessor.instance.style_theme = style_theme
         return LayerPostProcessor.instance
 
 
@@ -116,7 +118,13 @@ class WntrQgisProcessingBase:
 
         self.feedback.pushDebugInfo("WNTR version: " + wntrversion)
 
-    def _setup_postprocessing(self, outputs: dict[str, str], group_name: str, make_editable: bool):  # noqa FBT01
+    def _setup_postprocessing(
+        self,
+        outputs: dict[str, str],
+        group_name: str,
+        make_editable: bool,  # noqa: FBT001
+        style_theme: str | None = None,
+    ):
         output_order: list[str] = [
             ModelLayer.JUNCTIONS,
             ModelLayer.PIPES,
@@ -130,7 +138,7 @@ class WntrQgisProcessingBase:
 
         for layer_type, lyr_id in outputs.items():
             if self.context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(layer_type, make_editable)
+                self.post_processors[lyr_id] = LayerPostProcessor.create(layer_type, make_editable, style_theme)
 
                 layer_details = self.context.layerToLoadOnCompletionDetails(lyr_id)
                 layer_details.setPostProcessor(self.post_processors[lyr_id])

@@ -30,6 +30,17 @@ def test_to_qgis(qgis_new_project):
     wntrqgis.to_qgis(inpfile)
 
 
+def test_to_qgis_results(qgis_new_project):
+    inpfile = wntrqgis.Example.KY1
+
+    wn = wntr.network.WaterNetworkModel(inpfile)
+
+    sim = wntr.sim.EpanetSimulator(wn)
+    sim_results = sim.run_sim()
+
+    wntrqgis.to_qgis(wn, sim_results)
+
+
 def test_from_qgis(qgis_new_project):
     inpfile = wntrqgis.Example.KY1
     layers = wntrqgis.to_qgis(inpfile)

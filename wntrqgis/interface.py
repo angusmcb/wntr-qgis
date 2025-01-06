@@ -22,6 +22,7 @@ from qgis.core import (
     QgsFeatureRequest,
     QgsFeatureSink,
     QgsFeatureSource,
+    QgsField,
     QgsFields,
     QgsGeometry,
     QgsPoint,
@@ -32,6 +33,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
+from qgis.PyQt.QtCore import QMetaType, QVariant
 
 import wntrqgis.style
 from wntrqgis.elements import (
@@ -48,13 +50,15 @@ from wntrqgis.elements import (
 if TYPE_CHECKING:
     import wntr  # noqa
     import pandas as pd  # noqa
+    import numpy as np  # noqa
     from numpy.typing import ArrayLike
 
-QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
 
+QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
 QGIS_DISTANCE_UNIT_METERS = (
     Qgis.DistanceUnit.Meters if Qgis.versionInt() >= QGIS_VERSION_DISTANCE_UNIT_IN_QGIS else QgsUnitTypes.DistanceMeters
 )
+USE_QMETATYPE = Qgis.versionInt() >= 33800  # noqa: PLR2004
 
 
 def needs_wntr_pandas(func):
@@ -63,13 +67,16 @@ def needs_wntr_pandas(func):
         try:
             pd  # noqa: B018, F823
             wntr  # noqa
+            np  # noqa
         except NameError:
             importlib.invalidate_caches()
+            import numpy as np
             import pandas as pd
             import wntr
 
             globals()["wntr"] = wntr
             globals()["pd"] = pd
+            globals()["np"] = np
 
         return func(*args, **kwargs)
 
@@ -228,7 +235,7 @@ def to_qgis(
     # layers: str | None = None,
     # fields: list | None = None,
     # filename: str | None = None,
-) -> dict[ModelLayer, QgsVectorLayer] | None:
+) -> dict[str, QgsVectorLayer] | None:
     """Write from WNTR network model to QGIS Layers
 
     Args:
@@ -242,8 +249,10 @@ def to_qgis(
         wn = wntr.network.WaterNetworkModel(str(wn))
 
     writer = Writer(wn, results, units)
-    map_layers: dict[ModelLayer, QgsVectorLayer] = {}
-    for model_layer in ModelLayer:
+    map_layers: dict[str, QgsVectorLayer] = {}
+
+    model_layers: list[ModelLayer | ResultLayer] = list(ResultLayer if results else ModelLayer)
+    for model_layer in model_layers:
         layer = QgsVectorLayer(
             "Point" if model_layer.qgs_wkb_type is QgsWkbTypes.Point else "LineString",
             model_layer.friendly_name,
@@ -258,9 +267,9 @@ def to_qgis(
 
         layer.updateFields()
         layer.updateExtents()
-        wntrqgis.style.style(layer, model_layer)
+        wntrqgis.style.style(layer, model_layer, theme="extended" if results and wn.options.time.duration else None)
         QgsProject.instance().addMapLayer(layer)
-        map_layers[model_layer] = layer
+        map_layers[model_layer.name] = layer
 
     return map_layers
 
@@ -291,26 +300,33 @@ class Writer:
         flow_units = (
             wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
         )
-        unit_conversion = _UnitConversion(flow_units, HeadlossFormula(wn.options.hydraulic.headloss))
+        self._unit_conversion = _UnitConversion(flow_units, HeadlossFormula(wn.options.hydraulic.headloss))
 
-        self._dfs = self._create_gis(wn)
-        self._process_dfs(self._dfs, wn, unit_conversion)
+        self._timestep = None
+        if not wn.options.time.duration:
+            self._timestep = 0
+
+        if results:
+            self._dfs = self._process_results(results)
+        else:
+            self._dfs = self._create_gis(wn)
+            self._process_dfs(self._dfs, wn)
 
         self._geometries = self._get_geometries(wn)
 
         field_group = FieldGroup.BASE | _get_field_groups(wn)
 
-        self.fields: list[str]
+        self.fields: list[ModelField | ResultField]
         """A list of field names to be written
 
         * The default set of fields will depend on ``wn`` and ``results``
         * When writing only those fields related to the layer being written will be used.
         """
         if results:
-            self.fields = ["name"]
-            self.fields.extend([field.value for field in ResultField if field.field_group & field_group])
+            self.fields = [ModelField.NAME]
+            self.fields.extend([field for field in ResultField if field.field_group & field_group])
         else:
-            self.fields = [field.value for field in ModelField if field.field_group & field_group]
+            self.fields = [field for field in ModelField if field.field_group & field_group]
 
     def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
         """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
@@ -318,11 +334,14 @@ class Writer:
         This function loads the geometries from a WaterNetworkModel"""
         geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
 
+        name: str
+        node: wntr.network.elements.Node
         for name, node in wn.nodes():
             geometries[ElementFamily.NODE][name] = QgsGeometry(QgsPoint(*node.coordinates))
 
+        link: wntr.network.elements.Link
         for name, link in wn.links():
-            point_list = []
+            point_list: list[QgsPoint] = []
             point_list.append(QgsPoint(*link.start_node.coordinates))
             point_list.extend(QgsPoint(*vertex) for vertex in link.vertices)
             point_list.append(QgsPoint(*link.end_node.coordinates))
@@ -344,12 +363,12 @@ class Writer:
     #                 continue
     #     return analysis_types
 
-    def _get_fields(self, layer: ModelLayer) -> list[ModelField]:
+    def _get_fields(self, layer: ModelLayer | ResultLayer) -> list[ModelField | ResultField]:
         layer_fields = layer.wq_fields()
 
-        return [ModelField(field) for field in self.fields if ModelField(field) in layer_fields]
+        return [field for field in self.fields if field in layer_fields]
 
-    def get_qgsfields(self, layer: ModelLayer) -> QgsFields:
+    def get_qgsfields(self, layer: ModelLayer | ResultLayer) -> QgsFields:
         """Get the set of QgsFields that will be written by 'write'.
 
         This set of fields will need to be used when creating any sink/layer
@@ -360,61 +379,100 @@ class Writer:
         """
         fields = QgsFields()  # nice constructor didn't arrive until qgis 3.40
         for f in self._get_fields(layer):
-            fields.append(f.qgs_field)
+            if f in ResultField and self._timestep is None:
+                fields.append(
+                    QgsField(
+                        f.name.lower(), self._get_qgs_field_type(list), subType=self._get_qgs_field_type(f.python_type)
+                    )
+                )
+            else:
+                fields.append(QgsField(f.name.lower(), self._get_qgs_field_type(f.python_type)))
         return fields
 
-    def new_write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
+    def write(self, layer: ModelLayer | ResultLayer, sink: QgsFeatureSink) -> None:
         """Write a fields from a layer to a Qgis feature sink
 
         Args:
             layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
             sink: the sink to write to
         """
-        fields = self._get_fields(layer)
+        field_names = self.get_qgsfields(layer).names()
         df = self._dfs[layer]
-        df = df.rename(columns={field.value: field for field in fields})
-        df[ModelField.NAME] = df.index
+        # df = df.rename(columns={field.value: field for field in fields})
+        # df["name"] = df.index
 
-        existingcols: list[ModelField] = cast(list, df.columns)
-        cols = list(set(fields) - set(existingcols))
+        # existingcols: list[ModelField] = cast(list, df.columns)
+        missing_cols = list(set(field_names) - set(df.columns))
 
-        if len(cols) > 0:
-            df[cols] = None
+        if len(missing_cols) > 0:
+            df[missing_cols] = NULL
 
-        attributes_df = df[fields]
+        ordered_df = df[field_names]
 
-        attribute_series = pd.Series(attributes_df.to_numpy().tolist(), index=attributes_df.index)
+        attribute_series = pd.Series(
+            ordered_df.to_numpy().tolist(),
+            index=ordered_df.index,
+        )
 
         for name, attributes in attribute_series.items():
             f = QgsFeature()
             f.setGeometry(self._geometries[layer.element_family][name])
-            f.setAttributes(attributes)
+            f.setAttributes(
+                [value if not (isinstance(value, (int, float)) and math.isnan(value)) else NULL for value in attributes]
+            )
+            # f.setAttributes(attributes)
             sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-    def write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
-        """Write a fields from a layer to a Qgis feature sink
+    # def newish_write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
+    #     """Write a fields from a layer to a Qgis feature sink
 
-        Args:
-            layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
-            sink: the sink to write to
-        """
-        fields = self.get_qgsfields(layer)
-        df = self._dfs[layer]
-        df.reset_index(inplace=True)  # , names="name")
-        df.rename(columns={"index": "name"}, inplace=True)
-        for row in df.itertuples():
-            f = QgsFeature()
-            f.setGeometry(row.geometry)
-            f.setFields(fields)
-            for fieldname in fields.names():
-                f[fieldname] = getattr(row, fieldname, None)
-            sink.addFeature(f, QgsFeatureSink.FastInsert)
+    #     Args:
+    #         layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
+    #         sink: the sink to write to
+    #     """
+    #     fields = self._get_fields(layer)
+    #     df = self._dfs[layer]
+    #     df = df.rename(columns={field.value: field for field in fields})
+    #     df[ModelField.NAME] = df.index
 
-    def _process_dfs(
-        self, dfs: dict[ModelLayer, pd.DataFrame], wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion
-    ) -> None:
+    #     existingcols: list[ModelField] = cast(list, df.columns)
+    #     cols = list(set(fields) - set(existingcols))
+
+    #     if len(cols) > 0:
+    #         df[cols] = None
+
+    #     attributes_df = df[fields]
+
+    #     attribute_series = pd.Series(attributes_df.to_numpy().tolist(), index=attributes_df.index)
+
+    #     for name, attributes in attribute_series.items():
+    #         f = QgsFeature()
+    #         f.setGeometry(self._geometries[layer.element_family][name])
+    #         f.setAttributes(attributes)
+    #         sink.addFeature(f, QgsFeatureSink.FastInsert)
+
+    # def old_write(self, layer: ModelLayer, sink: QgsFeatureSink) -> None:
+    #     """Write a fields from a layer to a Qgis feature sink
+
+    #     Args:
+    #         layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
+    #         sink: the sink to write to
+    #     """
+    #     fields = self.get_qgsfields(layer)
+    #     df = self._dfs[layer]
+    #     df.reset_index(inplace=True)  # , names="name")
+    #     df.rename(columns={"index": "name"}, inplace=True)
+    #     for row in df.itertuples():
+    #         f = QgsFeature()
+    #         f.setGeometry(row.geometry)
+    #         f.setFields(fields)
+    #         for fieldname in fields.names():
+    #             f[fieldname] = getattr(row, fieldname, None)
+    #         sink.addFeature(f, QgsFeatureSink.FastInsert)
+
+    def _process_dfs(self, dfs: dict[ModelLayer, pd.DataFrame], wn: wntr.network.WaterNetworkModel) -> None:
         patterns = _Patterns(wn)
-        curves = _Curves(wn, unit_conversion)
+        curves = _Curves(wn, self._unit_conversion)
 
         for lyr, df in dfs.items():
             if lyr is ModelLayer.JUNCTIONS:
@@ -450,10 +508,10 @@ class Writer:
                     field = ModelField[str(fieldname).upper()]
                 except KeyError:
                     continue
-                df[fieldname] = unit_conversion.from_si(series, field, lyr)
+                df[fieldname] = self._unit_conversion.from_si(series, field, lyr)
 
-    def _create_gis(self, wn) -> dict[ModelLayer, pd.DataFrame]:
-        def _extract_dataframe(df, valid_base_names=None) -> pd.DataFrame:
+    def _create_gis(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
+        def _extract_dataframe(df: pd.DataFrame, valid_base_names=None) -> pd.DataFrame:
             if valid_base_names is None:
                 valid_base_names = ["node_type", "link_type"]
 
@@ -465,22 +523,22 @@ class Writer:
             if df.shape[0] == 0:
                 return pd.DataFrame()
 
-            if "node_type" in df.columns:
-                geom = [QgsGeometry(QgsPoint(x, y)) for x, y in df["coordinates"]]
-                del df["node_type"]
-            elif "link_type" in df.columns:
-                geom = []
-                for link_name in df["name"]:
-                    link = wn.get_link(link_name)
-                    ls = []
-                    x, y = link.start_node.coordinates
-                    ls.append(QgsPoint(x, y))
-                    for x, y in link.vertices:
-                        ls.append(QgsPoint(x, y))
-                    x, y = link.end_node.coordinates
-                    ls.append(QgsPoint(x, y))
-                    geom.append(QgsGeometry.fromPolyline(ls))
-                del df["link_type"]
+            # if "node_type" in df.columns:
+            #     geom = [QgsGeometry(QgsPoint(x, y)) for x, y in df["coordinates"]]
+            #     del df["node_type"]
+            # elif "link_type" in df.columns:
+            #     geom = []
+            #     for link_name in df["name"]:
+            #         link: wntr.network.elements.Link = wn.get_link(link_name)
+            #         ls: list[QgsPoint] = []
+            #         x, y = link.start_node.coordinates
+            #         ls.append(QgsPoint(x, y))
+            #         for x, y in link.vertices:
+            #             ls.append(QgsPoint(x, y))
+            #         x, y = link.end_node.coordinates
+            #         ls.append(QgsPoint(x, y))
+            #         geom.append(QgsGeometry.fromPolyline(ls))
+            #     del df["link_type"]
 
             # Drop column if not a str, float, int, or bool (or np.bool_)
             # This drops columns like coordinates, vertices
@@ -508,9 +566,9 @@ class Writer:
 
             # Set index
             if len(df) > 0:
-                df.set_index("name", inplace=True)
+                df.set_index("name", drop=False, inplace=True)
 
-            df["geometry"] = geom
+            # df["geometry"] = geom
 
             return df
 
@@ -518,31 +576,72 @@ class Writer:
         wn_dict = wn.to_dict()
         # Create dataframes for node and link attributes
         df_nodes = pd.DataFrame(wn_dict["nodes"])
+        if len(df_nodes) > 0:
+            df_nodes.set_index("name", drop=False, inplace=True)
         df_links = pd.DataFrame(wn_dict["links"])
-
+        if len(df_links) > 0:
+            df_links.set_index("name", drop=False, inplace=True)
         # valid_base_names = wntr.gis.network.WaterNetworkGIS._valid_names(complete_list=False, truncate_names=None)
 
         dfs = {}
 
         df = df_nodes[df_nodes["node_type"] == "Junction"]
-        dfs[ModelLayer.JUNCTIONS] = _extract_dataframe(df)
+        dfs[ModelLayer.JUNCTIONS] = df  # _extract_dataframe(df)
 
         df = df_nodes[df_nodes["node_type"] == "Tank"]
-        dfs[ModelLayer.TANKS] = _extract_dataframe(df)
+        dfs[ModelLayer.TANKS] = df  # _extract_dataframe(df)
 
         df = df_nodes[df_nodes["node_type"] == "Reservoir"]
-        dfs[ModelLayer.RESERVOIRS] = _extract_dataframe(df)
+        dfs[ModelLayer.RESERVOIRS] = df  # _extract_dataframe(df)
 
         df = df_links[df_links["link_type"] == "Pipe"]
-        dfs[ModelLayer.PIPES] = _extract_dataframe(df)
+        dfs[ModelLayer.PIPES] = df  # _extract_dataframe(df)
 
         df = df_links[df_links["link_type"] == "Pump"]
-        dfs[ModelLayer.PUMPS] = _extract_dataframe(df)
+        dfs[ModelLayer.PUMPS] = df  # _extract_dataframe(df)
 
         df = df_links[df_links["link_type"] == "Valve"]
-        dfs[ModelLayer.VALVES] = _extract_dataframe(df)
+        dfs[ModelLayer.VALVES] = df  # _extract_dataframe(df)
 
         return dfs
+
+    def _process_results(self, results: wntr.sim.SimulationResults):
+        result_df = {}
+        for layer in ResultLayer:
+            results_dfs = results.node if layer is ResultLayer.NODES else results.link
+
+            result_df[layer] = self._process_results_layer(layer, results_dfs)
+        return result_df
+
+    def _process_results_layer(self, layer: ResultLayer, results_dfs):
+        output_attributes = {}
+
+        for field in layer.wq_fields():
+            converted_df = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
+
+            if self._timestep is not None:
+                output_attributes[field.value] = converted_df.loc[self._timestep].transpose().squeeze()
+            else:
+                lists = converted_df.transpose().to_numpy().tolist()
+                output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+
+            # test[field.value] = converted_df.squeeze()  # for single state analysis
+        output_attributes["name"] = output_attributes[field.value].index
+        return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+
+    def _get_qgs_field_type(self, python_type):
+        if issubclass(python_type, str):
+            return QMetaType.QString if USE_QMETATYPE else QVariant.String
+        if issubclass(python_type, float):
+            return QMetaType.Double if USE_QMETATYPE else QVariant.Double
+        if issubclass(python_type, bool):
+            return QMetaType.Bool if USE_QMETATYPE else QVariant.Bool
+        if issubclass(python_type, int):
+            return QMetaType.Int if USE_QMETATYPE else QVariant.Int
+        if issubclass(python_type, list):
+            return QMetaType.QVariantList if USE_QMETATYPE else QVariant.List
+
+        raise KeyError
 
 
 class _SpatialIndex:
@@ -663,7 +762,9 @@ class _Curves:
             curves[name] = self._unit_conversion.curve_points_from_si(curve.points, _CurveType(curve.curve_type))
         return curves
 
-    def get_curve_string_from_name(self, curve_name: str) -> str:
+    def get_curve_string_from_name(self, curve_name: Any) -> str | None:
+        if not curve_name or not isinstance(curve_name, str):
+            return None
         return repr(self._converted_curves[curve_name])
 
 
@@ -1097,135 +1198,135 @@ def _get_field_groups(wn: wntr.network.WaterNetworkModel):
     return field_groups
 
 
-@needs_wntr_pandas
-class SimulationResults:
-    """Process WNTR Simulation Results, outputing to QGIS feature sinks
+# @needs_wntr_pandas
+# class SimulationResults:
+#     """Process WNTR Simulation Results, outputing to QGIS feature sinks
 
-    Args:
-        results: simulation result's from wntr's simulation module
-        unit_conversion: set of units to convert to
-    """
+#     Args:
+#         results: simulation result's from wntr's simulation module
+#         unit_conversion: set of units to convert to
+#     """
 
-    def __init__(
-        self,
-        wn: wntr.network.WaterNetworkModel,
-        results: wntr.sim.SimulationResults,
-        unit_conversion: _UnitConversion,
-    ) -> None:
-        self._unit_conversion = unit_conversion
+#     def __init__(
+#         self,
+#         wn: wntr.network.WaterNetworkModel,
+#         results: wntr.sim.SimulationResults,
+#         unit_conversion: _UnitConversion,
+#     ) -> None:
+#         self._unit_conversion = unit_conversion
 
-        # self._result_dfs = {}
-        # for lyr in ResultLayer:
-        #     gdfs = getattr(results, lyr.wntr_attr)
-        #     for field in lyr.wq_fields:
-        #         self._result_dfs[field] = gdfs[field.value]
+#         # self._result_dfs = {}
+#         # for lyr in ResultLayer:
+#         #     gdfs = getattr(results, lyr.wntr_attr)
+#         #     for field in lyr.wq_fields:
+#         #         self._result_dfs[field] = gdfs[field.value]
 
-        self._result_df = self._process_results(results)
+#         self._result_df = self._process_results(results)
 
-        self._geometries = self._get_geometries(wn)
+#         self._geometries = self._get_geometries(wn)
 
-    def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
-        """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
+#     def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
+#         """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
 
-        This function loads the geometries from a WaterNetworkModel"""
-        geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
+#         This function loads the geometries from a WaterNetworkModel"""
+#         geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
 
-        for name, node in wn.nodes():
-            geometries[ElementFamily.NODE][name] = QgsGeometry(QgsPoint(*node.coordinates))
+#         for name, node in wn.nodes():
+#             geometries[ElementFamily.NODE][name] = QgsGeometry(QgsPoint(*node.coordinates))
 
-        for name, link in wn.links():
-            point_list = []
-            point_list.append(QgsPoint(*link.start_node.coordinates))
-            point_list.extend(QgsPoint(*vertex) for vertex in link.vertices)
-            point_list.append(QgsPoint(*link.end_node.coordinates))
-            geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
+#         for name, link in wn.links():
+#             point_list = []
+#             point_list.append(QgsPoint(*link.start_node.coordinates))
+#             point_list.extend(QgsPoint(*vertex) for vertex in link.vertices)
+#             point_list.append(QgsPoint(*link.end_node.coordinates))
+#             geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
 
-        return geometries
+#         return geometries
 
-    def get_qgsfields(self, layer: ResultLayer) -> QgsFields:
-        """Get the set of QgsFields that will be written by 'write_to_sink'.
+#     def get_qgsfields(self, layer: ResultLayer) -> QgsFields:
+#         """Get the set of QgsFields that will be written by 'write_to_sink'.
 
-        This set of fields will need to be used when creating any sink/layer
-        which will be written to by write_to_sink
-        """
-        fields = QgsFields()
-        fields.append(ModelField.NAME.qgs_field)
-        for f in layer.wq_fields:
-            fields.append(f.qgs_field)
-        return fields
+#         This set of fields will need to be used when creating any sink/layer
+#         which will be written to by write_to_sink
+#         """
+#         fields = QgsFields()
+#         fields.append(ModelField.NAME.qgs_field)
+#         for f in layer.wq_fields:
+#             fields.append(f.qgs_field)
+#         return fields
 
-    def write(self, layer: ResultLayer, sink: QgsFeatureSink) -> None:
-        """Add results to a feature sink
+#     def write(self, layer: ResultLayer, sink: QgsFeatureSink) -> None:
+#         """Add results to a feature sink
 
-        Args:
-            sink: qgs sink (which could be a layer)  to write to
-            fields: list of fields that should be written
-            name_geometry_map: dictionary mapping item names to geometries
-        """
-        # output_attributes = {}
+#         Args:
+#             sink: qgs sink (which could be a layer)  to write to
+#             fields: list of fields that should be written
+#             name_geometry_map: dictionary mapping item names to geometries
+#         """
+#         # output_attributes = {}
 
-        # for field in layer.wq_fields:
-        #     converted_df = self._unit_conversion.from_si(self._result_dfs[field].copy(), field)
+#         # for field in layer.wq_fields:
+#         #     converted_df = self._unit_conversion.from_si(self._result_dfs[field].copy(), field)
 
-        #     lists = converted_df.transpose().to_numpy().tolist()
-        #     output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+#         #     lists = converted_df.transpose().to_numpy().tolist()
+#         #     output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
 
-        #     # test[field.value] = converted_df.squeeze()  # for single state analysis
+#         #     # test[field.value] = converted_df.squeeze()  # for single state analysis
 
-        # jointed_dataframe = pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+#         # jointed_dataframe = pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
-        jointed_dataframe = self._result_df[layer]
+#         jointed_dataframe = self._result_df[layer]
 
-        namesindex = jointed_dataframe.index
-        jointed_dataframe["name"] = namesindex
-        jointed_dataframe = jointed_dataframe[self.get_qgsfields(layer).names()]
+#         namesindex = jointed_dataframe.index
+#         jointed_dataframe["name"] = namesindex
+#         jointed_dataframe = jointed_dataframe[self.get_qgsfields(layer).names()]
 
-        attribute_series = pd.Series(jointed_dataframe.to_numpy().tolist(), index=namesindex)
+#         attribute_series = pd.Series(jointed_dataframe.to_numpy().tolist(), index=namesindex)
 
-        attribute_and_geom = pd.DataFrame(
-            {"geometry": self._geometries[layer.element_family], "attributes": attribute_series}, index=namesindex
-        )
+#         attribute_and_geom = pd.DataFrame(
+#             {"geometry": self._geometries[layer.element_family], "attributes": attribute_series}, index=namesindex
+#         )
 
-        for item in attribute_and_geom.itertuples(False):
-            f = QgsFeature()
-            f.setGeometry(item.geometry)
-            f.setAttributes(item.attributes)
-            sink.addFeature(f, QgsFeatureSink.FastInsert)
+#         for item in attribute_and_geom.itertuples(False):
+#             f = QgsFeature()
+#             f.setGeometry(item.geometry)
+#             f.setAttributes(item.attributes)
+#             sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-        # for name, geom in item_geoms.items():
-        #     f = QgsFeature()
-        #     f.setGeometry(geom)
-        #     atts = attribute_series.loc[name]
-        #     f.setAttributes(atts)
-        #     # sink.addFeature(f, QgsFeatureSink.FastInsert)
+#         # for name, geom in item_geoms.items():
+#         #     f = QgsFeature()
+#         #     f.setGeometry(geom)
+#         #     atts = attribute_series.loc[name]
+#         #     f.setAttributes(atts)
+#         #     # sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-        # for name, geom in item_geoms.items():
-        #     f = QgsFeature()
-        #     f.setGeometry(geom)
-        #     atts = [converted_dfs[field][name].to_list() for field in fields]
-        #     f.setAttributes([name, *atts])
-        #     sink.addFeature(f, QgsFeatureSink.FastInsert)
+#         # for name, geom in item_geoms.items():
+#         #     f = QgsFeature()
+#         #     f.setGeometry(geom)
+#         #     atts = [converted_dfs[field][name].to_list() for field in fields]
+#         #     f.setAttributes([name, *atts])
+#         #     sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-    def _process_results(self, results: wntr.sim.SimulationResults):
-        result_df = {}
-        for layer in ResultLayer:
-            results_dfs = results.node if layer is ResultLayer.NODES else results.link
+#     def _process_results(self, results: wntr.sim.SimulationResults):
+#         result_df = {}
+#         for layer in ResultLayer:
+#             results_dfs = results.node if layer is ResultLayer.NODES else results.link
 
-            result_df[layer] = self._process_results_layer(layer, results_dfs)
-        return result_df
+#             result_df[layer] = self._process_results_layer(layer, results_dfs)
+#         return result_df
 
-    def _process_results_layer(self, layer, results_dfs):
-        output_attributes = {}
+#     def _process_results_layer(self, layer, results_dfs):
+#         output_attributes = {}
 
-        for field in layer.wq_fields:
-            converted_df = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
+#         for field in layer.wq_fields:
+#             converted_df = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
 
-            lists = converted_df.transpose().to_numpy().tolist()
-            output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+#             lists = converted_df.transpose().to_numpy().tolist()
+#             output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
 
-            # test[field.value] = converted_df.squeeze()  # for single state analysis
+#             # test[field.value] = converted_df.squeeze()  # for single state analysis
 
-        return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+#         return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
 
 class NetworkModelError(Exception):

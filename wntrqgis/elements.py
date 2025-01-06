@@ -73,6 +73,30 @@ class ElementFamily(Enum):
     LINK = auto()
 
 
+class LayerType(Flag):
+    JUNCTIONS = auto()
+    RESERVOIRS = auto()
+    TANKS = auto()
+    PIPES = auto()
+    PUMPS = auto()
+    VALVES = auto()
+    NODES = JUNCTIONS | RESERVOIRS | TANKS
+    LINKS = PIPES | PUMPS | VALVES
+    ALL = NODES | LINKS
+
+    @property
+    def friendly_name(self):
+        return self.name.title()
+
+    @property
+    def qgs_wkb_type(self):
+        return QgsWkbTypes.Point if self in LayerType.NODES else QgsWkbTypes.LineString
+
+    @property
+    def acceptable_processing_vectors(self):
+        return [QgsProcessing.TypeVectorPoint] if self in LayerType.NODES else [QgsProcessing.TypeVectorLine]
+
+
 class _AbstractLayer(str, Enum):
     """Abstract enum for layer enums"""
 
@@ -201,11 +225,6 @@ class ResultLayer(_AbstractLayer):
     def element_family(self):
         return ElementFamily.NODE if self is ResultLayer.NODES else ElementFamily.LINK
 
-    @property
-    def wntr_attr(self):
-        return "node" if self is ResultLayer.NODES else "link"
-
-    @property
     def wq_fields(self):
         if self is ResultLayer.NODES:
             return [
@@ -273,6 +292,7 @@ class ModelField(_AbstractField):
     INIT_LEVEL = "init_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_LEVEL = "min_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MAX_LEVEL = "max_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
+    VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
     DIAMETER = "diameter", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_VOL = "min_vol", float, FieldGroup.BASE
     VOL_CURVE = "vol_curve", str, FieldGroup.BASE
@@ -290,7 +310,6 @@ class ModelField(_AbstractField):
     BASE_SPEED = "base_speed", float, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", str, FieldGroup.BASE
     INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
-    VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
 
     INITIAL_QUALITY = "initial_quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS

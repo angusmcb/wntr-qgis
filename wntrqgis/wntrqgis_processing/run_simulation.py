@@ -39,8 +39,7 @@ from wntrqgis.elements import (
 )
 from wntrqgis.interface import (
     NetworkModelError,
-    SimulationResults,
-    _UnitConversion,
+    Writer,
     check_network,
 )
 from wntrqgis.resource_manager import WqIcon
@@ -181,8 +180,6 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
-        unit_conversion = _UnitConversion(wq_flow_unit, headloss_formula)
-
         # network_model = _Reader(unit_conversion, project=context.project())
         crs = sources[ModelLayer.JUNCTIONS].sourceCrs()
         try:
@@ -213,7 +210,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         self._update_progress(Progression.CREATING_OUTPUTS)
 
-        result_writer = SimulationResults(wn, sim_results, unit_conversion)
+        result_writer = Writer(wn, sim_results, units=wq_flow_unit.name)
 
         for lyr in ResultLayer:
             (sink, outputs[lyr]) = self.parameterAsSink(
@@ -230,6 +227,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self._update_progress(Progression.FINISHED_PROCESSING)
 
         finishtime = time.strftime("%X")
-        self._setup_postprocessing(outputs, f"Simulation Results ({finishtime})", False)
+        style_theme = "extended" if wn.options.time.duration > 0 else None
+        self._setup_postprocessing(outputs, f"Simulation Results ({finishtime})", False, style_theme)
 
         return outputs
