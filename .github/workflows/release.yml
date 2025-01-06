@@ -13,10 +13,8 @@ jobs:
         with:
           submodules: true
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.8
+      - name: Set up Python
+        uses: actions/setup-python@v5
 
       #    Needed if the plugin is using Transifex, to have the lrelease command
       #    - name: Install Qt lrelease
