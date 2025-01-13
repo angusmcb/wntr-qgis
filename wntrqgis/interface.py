@@ -239,9 +239,10 @@ def to_qgis(
     """Write from WNTR network model to QGIS Layers
 
     Args:
-        wn: the water network model, or a path (strin or path object) to an input file
+        wn: the water network model, or a path (string or path object) to an input file
         results: simulation results, if any.
-        crs: The coordinate Reference System of the coordinates in the wntr model / inp file.
+        crs: The coordinate Reference System of the coordinates in the wntr model / .inp file.
+        units: the set of units to write the layers using.
 
     """
 

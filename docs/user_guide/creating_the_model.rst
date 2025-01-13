@@ -6,12 +6,12 @@ The model can consist of up to six layers:
 - three node layers: junctions, reservoirs and tanks
 - three link layers: pipes, valve, and pumps
 
-Each of the six objects is reperesented in QGIS by it's own layer. Layers do not need to be created if they are not used for the model. There is a convenience function to create these empty layers with appropriate fields and some default styling, but any layer with the appropriate geometry type (points for nodes and linestrings for links) and with the minimum necessary fields can be used.
+Each of the six objects is represented in QGIS by it's own layer. Layers do not need to be created if they are not used for the model. There is a convenience function to create these empty layers with appropriate fields and some default styling, but any layer with the appropriate geometry type (points for nodes and linestrings for links) and with the minimum necessary fields can be used.
 
 Creating Layers
 ---------------
 
-You can use the 'new' button on the toolbar to create a set of layers with default properites.
+You can use the 'new' button on the toolbar to create a set of layers with default properties.
 
 .. image:: ../_static/new_button.png
 
@@ -26,7 +26,7 @@ Attributes are based on the attributes within WNTR, with some adaptations:
 
 * All layers can optionally use the attribute 'name' to give a name to each item, which will be visible on the output layer. This must be a string. If no name is given, it will be automatically generated.
 * All patterns and curves are input to each element, rather than as a reference to a pattern within WNTR.
-* All geographical (coordinates, vertices) and netowrk-related (start_node_name and end_node_name) attributes are calculated automatically based on the geomtry of the features.
+* All geographical (coordinates, vertices) and network-related (start_node_name and end_node_name) attributes are calculated automatically based on the geometry of the features.
 
 All attributes are optional, except those marked *Required*
 

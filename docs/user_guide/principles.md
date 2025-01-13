@@ -24,7 +24,7 @@ The layers are normal QGIS layers and can be edited / modified / processed / sty
     - *External data sources* or any other layers can be used as background maps or data sources for drawing the network.
 
 1. **Running the simulation.**
-The plugin will load your nodes, linkes, patterns, curves and options into WNTR and run the model It will then process the output into a new link and node layer containing all calculated results. Configure your analysis options to exploit the full power or WNTR and EPANET.
+The plugin will load your nodes, links, patterns, curves and options into WNTR and run the model It will then process the output into a new link and node layer containing all calculated results. Configure your analysis options to exploit the full power or WNTR and EPANET.
 
 
 1. **Viewing the results.**

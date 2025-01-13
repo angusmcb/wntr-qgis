@@ -1,6 +1,7 @@
 import wntr
 
 import wntrqgis
+import wntrqgis as wq
 import wntrqgis.elements
 from wntrqgis import interface
 from wntrqgis.elements import FieldGroup
@@ -50,3 +51,8 @@ def test_from_qgis(qgis_new_project):
     new_wn = wntrqgis.from_qgis(layers)
 
     assert new_wn
+
+
+def test_empty_wn(qgis_new_project):
+    wn = wntr.network.WaterNetworkModel()
+    wq.to_qgis(wn)

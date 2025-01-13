@@ -35,7 +35,7 @@ By default a single period simulation will be run (i.e. the 'time' setting will 
 
 These appearance of the results can be controlled using the extensive QGIS layer styling options.
 
-The QGIS 'Identify Features' tool is useful for querying the results at specific nodes or links. Alternatively, you can look at the ensemble of the results uith the attribute table.
+The QGIS 'Identify Features' tool is useful for querying the results at specific nodes or links. Alternatively, you can look at the ensemble of the results with the attribute table.
 
 
 Viewing Results from Extended Period Simulation
@@ -45,4 +45,4 @@ For an extended period simulation all result attributes will be 'list' types. Ea
 
 These can easily be viewed using the QGIS's 'temporal manager'.
 
-The QGIS temporal manager uses real dates and times, wheras WNTR and EPANET provide a list of results with values at each timestep. In order to make these usable the output is configured by default to use the custom `wntr_result_at_current_time( parameter )` expression.
+The QGIS temporal manager uses real dates and times, whereas WNTR and EPANET provide a list of results with values at each timestep. In order to make these usable the output is configured by default to use the custom `wntr_result_at_current_time( parameter )` expression.
