@@ -606,7 +606,7 @@ class Writer:
 
         return dfs
 
-    def _process_results(self, results: wntr.sim.SimulationResults):
+    def _process_results(self, results: wntr.sim.SimulationResults) -> dict[ResultLayer, pd.DataFrame]:
         result_df = {}
         for layer in ResultLayer:
             results_dfs = results.node if layer is ResultLayer.NODES else results.link
@@ -614,20 +614,20 @@ class Writer:
             result_df[layer] = self._process_results_layer(layer, results_dfs)
         return result_df
 
-    def _process_results_layer(self, layer: ResultLayer, results_dfs):
-        output_attributes = {}
+    def _process_results_layer(self, layer: ResultLayer, results_dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
+        output_attributes: dict[str, pd.Series] = {}
 
         for field in layer.wq_fields():
-            converted_df = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
+            converted_df: pd.DataFrame = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
 
             if self._timestep is not None:
-                output_attributes[field.value] = converted_df.loc[self._timestep].transpose().squeeze()
+                output_attributes[field.value] = converted_df.iloc[self._timestep]
             else:
                 lists = converted_df.transpose().to_numpy().tolist()
                 output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
 
             # test[field.value] = converted_df.squeeze()  # for single state analysis
-        output_attributes["name"] = output_attributes[field.value].index
+        output_attributes["name"] = output_attributes[field.value].index.to_series()
         return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
     def _get_qgs_field_type(self, python_type):

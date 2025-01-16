@@ -13,7 +13,7 @@ def example_dir():
 
 
 def examples_list():
-    return ["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp"]
+    return ["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp", "valves.inp", "single_pipe_warning.inp"]
 
 
 expected_model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
@@ -136,14 +136,14 @@ def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
 
     feedbacktest = TestFeedback()
 
-    inputinp = str(example_dir / "valves.inp")
+    inputinp = str(example_dir / "single_pipe_warning.inp")
 
     fileset = output_params(expected_model_layers, tmp_path, "TEMPORARY_OUTPUT")
     units = 0
     inp_result = processing.run(
         "wntr:importinp",
         {
-            "CRS": "32637",
+            "CRS": "EPSG:3089",
             "INPUT": inputinp,
             "UNITS": units,
             **fileset,
