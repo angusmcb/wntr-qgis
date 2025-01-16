@@ -31,7 +31,6 @@ from qgis.utils import iface
 
 import wntrqgis
 import wntrqgis.expressions
-from wntrqgis.dependency_management import WqDependencyManagement
 from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
