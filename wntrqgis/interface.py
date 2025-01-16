@@ -311,7 +311,7 @@ class Writer:
         if not wn.options.time.duration:
             self._timestep = 0
 
-        self._dfs: dict[ModelLayer | ResultLayer, pd.DataFrame]
+        self._dfs: dict[ModelLayer, pd.DataFrame] | dict[ResultLayer, pd.DataFrame]
         if results:
             self._dfs = self._process_results(results)
         else:
@@ -430,7 +430,7 @@ class Writer:
     def _create_gis(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
         wn_dict = wn.to_dict()
 
-        dfs = {}
+        dfs: dict[ModelLayer, pd.DataFrame] = {}
 
         df_nodes = pd.DataFrame(wn_dict["nodes"])
         if len(df_nodes) > 0:
