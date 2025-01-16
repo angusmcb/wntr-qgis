@@ -169,7 +169,10 @@ class _LayerStyler:
         if self.layer_type is ResultLayer.LINKS:
             line = QgsSimpleLineSymbolLayer.create(THICK_LINE)
             arrow = QgsMarkerSymbol.createSimple(ARROW | THICK_STROKE)
-            exp = QgsProperty.fromExpression("if(wntr_result_at_current_time( flowrate ) <0,180,0)")
+
+            flowrate_field = "wntr_result_at_current_time( flowrate )" if self.theme == "extended" else "flowrate"
+
+            exp = QgsProperty.fromExpression(f"if( {flowrate_field} <0,180,0)")
             arrow.setDataDefinedAngle(exp)
             return self._line_with_marker(line, arrow)
 
