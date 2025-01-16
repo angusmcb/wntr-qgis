@@ -201,6 +201,7 @@ class ModelLayer(_AbstractLayer):
                 ModelField.MINOR_LOSS,
                 ModelField.INITIAL_STATUS,
                 ModelField.INITIAL_SETTING,
+                ModelField.HEADLOSS_CURVE,
             ],
         }
         field_list = field_dict[self]
@@ -310,6 +311,7 @@ class ModelField(_AbstractField):
     BASE_SPEED = "base_speed", float, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", str, FieldGroup.BASE
     INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
+    HEADLOSS_CURVE = "headloss_curve", str, FieldGroup.BASE
 
     INITIAL_QUALITY = "initial_quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS

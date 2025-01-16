@@ -103,9 +103,11 @@ class _UnitConversion:
     def to_si(
         self,
         value: float | ArrayLike | dict,
-        field: ModelField | ResultField,
+        field: ModelField | ResultField | wntr.epanet.HydParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
+        if isinstance(field, wntr.epanet.HydParam):
+            return wntr.epanet.util.to_si(self._flow_units, value, param=field, darcy_weisbach=self._darcy_weisbach)
         if field.python_type not in [int, float] or field.python_type is bool:
             return value
         try:
@@ -119,9 +121,11 @@ class _UnitConversion:
     def from_si(
         self,
         value: float | ArrayLike | dict,
-        field: ModelField | ResultField,
+        field: ModelField | ResultField | wntr.epanet.HydParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
+        if isinstance(field, wntr.epanet.HydParam):
+            return wntr.epanet.util.from_si(self._flow_units, value, param=field, darcy_weisbach=self._darcy_weisbach)
         if field.python_type not in [int, float] or field.python_type is bool:
             return value
         try:
@@ -307,11 +311,11 @@ class Writer:
         if not wn.options.time.duration:
             self._timestep = 0
 
+        self._dfs: dict[ModelLayer | ResultLayer, pd.DataFrame]
         if results:
             self._dfs = self._process_results(results)
         else:
             self._dfs = self._create_gis(wn)
-            self._process_dfs(self._dfs, wn)
 
         self._geometries = self._get_geometries(wn)
 
@@ -398,7 +402,8 @@ class Writer:
             sink: the sink to write to
         """
         field_names = self.get_qgsfields(layer).names()
-        df = self._dfs[layer]
+        df: pd.DataFrame = self._dfs.get(layer, pd.DataFrame())
+
         # df = df.rename(columns={field.value: field for field in fields})
         # df["name"] = df.index
 
@@ -471,13 +476,36 @@ class Writer:
     #             f[fieldname] = getattr(row, fieldname, None)
     #         sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-    def _process_dfs(self, dfs: dict[ModelLayer, pd.DataFrame], wn: wntr.network.WaterNetworkModel) -> None:
+    def _create_gis(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
+        wn_dict = wn.to_dict()
+
+        dfs = {}
+
+        df_nodes = pd.DataFrame(wn_dict["nodes"])
+        if len(df_nodes) > 0:
+            df_nodes.set_index("name", drop=False, inplace=True)
+
+            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"]
+            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"]
+            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"]
+
+        df_links = pd.DataFrame(wn_dict["links"])
+        if len(df_links) > 0:
+            df_links.set_index("name", drop=False, inplace=True)
+
+            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"]
+            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"]
+            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"]
+
         patterns = _Patterns(wn)
         curves = _Curves(wn, self._unit_conversion)
 
         for lyr, df in dfs.items():
+            if len(df) == 0:
+                continue
+
             if lyr is ModelLayer.JUNCTIONS:
-                # Secial case for demands
+                # Special case for demands
                 df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
 
                 # 'demand_pattern' didn't exist on node prior to wntr 1.3.0 so we have to go searching:
@@ -504,105 +532,25 @@ class Writer:
                 if "energy_pattern" in df:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get_pattern_string_from_name)
 
+            elif lyr is ModelLayer.VALVES:
+                df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"] = self._unit_conversion.from_si(
+                    pd.to_numeric(df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"]),
+                    wntr.epanet.HydParam.Pressure,
+                )
+                df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._unit_conversion.from_si(
+                    pd.to_numeric(df.loc[df["valve_type"] == "FCV", "initial_setting"]), wntr.epanet.HydParam.Flow
+                )
+                if "headloss_curve" in df:
+                    df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
+                        df["valve_type"] == "GPV", "headloss_curve_name"
+                    ].apply(curves.get_curve_string_from_name)
+
             for fieldname, series in df.items():
                 try:
                     field = ModelField[str(fieldname).upper()]
                 except KeyError:
                     continue
                 df[fieldname] = self._unit_conversion.from_si(series, field, lyr)
-
-    def _create_gis(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
-        def _extract_dataframe(df: pd.DataFrame, valid_base_names=None) -> pd.DataFrame:
-            if valid_base_names is None:
-                valid_base_names = ["node_type", "link_type"]
-
-            # Drop any column with all NaN, this removes excess attributes
-            # Valid base attributes that have all None values are added back
-            # at the end of this routine
-            df = df.loc[:, ~df.isna().all()]
-
-            if df.shape[0] == 0:
-                return pd.DataFrame()
-
-            # if "node_type" in df.columns:
-            #     geom = [QgsGeometry(QgsPoint(x, y)) for x, y in df["coordinates"]]
-            #     del df["node_type"]
-            # elif "link_type" in df.columns:
-            #     geom = []
-            #     for link_name in df["name"]:
-            #         link: wntr.network.elements.Link = wn.get_link(link_name)
-            #         ls: list[QgsPoint] = []
-            #         x, y = link.start_node.coordinates
-            #         ls.append(QgsPoint(x, y))
-            #         for x, y in link.vertices:
-            #             ls.append(QgsPoint(x, y))
-            #         x, y = link.end_node.coordinates
-            #         ls.append(QgsPoint(x, y))
-            #         geom.append(QgsGeometry.fromPolyline(ls))
-            #     del df["link_type"]
-
-            # Drop column if not a str, float, int, or bool (or np.bool_)
-            # This drops columns like coordinates, vertices
-            # This could be extended to keep additional data type (list,
-            # tuple, network elements like Patterns, Curves)
-            # drop_cols = []
-            # for col in df.columns:
-            #     # Added np.bool_ to the following check
-            #     # Returned by df.to_dict('records') for some network models
-            #     if not isinstance(df.iloc[0][col], (str, float, int, bool, np.bool_)):
-            #         drop_cols.append(col)
-
-            drop_cols = [
-                col
-                for col in df.columns
-                if not isinstance(df.iloc[0][col], (str, float, int, bool))  # np.bool_))
-            ]
-            df = df.drop(columns=drop_cols)
-
-            # Add back in valid base attributes that had all None values
-            cols = list(set(valid_base_names) - set(df.columns))
-            cols.sort()
-            if len(cols) > 0:
-                df[cols] = None
-
-            # Set index
-            if len(df) > 0:
-                df.set_index("name", drop=False, inplace=True)
-
-            # df["geometry"] = geom
-
-            return df
-
-        # Convert the WaterNetworkModel to a dictionary
-        wn_dict = wn.to_dict()
-        # Create dataframes for node and link attributes
-        df_nodes = pd.DataFrame(wn_dict["nodes"])
-        if len(df_nodes) > 0:
-            df_nodes.set_index("name", drop=False, inplace=True)
-        df_links = pd.DataFrame(wn_dict["links"])
-        if len(df_links) > 0:
-            df_links.set_index("name", drop=False, inplace=True)
-        # valid_base_names = wntr.gis.network.WaterNetworkGIS._valid_names(complete_list=False, truncate_names=None)
-
-        dfs = {}
-
-        df = df_nodes[df_nodes["node_type"] == "Junction"]
-        dfs[ModelLayer.JUNCTIONS] = df  # _extract_dataframe(df)
-
-        df = df_nodes[df_nodes["node_type"] == "Tank"]
-        dfs[ModelLayer.TANKS] = df  # _extract_dataframe(df)
-
-        df = df_nodes[df_nodes["node_type"] == "Reservoir"]
-        dfs[ModelLayer.RESERVOIRS] = df  # _extract_dataframe(df)
-
-        df = df_links[df_links["link_type"] == "Pipe"]
-        dfs[ModelLayer.PIPES] = df  # _extract_dataframe(df)
-
-        df = df_links[df_links["link_type"] == "Pump"]
-        dfs[ModelLayer.PUMPS] = df  # _extract_dataframe(df)
-
-        df = df_links[df_links["link_type"] == "Valve"]
-        dfs[ModelLayer.VALVES] = df  # _extract_dataframe(df)
 
         return dfs
 
@@ -1142,9 +1090,17 @@ class _FromGis:
         start_node_name: str,
         end_node_name: str,
     ):
-        if str(attributes.get(ModelField.VALVE_TYPE)).lower() == "gpv":
+        if str(attributes.get(ModelField.VALVE_TYPE)).upper() == "GPV":
             initial_setting = self.curves.add_curve_to_wn(
-                attributes.get(ModelField.INITIAL_SETTING), _CurveType.HEADLOSS
+                attributes.get(ModelField.HEADLOSS_CURVE), _CurveType.HEADLOSS
+            )
+        elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["PRV", "PSV", "PBV"]:
+            initial_setting = self._unit_conversion.to_si(
+                attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Pressure
+            )
+        elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["FCV"]:
+            initial_setting = self._unit_conversion.to_si(
+                attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Flow
             )
         else:
             initial_setting = attributes.get(ModelField.INITIAL_SETTING, 0)

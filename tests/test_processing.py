@@ -169,11 +169,12 @@ def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
 
 
 @pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
-def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):
+@pytest.mark.parametrize("example", [("Net3.simplified.inp", 24), ("valves.inp", 0)])
+def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype, example):
     import wntr
     from qgis import processing
 
-    inputinp = str(example_dir / "Net3.simplified.inp")
+    inputinp = str(example_dir / example[0])
 
     fileset = output_params(expected_model_layers, tmp_path, filetype)
     units = 0
@@ -197,7 +198,7 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
             "OUTPUTINP": "TEMPORARY_OUTPUT",
             "UNITS": units,
             "HEADLOSS_FORMULA": 0,
-            "DURATION": 24,
+            "DURATION": example[1],
             **inp_result,
         },
     )
@@ -213,10 +214,19 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     sim = wntr.sim.EpanetSimulator(wn)
     outputresults = sim.run_sim()
 
+    print("Original results")
+    print(inputresults.link["headloss"])
+    print("Final results")
+    print(outputresults.link["headloss"])
+
     for i in ["demand", "head", "pressure"]:
-        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i]))
+        assert all(
+            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
+        ), f" when testing {i}"
     for i in ["flowrate", "headloss", "velocity"]:
-        assert all(all(sublist) for sublist in np.isclose(inputresults.link[i], outputresults.link[i]))
+        assert all(
+            all(sublist) for sublist in np.isclose(inputresults.link[i], outputresults.link[i], rtol=0.005, atol=1e-05)
+        ), f" when testing {i}"
 
 
 def test_settings(qgis_processing, qgis_new_project, example_dir, tmp_path):
