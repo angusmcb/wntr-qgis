@@ -330,7 +330,7 @@ class Writer:
             self.fields = [field for field in ModelField if field.field_group & field_group]
 
     def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
-        """As the WNTR simulation resulst do not contain any geometry information it is necessary to load them
+        """As the WNTR simulation result do not contain any geometry information it is necessary to load them
 
         This function loads the geometries from a WaterNetworkModel"""
         geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
@@ -787,7 +787,7 @@ def from_qgis(
         crs: all geometry will be transformed into this crs for adding to the water network model
         units: The flow unit set that the layers being read use.
             If not set it will default to the value in ``wn.options.hydraulic.inpfile_units``.
-        headloss_formula: the headloss formula to use. If not set will defualt to option in the water network model."""
+        headloss_formula: the headloss formula to use. If not set will default to option in the water network model."""
 
     if not wn:
         wn = wntr.network.WaterNetworkModel()
@@ -1017,7 +1017,7 @@ class _FromGis:
     def _output_pipe_length_warnings(self):
         if self._pipe_length_warnings:
             msg = (
-                f"the following {len(self._pipe_length_warnings)} pipes had very differnt measured length vs attribute:"
+                f"the following {len(self._pipe_length_warnings)} pipes had very different measured length vs attribute:"
                 + ",".join(self._pipe_length_warnings)
             )
             warnings.warn(msg, stacklevel=1)
