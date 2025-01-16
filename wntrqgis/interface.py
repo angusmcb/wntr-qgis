@@ -1003,6 +1003,10 @@ class _FromGis:
             length = self._measurer.convertLengthMeasurement(length, QGIS_DISTANCE_UNIT_METERS)
 
         if not attribute_length:
+            if math.isnan(length):
+                raise RuntimeError(
+                    "cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)"
+                )
             return length
 
         if not math.isclose(attribute_length, length, rel_tol=0.05, abs_tol=10):
