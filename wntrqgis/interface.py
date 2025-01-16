@@ -316,9 +316,9 @@ class Writer:
             self._timestep = 0
 
         if results:
-            self._result_dfs = self._process_results(results)
+            self._result_dfs = self._get_results_dfs(results)
         else:
-            self._model_dfs = self._create_gis(wn)
+            self._model_dfs = self._get_model_dfs(wn)
 
         self._geometries = self._get_geometries(wn)
 
@@ -328,7 +328,7 @@ class Writer:
         """A list of field names to be written
 
         * The default set of fields will depend on ``wn`` and ``results``
-        * When writing only those fields related to the layer being written will be used.
+        * When writing only those fields related to the layer bei_ng written will be used.
         """
         if results:
             self.fields = [ModelField.NAME]
@@ -356,20 +356,6 @@ class Writer:
             geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
 
         return geometries
-
-    # @property
-    # def _field_groups(self) -> FieldGroup:
-    #     """The groups of field used in the model"""
-
-    #     analysis_types = FieldGroup.BASE
-    #     for lyr in ModelLayer:
-    #         cols = list(self._dfs[lyr].loc[:, ~self._dfs[lyr].isna().all()].columns)
-    #         for col in cols:
-    #             try:
-    #                 analysis_types = analysis_types | ModelField(col).field_group
-    #             except ValueError:
-    #                 continue
-    #     return analysis_types
 
     def _get_fields(self, layer: ModelLayer | ResultLayer) -> list[ModelField | ResultField]:
         layer_fields = layer.wq_fields()
@@ -434,7 +420,7 @@ class Writer:
             )
             sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-    def _create_gis(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
+    def _get_model_dfs(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
         wn_dict = wn.to_dict()
 
         dfs: dict[ModelLayer, pd.DataFrame] = {}
@@ -443,17 +429,17 @@ class Writer:
         if len(df_nodes) > 0:
             df_nodes.set_index("name", drop=False, inplace=True)
 
-            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"]
-            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"]
-            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"]
+            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"].copy()
+            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"].copy()
+            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"].copy()
 
         df_links = pd.DataFrame(wn_dict["links"])
         if len(df_links) > 0:
             df_links.set_index("name", drop=False, inplace=True)
 
-            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"]
-            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"]
-            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"]
+            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"].copy()
+            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"].copy()
+            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"].copy()
 
         patterns = _Patterns(wn)
         curves = _Curves(wn, self._unit_conversion)
@@ -473,11 +459,11 @@ class Writer:
 
             elif lyr is ModelLayer.RESERVOIRS:
                 if "head_pattern_name" in df:
-                    df["head_pattern"] = df["head_pattern_name"].apply(patterns.get_pattern_string_from_name)
+                    df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get_pattern_string_from_name)
 
             elif lyr is ModelLayer.TANKS:
                 if "vol_curve_name" in df:
-                    df["vol_curve"] = df["vol_curve_name"].apply(curves.get_curve_string_from_name)
+                    df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get_curve_string_from_name)
 
             elif lyr is ModelLayer.PUMPS:
                 # not all pumps will have a pump curve (power pumps)!
@@ -503,16 +489,16 @@ class Writer:
                         df["valve_type"] == "GPV", "headloss_curve_name"
                     ].apply(curves.get_curve_string_from_name)
 
-            for fieldname, series in df.items():
+            for fieldname in df.select_dtypes(include=[np.floating]):
                 try:
                     field = ModelField[str(fieldname).upper()]
                 except KeyError:
                     continue
-                df[fieldname] = self._unit_conversion.from_si(series, field, lyr)
+                df[fieldname] = self._unit_conversion.from_si(df[fieldname], field, lyr)
 
         return dfs
 
-    def _process_results(self, results: wntr.sim.SimulationResults) -> dict[ResultLayer, pd.DataFrame]:
+    def _get_results_dfs(self, results: wntr.sim.SimulationResults) -> dict[ResultLayer, pd.DataFrame]:
         result_df = {}
         for layer in ResultLayer:
             results_dfs = results.node if layer is ResultLayer.NODES else results.link
@@ -532,8 +518,8 @@ class Writer:
                 lists = converted_df.transpose().to_numpy().tolist()
                 output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
 
-            # test[field.value] = converted_df.squeeze()  # for single state analysis
         output_attributes["name"] = output_attributes[field.value].index.to_series()
+
         return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
     def _get_qgs_field_type(self, python_type):
@@ -648,8 +634,6 @@ class _Curves:
         self._next_curve_name = 1
         self._unit_conversion = unit_conversion
 
-        self._converted_curves = self._read_existing_curves()  # curve 'cache'
-
     def add_curve_to_wn(self, curve_string, curve_type: _CurveType):
         if not curve_string:
             return None
@@ -661,18 +645,12 @@ class _Curves:
         self._next_curve_name += 1
         return name
 
-    def _read_existing_curves(self) -> dict[str, list[tuple[float, float]]]:
-        """Sets up a sort of 'cache' of converted curves so we don't have to repeat over and over"""
-        curves = {}
-
-        for name, curve in self._wn.curves():
-            curves[name] = self._unit_conversion.curve_points_from_si(curve.points, _CurveType(curve.curve_type))
-        return curves
-
     def get_curve_string_from_name(self, curve_name: Any) -> str | None:
         if not curve_name or not isinstance(curve_name, str):
             return None
-        return repr(self._converted_curves[curve_name])
+
+        curve = self._wn.get_curve(curve_name)
+        return repr(self._unit_conversion.curve_points_from_si(curve.points, _CurveType(curve.curve_type)))
 
 
 @needs_wntr_pandas
@@ -782,7 +760,7 @@ class _FromGis:
             feature_request = QgsFeatureRequest().setDestinationCrs(self.crs, self._transform_context)
 
             # df = self._source_to_df(source, map_of_columns_to_fields)
-            # for column in df.select_dtypes(include=[np.number]):
+            # for column in df.select_dtypes(include=[np.floating]):
             #     df[column] = self._unit_conversion.to_si(df[column], column, model_layer)
 
             for ft in source.getFeatures(feature_request):
@@ -811,10 +789,6 @@ class _FromGis:
 
                 if model_layer.element_family is ElementFamily.NODE:
                     spatial_index.add_node_to_spatial_index(geometry, element_name)
-
-                    # geometry = self._get_3d_geometry(
-                    #    geometry, atts.get(WqModelField.ELEVATION, atts.get(WqModelField.BASE_HEAD, 0))
-                    # )
                 else:
                     try:
                         geometry, start_node_name, end_node_name = spatial_index.snap_link_to_nodes(geometry)
@@ -896,11 +870,6 @@ class _FromGis:
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
         return point.x(), point.y()
-
-    def _get_3d_geometry(self, geometry: QgsGeometry, z):
-        point = geometry.constGet()
-        point_3d = QgsPoint(point.x(), point.y(), z)
-        return QgsGeometry(point_3d)
 
     def _get_pipe_length(self, attribute_length: float | None, geometry: QgsGeometry, pipe_name: str):
         length = self._measurer.measureLength(geometry)

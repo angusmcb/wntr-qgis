@@ -214,10 +214,10 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     sim = wntr.sim.EpanetSimulator(wn)
     outputresults = sim.run_sim()
 
-    print("Original results")
-    print(inputresults.link["headloss"])
-    print("Final results")
-    print(outputresults.link["headloss"])
+    print("Original results")  # noqa
+    print(inputresults.link["headloss"])  # noqa
+    print("Final results")  # noqa
+    print(outputresults.link["headloss"])  # noqaruff
 
     for i in ["demand", "head", "pressure"]:
         assert all(
