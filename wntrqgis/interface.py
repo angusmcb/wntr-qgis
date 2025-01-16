@@ -311,11 +311,10 @@ class Writer:
         if not wn.options.time.duration:
             self._timestep = 0
 
-        self._dfs: dict[ModelLayer, pd.DataFrame] | dict[ResultLayer, pd.DataFrame]
         if results:
-            self._dfs = self._process_results(results)
+            self._result_dfs = self._process_results(results)
         else:
-            self._dfs = self._create_gis(wn)
+            self._model_dfs = self._create_gis(wn)
 
         self._geometries = self._get_geometries(wn)
 
@@ -405,7 +404,11 @@ class Writer:
             sink: the sink to write to
         """
         field_names = self.get_qgsfields(layer).names()
-        df: pd.DataFrame = self._dfs.get(layer, pd.DataFrame())
+
+        if isinstance(layer, ResultLayer):
+            df = self._result_dfs.get(layer, pd.DataFrame())
+        else:
+            df = self._model_dfs.get(layer, pd.DataFrame())
 
         missing_cols = list(set(field_names) - set(df.columns))
 
