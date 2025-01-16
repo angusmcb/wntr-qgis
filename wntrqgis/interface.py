@@ -946,8 +946,8 @@ class _FromGis:
             coordinates=self._get_point_coordinates(geometry),
             # demand_category=category,  NOT IMPLEMENTED
         )
-        n = wn.get_node(name)
-        n.emitter_coeff = attributes.get(ModelField.EMITTER_COEFFICIENT)
+        n: wntr.network.elements.Junction = wn.get_node(name)
+        n.emitter_coefficient = attributes.get(ModelField.EMITTER_COEFFICIENT)
         n.initial_quality = attributes.get(ModelField.INITIAL_QUALITY)
         n.minimum_pressure = attributes.get(ModelField.MINIMUM_PRESSURE)
         n.pressure_exponent = attributes.get(ModelField.PRESSURE_EXPONENT)
@@ -968,7 +968,7 @@ class _FromGis:
             overflow=attributes.get(ModelField.OVERFLOW, False),
             coordinates=self._get_point_coordinates(geometry),
         )
-        n = wn.get_node(name)
+        n: wntr.network.elements.Tank = wn.get_node(name)
         n.initial_quality = attributes.get(ModelField.INITIAL_QUALITY)
         n.mixing_fraction = attributes.get(ModelField.MIXING_FRACTION)
         if attributes.get(ModelField.MIXING_MODEL):
@@ -984,7 +984,7 @@ class _FromGis:
             head_pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.HEAD_PATTERN)),
             coordinates=self._get_point_coordinates(geometry),
         )
-        n = wn.get_node(name)
+        n: wntr.network.elements.Reservoir = wn.get_node(name)
         n.initial_quality = attributes.get(ModelField.INITIAL_QUALITY)
 
     def _add_pipe(
@@ -1004,11 +1004,11 @@ class _FromGis:
             diameter=attributes.get(ModelField.DIAMETER),  # REQUIRED
             roughness=attributes.get(ModelField.ROUGHNESS),  # REQUIRED
             minor_loss=attributes.get(ModelField.MINOR_LOSS, 0.0),
-            initial_status=attributes.get(ModelField.INITIAL_STATUS, "OPEN"),
+            initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
             check_valve=attributes.get(ModelField.CHECK_VALVE, False) is True
             or str(attributes.get(ModelField.CHECK_VALVE)).lower() == "true",
         )
-        link = wn.get_link(name)
+        link: wntr.network.elements.Pipe = wn.get_link(name)
         link.bulk_coeff = attributes.get(ModelField.BULK_COEFF)
         link.wall_coeff = attributes.get(ModelField.WALL_COEFF)
         link.vertices = self._get_vertex_list(geometry)
@@ -1027,14 +1027,14 @@ class _FromGis:
             start_node_name,
             end_node_name,
             pump_type=attributes.get(ModelField.PUMP_TYPE, ""),
-            pump_parameter=attributes.get(ModelField.POWER)  # TODO: ERROR MESSAGESF OR THIS ARE NOT CLEAR
+            pump_parameter=attributes.get(ModelField.POWER)  # TODO: ERROR MESSAGES OF THIS ARE NOT CLEAR
             if str(attributes.get(ModelField.PUMP_TYPE, "")).lower() == "power"
             else self.curves.add_curve_to_wn(attributes.get(ModelField.PUMP_CURVE), _CurveType.HEAD),
             speed=attributes.get(ModelField.BASE_SPEED, 1.0),
             pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.SPEED_PATTERN)),
-            initial_status=attributes.get(ModelField.INITIAL_STATUS, "OPEN"),
+            initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
         )
-        link = wn.get_link(name)
+        link: wntr.network.elements.Pump = wn.get_link(name)
         link.efficiency = self.curves.add_curve_to_wn(attributes.get(ModelField.EFFICIENCY), _CurveType.EFFICIENCY)
         link.energy_pattern = self.patterns.add_pattern_to_wn(attributes.get(ModelField.ENERGY_PATTERN))
         link.energy_price = attributes.get(ModelField.ENERGY_PRICE)
@@ -1072,9 +1072,9 @@ class _FromGis:
             valve_type=attributes.get(ModelField.VALVE_TYPE),
             minor_loss=attributes.get(ModelField.MINOR_LOSS, 0.0),
             initial_setting=initial_setting,
-            initial_status=attributes.get(ModelField.INITIAL_STATUS, "OPEN"),
+            initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
         )
-        link = wn.get_link(name)
+        link: wntr.network.elements.Valve = wn.get_link(name)
         link.vertices = self._get_vertex_list(geometry)
 
 
