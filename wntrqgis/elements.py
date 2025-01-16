@@ -238,6 +238,8 @@ class ResultLayer(_AbstractLayer):
             ResultField.FLOWRATE,
             ResultField.HEADLOSS,
             ResultField.VELOCITY,
+            ResultField.QUALITY,
+            ResultField.REACTION_RATE,
         ]
 
 
@@ -338,12 +340,10 @@ class ResultField(_AbstractField):
     DEMAND = "demand", float, FieldGroup.BASE
     HEAD = "head", float, FieldGroup.BASE
     PRESSURE = "pressure", float, FieldGroup.BASE
-    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
 
     FLOWRATE = "flowrate", float, FieldGroup.BASE
     HEADLOSS = "headloss", float, FieldGroup.BASE
     VELOCITY = "velocity", float, FieldGroup.BASE
 
-    @property
-    def qgs_field(self):
-        return QgsField(self.name.lower(), self._get_qgs_field_type(list), subType=self._qgs_wkb_type)
+    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS
