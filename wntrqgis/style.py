@@ -24,6 +24,7 @@ from qgis.core import (
 
 from wntrqgis.elements import (
     FieldGroup,
+    InitialStatus,
     ModelField,
     ModelLayer,
     ResultField,
@@ -59,7 +60,12 @@ class _FieldStyles:
                 {"AllowNullState": False},
             )
         if issubclass(python_type_class, Enum):
-            value_map = [{enum_instance.value: enum_instance.name} for enum_instance in python_type_class]
+            enum_list = list(python_type_class)
+            if python_type_class is InitialStatus and self.layer_type is ModelLayer.PIPES:
+                enum_list = [InitialStatus.Open, InitialStatus.Closed]
+
+            value_map = [{enum_instance.value: enum_instance.name} for enum_instance in enum_list]
+
             return QgsEditorWidgetSetup(
                 "ValueMap",
                 {"map": value_map},
@@ -71,14 +77,24 @@ class _FieldStyles:
     @property
     def default_value(self):
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
+
         if self.field_type is ModelField.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
+
         if self.field_type is ModelField.DIAMETER and (
             self.layer_type is ModelLayer.PIPES or self.layer_type is ModelLayer.VALVES
         ):
-            return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
+            return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
+
+        if self.field_type in [ModelField.ELEVATION, ModelField.BASE_HEAD]:
+            return QgsDefaultValue("0")
+
+        if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
+            return QgsDefaultValue(f"'{InitialStatus.Active.name}'")
+
         if issubclass(self.field_type.python_type, Enum):
             return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).name}'")
+
         if self.field_type.python_type is str:
             return QgsDefaultValue("''")  # because 'NULL' doesn't look nice
         return QgsDefaultValue()

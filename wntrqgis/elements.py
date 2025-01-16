@@ -45,6 +45,7 @@ class PumpTypes(str, Enum):
 
 class InitialStatus(str, Enum):
     Open = "Open"
+    Active = "Active"
     Closed = "Closed"
 
 
@@ -305,13 +306,13 @@ class ModelField(_AbstractField):
     LENGTH = "length", float, FieldGroup.BASE
     ROUGHNESS = "roughness", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MINOR_LOSS = "minor_loss", float, FieldGroup.BASE
-    INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
     CHECK_VALVE = "check_valve", bool, FieldGroup.BASE
     PUMP_TYPE = "pump_type", PumpTypes, FieldGroup.BASE | FieldGroup.REQUIRED
     PUMP_CURVE = "pump_curve", str, FieldGroup.BASE
     POWER = "power", float, FieldGroup.BASE
     BASE_SPEED = "base_speed", float, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", str, FieldGroup.BASE
+    INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
     INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
     HEADLOSS_CURVE = "headloss_curve", str, FieldGroup.BASE
 
