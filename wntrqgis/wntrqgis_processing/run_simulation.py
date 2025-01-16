@@ -168,6 +168,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
         wq_flow_unit = list(FlowUnit)[flow_unit_index]
         project_settings.set(SettingKey.FLOW_UNITS, wq_flow_unit)
+        wn.options.hydraulic.inpfile_units = wq_flow_unit.name
 
         headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
         headloss_formula = list(HeadlossFormula)[headloss_formula_index]
