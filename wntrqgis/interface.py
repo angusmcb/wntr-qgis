@@ -62,6 +62,10 @@ USE_QMETATYPE = Qgis.versionInt() >= 33800  # noqa: PLR2004
 
 
 def needs_wntr_pandas(func):
+    """This decorator loads numpy, pandas and wntr.
+
+    Delayed loading means this module can be imported without throwing error if they don't exist"""
+
     @functools.wraps(func)
     def check_wntr(*args, **kwargs):
         try:
@@ -906,7 +910,10 @@ class _FromGis:
 
         if not attribute_length:
             if math.isnan(length):
-                msg = "cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)"
+                msg = (
+                    "cannot calculate length of pipe"
+                    " (probably due to a problem with the selected coordinate reference system)"
+                )
                 raise RuntimeError(msg)
             return length
 
@@ -918,8 +925,8 @@ class _FromGis:
     def _output_pipe_length_warnings(self):
         if self._pipe_length_warnings:
             msg = (
-                f"the following {len(self._pipe_length_warnings)} pipes had very different measured length vs attribute:"
-                + ",".join(self._pipe_length_warnings)
+                f"the following {len(self._pipe_length_warnings)} pipes"
+                " had very different measured length vs attribute:" + ",".join(self._pipe_length_warnings)
             )
             warnings.warn(msg, stacklevel=1)
 
