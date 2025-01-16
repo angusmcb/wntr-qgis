@@ -649,7 +649,7 @@ class _Curves:
         if not curve_name or not isinstance(curve_name, str):
             return None
 
-        curve = self._wn.get_curve(curve_name)
+        curve: wntr.network.elements.Curve = self._wn.get_curve(curve_name)
         return repr(self._unit_conversion.curve_points_from_si(curve.points, _CurveType(curve.curve_type)))
 
 

@@ -197,18 +197,18 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         outputs: dict[str, str] = {}
 
-        inpfile = self.parameterAsFile(parameters, self.OUTPUTINP, context)
-        if inpfile:
-            wntr.network.write_inpfile(wn, inpfile)
-            outputs[self.OUTPUTINP] = inpfile
-            feedback.pushInfo(".inp file written to: " + inpfile)
+        inp_file = self.parameterAsFile(parameters, self.OUTPUTINP, context)
+        if inp_file:
+            wntr.network.write_inpfile(wn, inp_file)
+            outputs[self.OUTPUTINP] = inp_file
+            feedback.pushInfo(".inp file written to: " + inp_file)
 
         self._update_progress(Progression.RUNNING_SIMULATION)
 
-        tempfolder = QgsProcessingUtils.tempFolder() + "/wntr"
+        temp_folder = QgsProcessingUtils.tempFolder() + "/wntr"
         sim = wntr.sim.EpanetSimulator(wn)
         try:
-            sim_results = sim.run_sim(file_prefix=tempfolder)
+            sim_results = sim.run_sim(file_prefix=temp_folder)
         except wntr.epanet.exceptions.EpanetException as e:
             raise QgsProcessingException("Epanet error: " + str(e)) from None
 
@@ -230,8 +230,8 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         logger.removeHandler(logging_handler)
         self._update_progress(Progression.FINISHED_PROCESSING)
 
-        finishtime = time.strftime("%X")
+        finish_time = time.strftime("%X")
         style_theme = "extended" if wn.options.time.duration > 0 else None
-        self._setup_postprocessing(outputs, f"Simulation Results ({finishtime})", False, style_theme)
+        self._setup_postprocessing(outputs, f"Simulation Results ({finish_time})", False, style_theme)
 
         return outputs
