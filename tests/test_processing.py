@@ -217,7 +217,7 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     print("Original results")  # noqa
     print(inputresults.link["headloss"])  # noqa
     print("Final results")  # noqa
-    print(outputresults.link["headloss"])  # noqaruff
+    print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
         assert all(
