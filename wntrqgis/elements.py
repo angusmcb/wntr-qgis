@@ -44,8 +44,8 @@ class PumpTypes(str, Enum):
 
 
 class InitialStatus(str, Enum):
-    OPEN = "Open"
-    CLOSED = "Closed"
+    Open = "Open"
+    Closed = "Closed"
 
 
 class ValveType(str, Enum):
