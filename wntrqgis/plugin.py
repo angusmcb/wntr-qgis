@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import enum
-import threading
 import typing
 
 import processing
