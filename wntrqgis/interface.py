@@ -183,7 +183,9 @@ class _UnitConversion:
         if field is ResultField.FLOWRATE:
             return HydParam.Flow
         if field is ResultField.HEADLOSS:
-            return HydParam.HeadLoss
+            if layer is ModelLayer.PIPES:
+                return HydParam.HeadLoss
+            return HydParam.HydraulicHead
         if field is ResultField.VELOCITY:
             return HydParam.Velocity
         msg = f"no param found for {field}"
@@ -314,6 +316,10 @@ class Writer:
         self._timestep = None
         if not wn.options.time.duration:
             self._timestep = 0
+
+        self._types: dict[ResultLayer, pd.Series] = {}
+        self._types[ResultLayer.LINKS] = pd.Series({link_name: link.link_type for link_name, link in wn.links()})
+        self._types[ResultLayer.NODES] = pd.Series({node_name: node.node_type for node_name, node in wn.nodes()})
 
         if results:
             self._result_dfs = self._get_results_dfs(results)
@@ -504,13 +510,14 @@ class Writer:
             results_dfs = results.node if layer is ResultLayer.NODES else results.link
 
             result_df[layer] = self._process_results_layer(layer, results_dfs)
+
         return result_df
 
     def _process_results_layer(self, layer: ResultLayer, results_dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
         output_attributes: dict[str, pd.Series] = {}
 
         for field in layer.wq_fields():
-            converted_df: pd.DataFrame = self._unit_conversion.from_si(results_dfs[field.value].copy(), field)
+            converted_df = self._convert_result_df(results_dfs[field.value].copy(), field)
 
             if self._timestep is not None:
                 output_attributes[field.value] = converted_df.iloc[self._timestep]
@@ -521,6 +528,25 @@ class Writer:
         output_attributes["name"] = output_attributes[field.value].index.to_series()
 
         return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+
+    def _convert_result_df(self, df: pd.DataFrame, field: ResultField) -> pd.DataFrame:
+        """Convert a results dataframe, taking special care with 'headloss' which for pipes doubles as 'unit headloss'"""
+        converted_df: pd.DataFrame
+        if field is ResultField.HEADLOSS:
+            converted_df = df
+            type_series = self._types[ResultLayer.LINKS].reindex(converted_df.columns)
+
+            converted_df.loc[:, type_series == "Pipe"] = self._unit_conversion.from_si(
+                converted_df.loc[:, type_series == "Pipe"], field, ModelLayer.PIPES
+            )
+            converted_df.loc[:, type_series != "Pipe"] = self._unit_conversion.from_si(
+                converted_df.loc[:, type_series != "Pipe"], field
+            )
+
+        else:
+            converted_df = self._unit_conversion.from_si(df, field)
+
+        return converted_df
 
     def _get_qgs_field_type(self, python_type):
         if issubclass(python_type, str):
