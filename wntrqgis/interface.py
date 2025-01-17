@@ -530,7 +530,7 @@ class Writer:
         return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
     def _convert_result_df(self, df: pd.DataFrame, field: ResultField) -> pd.DataFrame:
-        """Convert a results dataframe, taking special care with 'headloss' which for pipes doubles as 'unit headloss'"""
+        "Convert a results dataframe, taking special care with 'headloss' which for pipes doubles as 'unit headloss'"
         converted_df: pd.DataFrame
         if field is ResultField.HEADLOSS:
             converted_df = df
