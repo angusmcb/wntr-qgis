@@ -88,7 +88,7 @@ def needs_wntr_pandas(func):
 
 
 @needs_wntr_pandas
-class _UnitConversion:
+class _Converter:
     """Manages conversion to and from SI units
 
     Args:
@@ -266,7 +266,7 @@ class Writer:
         flow_units = (
             wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
         )
-        self._unit_conversion = _UnitConversion(flow_units, HeadlossFormula(wn.options.hydraulic.headloss))
+        self._converter = _Converter(flow_units, HeadlossFormula(wn.options.hydraulic.headloss))
 
         self._timestep = None
         if not wn.options.time.duration:
@@ -403,7 +403,7 @@ class Writer:
             dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"].copy()
 
         patterns = _Patterns(wn)
-        curves = _Curves(wn, self._unit_conversion)
+        curves = _Curves(wn, self._converter)
 
         for lyr, df in dfs.items():
             if len(df) == 0:
@@ -438,11 +438,11 @@ class Writer:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get_pattern_string_from_name)
 
             elif lyr is ModelLayer.VALVES:
-                df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"] = self._unit_conversion.from_si(
+                df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"] = self._converter.from_si(
                     pd.to_numeric(df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"]),
                     wntr.epanet.HydParam.Pressure,
                 )
-                df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._unit_conversion.from_si(
+                df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
                     pd.to_numeric(df.loc[df["valve_type"] == "FCV", "initial_setting"]), wntr.epanet.HydParam.Flow
                 )
                 if "headloss_curve" in df:
@@ -455,7 +455,7 @@ class Writer:
                     field = ModelField[str(fieldname).upper()]
                 except KeyError:
                     continue
-                df[fieldname] = self._unit_conversion.from_si(df[fieldname], field, lyr)
+                df[fieldname] = self._converter.from_si(df[fieldname], field, lyr)
 
         return dfs
 
@@ -491,15 +491,15 @@ class Writer:
             converted_df = df
             type_series = self._types[ResultLayer.LINKS].reindex(converted_df.columns)
 
-            converted_df.loc[:, type_series == "Pipe"] = self._unit_conversion.from_si(
+            converted_df.loc[:, type_series == "Pipe"] = self._converter.from_si(
                 converted_df.loc[:, type_series == "Pipe"], field, ModelLayer.PIPES
             )
-            converted_df.loc[:, type_series != "Pipe"] = self._unit_conversion.from_si(
+            converted_df.loc[:, type_series != "Pipe"] = self._converter.from_si(
                 converted_df.loc[:, type_series != "Pipe"], field
             )
 
         else:
-            converted_df = self._unit_conversion.from_si(df, field)
+            converted_df = self._converter.from_si(df, field)
 
         return converted_df
 
@@ -603,10 +603,10 @@ class _Patterns:
 
 @needs_wntr_pandas
 class _Curves:
-    def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion) -> None:
+    def __init__(self, wn: wntr.network.WaterNetworkModel, converter: _Converter) -> None:
         self._wn = wn
         self._next_curve_name = 1
-        self._unit_conversion = unit_conversion
+        self._converter = converter
 
     class Type(enum.Enum):
         HEAD = "HEAD"
@@ -620,7 +620,7 @@ class _Curves:
 
         name = str(self._next_curve_name)
         curve_points: list = ast.literal_eval(curve_string)
-        curve_points = self._convert_curve_points(curve_points, curve_type, self._unit_conversion.to_si)
+        curve_points = self._convert_curve_points(curve_points, curve_type, self._converter.to_si)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
         self._next_curve_name += 1
         return name
@@ -632,7 +632,7 @@ class _Curves:
         curve: wntr.network.elements.Curve = self._wn.get_curve(curve_name)
 
         converted_points = self._convert_curve_points(
-            curve.points, _Curves.Type(curve.curve_type), self._unit_conversion.from_si
+            curve.points, _Curves.Type(curve.curve_type), self._converter.from_si
         )
         return repr(converted_points)
 
@@ -697,7 +697,7 @@ def from_qgis(
         wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
     )
     headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
-    unit_conversion = _UnitConversion(flow_units, headloss_formula_type)
+    unit_conversion = _Converter(flow_units, headloss_formula_type)
 
     reader = _FromGis(unit_conversion, project)
     if crs:
@@ -713,7 +713,7 @@ class _FromGis:
 
     def __init__(
         self,
-        unit_conversion: _UnitConversion,
+        converter: _Converter,
         project: QgsProject | None = None,
         # transform_context: QgsCoordinateTransformContext | None = None,
         # ellipsoid: str | None = "EPSG:7030",
@@ -727,7 +727,7 @@ class _FromGis:
         # self._ellipsoid = ellipsoid
         self._transform_context = project.transformContext()
         self._ellipsoid = project.ellipsoid()
-        self._unit_conversion = unit_conversion
+        self._converter = converter
         self.crs = None
 
     @property
@@ -760,7 +760,7 @@ class _FromGis:
         self._used_names: dict[ElementFamily, set[str]] = {ElementFamily.NODE: set(), ElementFamily.LINK: set()}
 
         self.patterns = _Patterns(wn)
-        self.curves = _Curves(wn, self._unit_conversion)
+        self.curves = _Curves(wn, self._converter)
         spatial_index = _SpatialIndex()
 
         for model_layer in ModelLayer:
@@ -786,7 +786,7 @@ class _FromGis:
                 atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
 
                 for f, v in atts.items():
-                    atts[f] = self._unit_conversion.to_si(v, f, model_layer)
+                    atts[f] = self._converter.to_si(v, f, model_layer)
 
                 element_name = self._get_element_name(atts.get(ModelField.NAME), model_layer)
 
@@ -1042,11 +1042,11 @@ class _FromGis:
                 attributes.get(ModelField.HEADLOSS_CURVE), _Curves.Type.HEADLOSS
             )
         elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["PRV", "PSV", "PBV"]:
-            initial_setting = self._unit_conversion.to_si(
+            initial_setting = self._converter.to_si(
                 attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Pressure
             )
         elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["FCV"]:
-            initial_setting = self._unit_conversion.to_si(
+            initial_setting = self._converter.to_si(
                 attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Flow
             )
         else:
