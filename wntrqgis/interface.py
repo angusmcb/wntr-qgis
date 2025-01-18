@@ -601,13 +601,6 @@ class _Patterns:
         return " ".join(map(str, pattern.multipliers))
 
 
-class _CurveType(enum.Enum):
-    HEAD = "HEAD"
-    EFFICIENCY = "EFFICIENCY"
-    VOLUME = "VOLUME"
-    HEADLOSS = "HEADLOSS"
-
-
 @needs_wntr_pandas
 class _Curves:
     def __init__(self, wn: wntr.network.WaterNetworkModel, unit_conversion: _UnitConversion) -> None:
@@ -615,7 +608,13 @@ class _Curves:
         self._next_curve_name = 1
         self._unit_conversion = unit_conversion
 
-    def add_curve_to_wn(self, curve_string: str, curve_type: _CurveType) -> str | None:
+    class Type(enum.Enum):
+        HEAD = "HEAD"
+        EFFICIENCY = "EFFICIENCY"
+        VOLUME = "VOLUME"
+        HEADLOSS = "HEADLOSS"
+
+    def add_curve_to_wn(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
         if not curve_string:
             return None
 
@@ -633,32 +632,32 @@ class _Curves:
         curve: wntr.network.elements.Curve = self._wn.get_curve(curve_name)
 
         converted_points = self._convert_curve_points(
-            curve.points, _CurveType(curve.curve_type), self._unit_conversion.from_si
+            curve.points, _Curves.Type(curve.curve_type), self._unit_conversion.from_si
         )
         return repr(converted_points)
 
     def _convert_curve_points(
-        self, points: list, curve_type: _CurveType, conversion_function
+        self, points: list, curve_type: _Curves.Type, conversion_function
     ) -> list[tuple[float, float]]:
         converted_points: list[tuple[float, float]] = []
         HydParam = wntr.epanet.HydParam  # noqa: N806
 
-        if curve_type is _CurveType.VOLUME:
+        if curve_type is _Curves.Type.VOLUME:
             for point in points:
                 x = conversion_function(point[0], HydParam.Length)
                 y = conversion_function(point[1], HydParam.Volume)
                 converted_points.append((x, y))
-        elif curve_type is _CurveType.HEAD:
+        elif curve_type is _Curves.Type.HEAD:
             for point in points:
                 x = conversion_function(point[0], HydParam.Flow)
                 y = conversion_function(point[1], HydParam.HydraulicHead)
                 converted_points.append((x, y))
-        elif curve_type is _CurveType.EFFICIENCY:
+        elif curve_type is _Curves.Type.EFFICIENCY:
             for point in points:
                 x = conversion_function(point[0], HydParam.Flow)
                 y = point[1]
                 converted_points.append((x, y))
-        elif curve_type is _CurveType.HEADLOSS:
+        elif curve_type is _Curves.Type.HEADLOSS:
             for point in points:
                 x = conversion_function(point[0], HydParam.Flow)
                 y = conversion_function(point[1], HydParam.HeadLoss)
@@ -952,7 +951,7 @@ class _FromGis:
             max_level=attributes.get(ModelField.MAX_LEVEL),  # REQUIRED
             diameter=attributes.get(ModelField.DIAMETER, 0),
             min_vol=attributes.get(ModelField.MIN_VOL, 0),
-            vol_curve=self.curves.add_curve_to_wn(attributes.get(ModelField.VOL_CURVE), _CurveType.VOLUME),
+            vol_curve=self.curves.add_curve_to_wn(attributes.get(ModelField.VOL_CURVE), _Curves.Type.VOLUME),
             overflow=attributes.get(ModelField.OVERFLOW, False),
             coordinates=self._get_point_coordinates(geometry),
         )
@@ -1017,13 +1016,13 @@ class _FromGis:
             pump_type=attributes.get(ModelField.PUMP_TYPE, ""),
             pump_parameter=attributes.get(ModelField.POWER)  # TODO: ERROR MESSAGES OF THIS ARE NOT CLEAR
             if str(attributes.get(ModelField.PUMP_TYPE, "")).lower() == "power"
-            else self.curves.add_curve_to_wn(attributes.get(ModelField.PUMP_CURVE), _CurveType.HEAD),
+            else self.curves.add_curve_to_wn(attributes.get(ModelField.PUMP_CURVE), _Curves.Type.HEAD),
             speed=attributes.get(ModelField.BASE_SPEED, 1.0),
             pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.SPEED_PATTERN)),
             initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
         )
         link: wntr.network.elements.Pump = wn.get_link(name)
-        link.efficiency = self.curves.add_curve_to_wn(attributes.get(ModelField.EFFICIENCY), _CurveType.EFFICIENCY)
+        link.efficiency = self.curves.add_curve_to_wn(attributes.get(ModelField.EFFICIENCY), _Curves.Type.EFFICIENCY)
         link.energy_pattern = self.patterns.add_pattern_to_wn(attributes.get(ModelField.ENERGY_PATTERN))
         link.energy_price = attributes.get(ModelField.ENERGY_PRICE)
         link.initial_setting = attributes.get(ModelField.INITIAL_SETTING)  # bug ???
@@ -1040,7 +1039,7 @@ class _FromGis:
     ):
         if str(attributes.get(ModelField.VALVE_TYPE)).upper() == "GPV":
             initial_setting = self.curves.add_curve_to_wn(
-                attributes.get(ModelField.HEADLOSS_CURVE), _CurveType.HEADLOSS
+                attributes.get(ModelField.HEADLOSS_CURVE), _Curves.Type.HEADLOSS
             )
         elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["PRV", "PSV", "PBV"]:
             initial_setting = self._unit_conversion.to_si(
