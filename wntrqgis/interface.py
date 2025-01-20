@@ -571,12 +571,12 @@ class _Patterns:
         self._wn = wn
 
     def add_pattern_to_wn(self, pattern: str | list | None):
-        if not pattern:
-            return None
         if isinstance(pattern, str) and pattern != "":
             patternlist = [float(item) for item in pattern.split()]
         elif isinstance(pattern, list):
             patternlist = pattern
+        else:
+            return None
 
         pattern_tuple = tuple(patternlist)
 
@@ -763,6 +763,9 @@ class _FromGis:
         self.curves = _Curves(wn, self._converter)
         spatial_index = _SpatialIndex()
 
+        node_dfs = []
+        link_dfs = []
+
         for model_layer in ModelLayer:
             source = feature_sources.get(model_layer)
             if source is None:
@@ -777,68 +780,124 @@ class _FromGis:
 
             feature_request = QgsFeatureRequest().setDestinationCrs(self.crs, self._transform_context)
 
-            # df = self._source_to_df(source, map_of_columns_to_fields)
-            # for column in df.select_dtypes(include=[np.floating]):
-            #     df[column] = self._unit_conversion.to_si(df[column], column, model_layer)
+            df = self._source_to_df(source, feature_request, map_of_columns_to_fields)
 
-            for ft in source.getFeatures(feature_request):
-                ft = cast(QgsFeature, ft)
-                atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
+            for column in df.select_dtypes(include=[np.floating]):
+                df.loc[:, column] = self._converter.to_si(df.loc[:, column], column, model_layer)
 
-                for f, v in atts.items():
-                    atts[f] = self._converter.to_si(v, f, model_layer)
+            null_geometry = df.loc[:, "geometry"].apply(lambda geometry: geometry.isNull()).sum()
+            if null_geometry:
+                msg = f"in {model_layer.friendly_name} the {null_geometry} feature(s) have no geometry"
+                raise NetworkModelError(msg)
 
-                element_name = self._get_element_name(atts.get(ModelField.NAME), model_layer)
+            df["model_layer"] = model_layer
 
-                # TODO:  should check existance of columns before checking on individual features
-                for required_field in required_fields:
-                    if atts.get(required_field) is None:
-                        msg = (
-                            f"in {model_layer.friendly_name} the feature '{element_name}' "
-                            f"must have a value for '{required_field.name.lower()}'"
-                        )
-                        raise NetworkModelError(msg)
+            if model_layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]:
+                if df.shape[0]:
+                    node_dfs.append(df)
+            elif df.shape[0]:
+                link_dfs.append(df)
 
-                geometry = ft.geometry()
+        node_df = pd.concat(node_dfs, sort=False, ignore_index=True)
+        link_df = pd.concat(link_dfs, sort=False, ignore_index=True)
 
-                if geometry.isNull():
-                    msg = f"in {model_layer.friendly_name} the feature {element_name} has no geometry"
-                    raise NetworkModelError(msg)
+        self._fill_names(node_df)
+        self._fill_names(link_df)
 
-                if model_layer.element_family is ElementFamily.NODE:
-                    spatial_index.add_node_to_spatial_index(geometry, element_name)
-                else:
-                    try:
-                        geometry, start_node_name, end_node_name = spatial_index.snap_link_to_nodes(geometry)
-                    except RuntimeError as e:
-                        msg = f"in {model_layer.friendly_name} the feature {element_name}: {e} "
-                        raise NetworkModelError(e) from None
+        # for ft in source.getFeatures(feature_request):
+        #     ft = cast(QgsFeature, ft)
+        #     atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
 
-                try:
-                    if model_layer is ModelLayer.JUNCTIONS:
-                        self._add_junction(wn, element_name, geometry, atts)
-                    elif model_layer is ModelLayer.TANKS:
-                        self._add_tank(wn, element_name, geometry, atts)
-                    elif model_layer is ModelLayer.RESERVOIRS:
-                        self._add_reservoir(wn, element_name, geometry, atts)
-                    elif model_layer is ModelLayer.PIPES:
-                        self._add_pipe(wn, element_name, geometry, atts, start_node_name, end_node_name)
-                    elif model_layer is ModelLayer.PUMPS:
-                        self._add_pump(wn, element_name, geometry, atts, start_node_name, end_node_name)
-                    elif model_layer is ModelLayer.VALVES:
-                        self._add_valve(wn, element_name, geometry, atts, start_node_name, end_node_name)
-                except (AssertionError, ValueError, RuntimeError) as e:
-                    msg = f"in {model_layer.friendly_name} error when adding '{element_name}' to WNTR - {e}"
-                    raise NetworkModelError(msg) from e
+        # for f, v in atts.items():
+        #     atts[f] = self._converter.to_si(v, f, model_layer)
+
+        # element_name = self._get_element_name(atts.get(ModelField.NAME), model_layer)
+
+        # TODO:  should check existance of columns before checking on individual features
+        # for required_field in required_fields:
+        #     if atts.get(required_field) is None:
+        #         msg = (
+        #             f"in {model_layer.friendly_name} the feature '{element_name}' "
+        #             f"must have a value for '{required_field.name.lower()}'"
+        #         )
+        #         raise NetworkModelError(msg)
+
+        # geometry = ft.geometry()
+
+        # if geometry.isNull():
+        #     msg = f"in {model_layer.friendly_name} the feature {element_name} has no geometry"
+        #     raise NetworkModelError(msg)
+        for geometry, name in node_df.loc[:, ["geometry", ModelField.NAME]].itertuples(index=False):
+            spatial_index.add_node_to_spatial_index(geometry, name)
+
+        for index, geometry, name in link_df.loc[:, ["geometry", ModelField.NAME]].itertuples(index=True):
+            try:
+                geometry, start_node_name, end_node_name = spatial_index.snap_link_to_nodes(geometry)
+                link_df.loc[index, ["geometry", "start_node_name", "end_node_name"]] = (
+                    geometry,
+                    start_node_name,
+                    end_node_name,
+                )
+            except RuntimeError as e:
+                msg = f"in {model_layer.friendly_name} the feature {name}: {e} "
+                raise NetworkModelError(e) from None
+
+        all_elements = pd.concat([node_df, link_df], sort=False, ignore_index=True)
+
+        for index, element in all_elements.iterrows():
+            element = element.dropna()
+
+            try:
+                if element["model_layer"] is ModelLayer.JUNCTIONS:
+                    self._add_junction(wn, element[ModelField.NAME], element["geometry"], element)
+                elif element["model_layer"] is ModelLayer.TANKS:
+                    self._add_tank(wn, element[ModelField.NAME], element["geometry"], element)
+                elif element["model_layer"] is ModelLayer.RESERVOIRS:
+                    self._add_reservoir(wn, element[ModelField.NAME], element["geometry"], element)
+                elif element["model_layer"] is ModelLayer.PIPES:
+                    self._add_pipe(
+                        wn,
+                        element[ModelField.NAME],
+                        element["geometry"],
+                        element,
+                        element["start_node_name"],
+                        element["end_node_name"],
+                    )
+                elif element["model_layer"] is ModelLayer.PUMPS:
+                    self._add_pump(
+                        wn,
+                        element[ModelField.NAME],
+                        element["geometry"],
+                        element,
+                        element["start_node_name"],
+                        element["end_node_name"],
+                    )
+                elif element["model_layer"] is ModelLayer.VALVES:
+                    self._add_valve(
+                        wn,
+                        element[ModelField.NAME],
+                        element["geometry"],
+                        element,
+                        element["start_node_name"],
+                        element["end_node_name"],
+                    )
+            except (AssertionError, ValueError, RuntimeError) as e:
+                msg = f"in {model_layer.friendly_name} error when adding '{element[ModelField.NAME]}' to WNTR - {e}"
+                raise NetworkModelError(msg) from e
 
         self._output_pipe_length_warnings()
 
-    def _source_to_df(self, source: QgsFeatureSource, map_of_columns_to_fields: list[ModelField | str | None]):
+    def _source_to_df(
+        self,
+        source: QgsFeatureSource,
+        feature_request: QgsFeatureRequest,
+        map_of_columns_to_fields: list[ModelField | str | None],
+    ):
         map_of_columns_to_fields = list(map_of_columns_to_fields)
         map_of_columns_to_fields.append("geometry")
         ftlist = []
         ft: QgsFeature
-        for ft in source.getFeatures():
+        for ft in source.getFeatures(feature_request):
             attrs = [attr if attr != NULL else None for attr in ft]
             attrs.append(ft.geometry())
             ftlist.append(attrs)
@@ -884,6 +943,22 @@ class _FromGis:
         ]
         possible_column_names = {field.name for field in layer.wq_fields()}  # this creates a set not dict
         return [ModelField[cname] if cname in possible_column_names else None for cname in column_names]
+
+    def _fill_names(self, df: pd.DataFrame) -> None:
+        existing_names = pd.Series()
+        if ModelField.NAME in df.columns:
+            existing_names = df.loc[:, ModelField.NAME].unique()
+            mask = df[ModelField.NAME].notnull() & df[ModelField.NAME] != ""
+        else:
+            mask = True
+        names_required = df.loc[mask].shape[0]
+        names = []
+        next_name = 1
+        while len(names) < names_required:
+            if str(next_name) not in existing_names:
+                names.append(str(next_name))
+            next_name += 1
+        df.loc[mask, ModelField.NAME] = names
 
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
