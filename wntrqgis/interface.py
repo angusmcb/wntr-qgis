@@ -438,12 +438,12 @@ class Writer:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
 
             elif lyr is ModelLayer.VALVES:
-                df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"] = self._converter.from_si(
-                    pd.to_numeric(df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"]),
-                    wntr.epanet.HydParam.Pressure,
+                p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
+                df.loc[p_valves_setting] = self._converter.from_si(
+                    df.loc[p_valves_setting], wntr.epanet.HydParam.Pressure
                 )
                 df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
-                    pd.to_numeric(df.loc[df["valve_type"] == "FCV", "initial_setting"]), wntr.epanet.HydParam.Flow
+                    df.loc[df["valve_type"] == "FCV", "initial_setting"], wntr.epanet.HydParam.Flow
                 )
                 if "headloss_curve" in df:
                     df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
@@ -818,9 +818,8 @@ class _FromGis:
             except RuntimeError as e:
                 msg = f"in {model_layer.friendly_name} the feature {name}: {e} "
                 raise NetworkModelError(e) from None
-        link_df[["geometry", "start_node_name", "end_node_name"]] = pd.DataFrame(
-            snapped_links, columns=["geometry", "start_node_name", "end_node_name"]
-        )
+
+        link_df[["geometry", "start_node_name", "end_node_name"]] = snapped_links
 
         node_df.loc[:, "coordinates"] = node_df.loc[:, "geometry"].apply(self._get_point_coordinates)
 
@@ -831,7 +830,7 @@ class _FromGis:
                 self.patterns.add
             )
         else:
-            node_df["demand_pattern"] = None
+            node_df["demand_pattern_name"] = None
 
         if "base_demand" in node_df.columns:
             dtls = []
