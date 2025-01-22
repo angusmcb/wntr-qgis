@@ -416,26 +416,26 @@ class Writer:
                 # 'demand_pattern' didn't exist on node prior to wntr 1.3.0 so we have to go searching:
                 df["demand_pattern"] = wn.query_node_attribute(
                     "demand_timeseries_list", node_type=wntr.network.model.Junction
-                ).apply(lambda dtl: patterns.get_pattern_string(dtl.pattern_list()[0]))
+                ).apply(lambda dtl: patterns.get(dtl.pattern_list()[0]))
 
             elif lyr is ModelLayer.RESERVOIRS:
                 if "head_pattern_name" in df:
-                    df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get_pattern_string_from_name)
+                    df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
 
             elif lyr is ModelLayer.TANKS:
                 if "vol_curve_name" in df:
-                    df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get_curve_string_from_name)
+                    df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
 
             elif lyr is ModelLayer.PUMPS:
                 # not all pumps will have a pump curve (power pumps)!
                 if "pump_curve_name" in df:
-                    df["pump_curve"] = df["pump_curve_name"].apply(curves.get_curve_string_from_name)
+                    df["pump_curve"] = df["pump_curve_name"].apply(curves.get)
 
                 if "speed_pattern_name" in df:
-                    df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get_pattern_string_from_name)
+                    df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get)
                 # 'energy pattern' is not called energy pattern name!
                 if "energy_pattern" in df:
-                    df["energy_pattern"] = df["energy_pattern"].apply(patterns.get_pattern_string_from_name)
+                    df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
 
             elif lyr is ModelLayer.VALVES:
                 df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"] = self._converter.from_si(
@@ -448,7 +448,7 @@ class Writer:
                 if "headloss_curve" in df:
                     df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
                         df["valve_type"] == "GPV", "headloss_curve_name"
-                    ].apply(curves.get_curve_string_from_name)
+                    ].apply(curves.get)
 
             for fieldname in df.select_dtypes(include=[np.floating]):
                 try:
@@ -523,7 +523,7 @@ class _SpatialIndex:
         self._node_spatial_index = QgsSpatialIndex()
         self._nodelist: list[tuple[QgsPointXY, str]] = []
 
-    def add_node_to_spatial_index(self, geometry: QgsGeometry, element_name: str):
+    def add_node(self, geometry: QgsGeometry, element_name: str):
         point = geometry.constGet().clone()
         feature_id = len(self._nodelist)
         self._nodelist.append((point, element_name))
@@ -570,7 +570,7 @@ class _Patterns:
         self._existing_patterns: dict[tuple, str] = {}
         self._wn = wn
 
-    def add_pattern_to_wn(self, pattern: str | list | None):
+    def add(self, pattern: str | list | None):
         if isinstance(pattern, str) and pattern != "":
             patternlist = [float(item) for item in pattern.split()]
         elif isinstance(pattern, list):
@@ -589,16 +589,12 @@ class _Patterns:
         self._next_pattern_name += 1
         return name
 
-    def get_pattern_string_from_name(self, pattern_name: str | None) -> str | None:
-        if not pattern_name:
-            return None
-        # Do we need ever try to get non existant patterns? For now that will error
-        return self.get_pattern_string(self._wn.get_pattern(pattern_name))
-
-    def get_pattern_string(self, pattern: wntr.network.elements.Pattern | None) -> str | None:
-        if not pattern:
-            return None
-        return " ".join(map(str, pattern.multipliers))
+    def get(self, pattern: wntr.network.elements.Pattern | str | None) -> str | None:
+        if isinstance(pattern, str):
+            pattern = self._wn.get_pattern(pattern)
+        if isinstance(pattern, wntr.network.elements.Pattern):
+            return " ".join(map(str, pattern.multipliers))
+        return None
 
 
 @needs_wntr_pandas
@@ -614,33 +610,32 @@ class _Curves:
         VOLUME = "VOLUME"
         HEADLOSS = "HEADLOSS"
 
-    def add_curve_to_wn(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
+    def add(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
         if not curve_string or not isinstance(curve_string, str):
             return None
 
         name = str(self._next_curve_name)
         curve_points: list = ast.literal_eval(curve_string)
-        curve_points = self._convert_curve_points(curve_points, curve_type, self._converter.to_si)
+        curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
         self._next_curve_name += 1
         return name
 
-    add_volume_curve_to_wn = functools.partialmethod(add_curve_to_wn, curve_type=Type.VOLUME)
+    add_head = functools.partialmethod(add, curve_type=Type.HEAD)
+    add_efficiency = functools.partialmethod(add, curve_type=Type.EFFICIENCY)
+    add_volume = functools.partialmethod(add, curve_type=Type.VOLUME)
+    add_headloss = functools.partialmethod(add, curve_type=Type.HEADLOSS)
 
-    def get_curve_string_from_name(self, curve_name: Any) -> str | None:
+    def get(self, curve_name: Any) -> str | None:
         if not curve_name or not isinstance(curve_name, str):
             return None
 
         curve: wntr.network.elements.Curve = self._wn.get_curve(curve_name)
 
-        converted_points = self._convert_curve_points(
-            curve.points, _Curves.Type(curve.curve_type), self._converter.from_si
-        )
+        converted_points = self._convert_points(curve.points, _Curves.Type(curve.curve_type), self._converter.from_si)
         return repr(converted_points)
 
-    def _convert_curve_points(
-        self, points: list, curve_type: _Curves.Type, conversion_function
-    ) -> list[tuple[float, float]]:
+    def _convert_points(self, points: list, curve_type: _Curves.Type, conversion_function) -> list[tuple[float, float]]:
         converted_points: list[tuple[float, float]] = []
         HydParam = wntr.epanet.HydParam  # noqa: N806
 
@@ -813,7 +808,7 @@ class _FromGis:
         self._fill_names(link_df)
 
         for geometry, name in node_df.loc[:, ["geometry", "name"]].itertuples(index=False):
-            spatial_index.add_node_to_spatial_index(geometry, name)
+            spatial_index.add_node(geometry, name)
 
         snapped_links = []
 
@@ -829,82 +824,75 @@ class _FromGis:
 
         node_df.loc[:, "coordinates"] = node_df.loc[:, "geometry"].apply(self._get_point_coordinates)
 
-        junctions_mask = node_df["node_type"] == "Junction"
-        tank_mask = node_df["node_type"] == "Tank"
-        reservoir_mask = node_df["node_type"] == "Reservoir"
-        if "demand_pattern" not in node_df.columns:
+        junctions = node_df["node_type"] == "Junction"
+
+        if "demand_pattern" in node_df.columns:
+            node_df.loc[junctions, "demand_pattern_name"] = node_df.loc[junctions, "demand_pattern"].apply(
+                self.patterns.add
+            )
+        else:
             node_df["demand_pattern"] = None
-        node_df.loc[junctions_mask, "demand_pattern"] = node_df.loc[junctions_mask, "demand_pattern"].apply(
-            self.patterns.add_pattern_to_wn
-        )
-        if "base_demand" not in node_df.columns:
-            node_df["base_demand"] = None
-        dtls = []
-        for base_demand, demand_pattern in node_df.loc[junctions_mask, ["base_demand", "demand_pattern"]].itertuples(
-            index=False
-        ):
-            if not pd.isnull(base_demand):
-                dtls.append([{"base_val": base_demand, "pattern_name": demand_pattern}])
-        node_df.loc[junctions_mask, "demand_timeseries_list"] = pd.Series(dtls)
+
+        if "base_demand" in node_df.columns:
+            dtls = []
+            junctions_with_demand = junctions & node_df.loc[:, "base_demand"].notnull()
+            for demand in node_df.loc[junctions_with_demand, ["base_demand", "demand_pattern_name"]].itertuples():
+                dtls.append([{"base_val": demand[1], "pattern_name": demand[2]}])  # noqa: PERF401
+
+            node_df.loc[junctions, "demand_timeseries_list"] = pd.Series(dtls)
 
         if "vol_curve" in node_df.columns:
-            node_df.loc[tank_mask, "vol_curve_name"] = node_df.loc[tank_mask, "vol_curve"].apply(
-                self.curves.add_volume_curve_to_wn
-            )
+            tanks = node_df["node_type"] == "Tank"
+            node_df.loc[tanks, "vol_curve_name"] = node_df.loc[tanks, "vol_curve"].apply(self.curves.add_volume)
+
         if "head_pattern" in node_df.columns:
-            node_df.loc[reservoir_mask, "head_pattern_name"] = node_df.loc[reservoir_mask, "head_pattern"].apply(
-                self.patterns.add_pattern_to_wn
-            )
+            res = node_df["node_type"] == "Reservoir"
+            node_df.loc[res, "head_pattern_name"] = node_df.loc[res, "head_pattern"].apply(self.patterns.add)
 
         node_df.drop(
-            columns=["geometry", "vol_curve", "head_pattern", "base_demand", "demand_pattern"],
+            columns=["geometry", "vol_curve", "head_pattern", "base_demand", "demand_pattern", "demand_pattern_name"],
             inplace=True,
             errors="ignore",
         )
 
-        pipe_mask = link_df["link_type"] == "Pipe"
         if "length" not in link_df.columns:
             link_df["length"] = np.nan
 
-        if (pipe_mask & link_df["length"].isnull()).any():
-            link_df.loc[pipe_mask & link_df["length"].isnull(), "length"] = link_df.loc[
-                pipe_mask & link_df["length"].isnull(), "geometry"
-            ].apply(self._get_length)
+        pipes_wo_length = (link_df["link_type"] == "Pipe") & (link_df["length"].isna())
+
+        if pipes_wo_length.any():
+            link_df.loc[pipes_wo_length, "length"] = link_df.loc[pipes_wo_length, "geometry"].apply(self._get_length)
 
         link_df.loc[:, "vertices"] = link_df.loc[:, "geometry"].apply(self._get_vertex_list)
 
-        if "valve_type" not in link_df.columns:
-            link_df["valve_type"] = None
+        if "valve_type" in link_df.columns:
+            if "initial_setting" in link_df:
+                pressure_valves = link_df["valve_type"].str.upper().isin(["PRV", "PSV", "PBV"])
+                link_df.loc[pressure_valves, "initial_setting"] = link_df.loc[pressure_valves, "initial_setting"].apply(
+                    self._converter.to_si, field=wntr.epanet.HydParam.Pressure
+                )
 
-        if "initial_setting" in link_df:
-            pressure_valve_mask = link_df["valve_type"].str.upper().isin(["PRV", "PSV", "PBV"])
-            link_df.loc[pressure_valve_mask, "initial_setting"] = link_df.loc[
-                pressure_valve_mask, "initial_setting"
-            ].apply(self._converter.to_si, field=wntr.epanet.HydParam.Pressure)
-            flow_valve_mask = link_df["valve_type"].str.upper() == "FCV"
-            link_df.loc[flow_valve_mask, "initial_setting"] = link_df.loc[flow_valve_mask, "initial_setting"].apply(
-                self._converter.to_si, field=wntr.epanet.HydParam.Flow
-            )
-        if "headloss_curve" in link_df:
-            gpv_mask = link_df["valve_type"].str.upper() == "GPV"
-            link_df.loc[gpv_mask, "headloss_curve_name"] = link_df.loc[gpv_mask, "headloss_curve"].apply(
-                self.curves.add_curve_to_wn, curve_type=_Curves.Type.HEADLOSS
-            )
+                fcvs = link_df["valve_type"].str.upper() == "FCV"
+                link_df.loc[fcvs, "initial_setting"] = link_df.loc[fcvs, "initial_setting"].apply(
+                    self._converter.to_si, field=wntr.epanet.HydParam.Flow
+                )
+            if "headloss_curve" in link_df:
+                gpvs = link_df["valve_type"].str.upper() == "GPV"
+                link_df.loc[gpvs, "headloss_curve_name"] = link_df.loc[gpvs, "headloss_curve"].apply(
+                    self.curves.add_headloss
+                )
 
         if "pump_curve" in link_df:
-            link_df.loc[:, "pump_curve_name"] = link_df.loc[:, "pump_curve"].apply(
-                self.curves.add_curve_to_wn, curve_type=_Curves.Type.HEAD
-            )
+            link_df.loc[:, "pump_curve_name"] = link_df.loc[:, "pump_curve"].apply(self.curves.add_head)
         if "speed_pattern" in link_df:
-            link_df.loc[:, "speed_pattern_name"] = link_df.loc[:, "speed_pattern"].apply(
-                self.patterns.add_pattern_to_wn
-            )
+            link_df.loc[:, "speed_pattern_name"] = link_df.loc[:, "speed_pattern"].apply(self.patterns.add)
 
         link_df.drop(
             columns=["geometry", "headloss_curve", "pump_curve", "speed_pattern"], inplace=True, errors="ignore"
         )
 
-        wn_dict = {}
+        wn_dict: dict[str, Any] = {"nodes": [], "links": []}
+
         wn_dict["nodes"] = [
             {k: v for k, v in m.items() if isinstance(v, list) or pd.notnull(v)} for m in node_df.to_dict("records")
         ]
@@ -1048,7 +1036,7 @@ class _FromGis:
         wn.add_junction(
             name=attributes.get(ModelField.NAME),
             base_demand=attributes.get(ModelField.BASE_DEMAND, 0),
-            demand_pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.DEMAND_PATTERN)),
+            demand_pattern=self.patterns.add(attributes.get(ModelField.DEMAND_PATTERN)),
             elevation=attributes.get(ModelField.ELEVATION, 0),
             coordinates=self._get_point_coordinates(attributes.get("geometry")),
             # demand_category=category,  NOT IMPLEMENTED
@@ -1071,7 +1059,7 @@ class _FromGis:
             max_level=attributes.get(ModelField.MAX_LEVEL),  # REQUIRED
             diameter=attributes.get(ModelField.DIAMETER, 0),
             min_vol=attributes.get(ModelField.MIN_VOL, 0),
-            vol_curve=self.curves.add_curve_to_wn(attributes.get(ModelField.VOL_CURVE), _Curves.Type.VOLUME),
+            vol_curve=self.curves.add(attributes.get(ModelField.VOL_CURVE), _Curves.Type.VOLUME),
             overflow=attributes.get(ModelField.OVERFLOW, False),
             coordinates=self._get_point_coordinates(geometry),
         )
@@ -1088,7 +1076,7 @@ class _FromGis:
         wn.add_reservoir(
             name,
             base_head=attributes.get(ModelField.BASE_HEAD, 0),
-            head_pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.HEAD_PATTERN)),
+            head_pattern=self.patterns.add(attributes.get(ModelField.HEAD_PATTERN)),
             coordinates=self._get_point_coordinates(geometry),
         )
         n: wntr.network.elements.Reservoir = wn.get_node(name)
@@ -1136,14 +1124,14 @@ class _FromGis:
             pump_type=attributes.get(ModelField.PUMP_TYPE, ""),
             pump_parameter=attributes.get(ModelField.POWER)  # TODO: ERROR MESSAGES OF THIS ARE NOT CLEAR
             if str(attributes.get(ModelField.PUMP_TYPE, "")).lower() == "power"
-            else self.curves.add_curve_to_wn(attributes.get(ModelField.PUMP_CURVE), _Curves.Type.HEAD),
+            else self.curves.add(attributes.get(ModelField.PUMP_CURVE), _Curves.Type.HEAD),
             speed=attributes.get(ModelField.BASE_SPEED, 1.0),
-            pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.SPEED_PATTERN)),
+            pattern=self.patterns.add(attributes.get(ModelField.SPEED_PATTERN)),
             initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
         )
         link: wntr.network.elements.Pump = wn.get_link(name)
-        link.efficiency = self.curves.add_curve_to_wn(attributes.get(ModelField.EFFICIENCY), _Curves.Type.EFFICIENCY)
-        link.energy_pattern = self.patterns.add_pattern_to_wn(attributes.get(ModelField.ENERGY_PATTERN))
+        link.efficiency = self.curves.add(attributes.get(ModelField.EFFICIENCY), _Curves.Type.EFFICIENCY)
+        link.energy_pattern = self.patterns.add(attributes.get(ModelField.ENERGY_PATTERN))
         link.energy_price = attributes.get(ModelField.ENERGY_PRICE)
         link.initial_setting = attributes.get(ModelField.INITIAL_SETTING)  # bug ???
         link.vertices = self._get_vertex_list(geometry)
@@ -1158,9 +1146,7 @@ class _FromGis:
         end_node_name: str,
     ):
         if str(attributes.get(ModelField.VALVE_TYPE)).upper() == "GPV":
-            initial_setting = self.curves.add_curve_to_wn(
-                attributes.get(ModelField.HEADLOSS_CURVE), _Curves.Type.HEADLOSS
-            )
+            initial_setting = self.curves.add(attributes.get(ModelField.HEADLOSS_CURVE), _Curves.Type.HEADLOSS)
         elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["PRV", "PSV", "PBV"]:
             initial_setting = self._converter.to_si(
                 attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Pressure
