@@ -539,7 +539,7 @@ class _SpatialIndex:
             raise RuntimeError(msg)
         return (matched_node_point, matched_node_name)
 
-    def snap_link_to_nodes(
+    def snap_link(
         self,
         geometry: QgsGeometry,
     ):
@@ -810,35 +810,31 @@ class _FromGis:
         for geometry, name in node_df.loc[:, ["geometry", "name"]].itertuples(index=False):
             spatial_index.add_node(geometry, name)
 
-        snapped_links = []
-
-        for geometry, name in link_df.loc[:, ["geometry", "name"]].itertuples(index=False):
-            try:
-                snapped_links.append(list(spatial_index.snap_link_to_nodes(geometry)))
-            except RuntimeError as e:
-                msg = f"in {model_layer.friendly_name} the feature {name}: {e} "
-                raise NetworkModelError(e) from None
-
-        link_df[["geometry", "start_node_name", "end_node_name"]] = snapped_links
+        try:
+            link_df[["geometry", "start_node_name", "end_node_name"]] = [
+                spatial_index.snap_link(geometry)
+                for geometry, name in link_df.loc[:, ["geometry", "name"]].itertuples(index=False)
+            ]
+        except RuntimeError as e:
+            msg = f"problem snapping the feature {name}: {e} "
+            raise NetworkModelError(msg) from None
 
         node_df.loc[:, "coordinates"] = node_df.loc[:, "geometry"].apply(self._get_point_coordinates)
 
-        junctions = node_df["node_type"] == "Junction"
-
         if "demand_pattern" in node_df.columns:
-            node_df.loc[junctions, "demand_pattern_name"] = node_df.loc[junctions, "demand_pattern"].apply(
-                self.patterns.add
-            )
+            node_df.loc[:, "demand_pattern_name"] = node_df.loc[:, "demand_pattern"].apply(self.patterns.add)
         else:
             node_df["demand_pattern_name"] = None
 
         if "base_demand" in node_df.columns:
-            dtls = []
-            junctions_with_demand = junctions & node_df.loc[:, "base_demand"].notnull()
-            for demand in node_df.loc[junctions_with_demand, ["base_demand", "demand_pattern_name"]].itertuples():
-                dtls.append([{"base_val": demand[1], "pattern_name": demand[2]}])  # noqa: PERF401
+            has_demand = node_df.loc[:, "base_demand"].notnull()
 
-            node_df.loc[junctions, "demand_timeseries_list"] = pd.Series(dtls)
+            node_df.loc[has_demand, "demand_timeseries_list"] = pd.Series(
+                [
+                    [{"base_val": demand[1], "pattern_name": demand[2]}]
+                    for demand in node_df.loc[has_demand, ["base_demand", "demand_pattern_name"]].itertuples()
+                ]
+            )
 
         if "vol_curve" in node_df.columns:
             tanks = node_df["node_type"] == "Tank"
