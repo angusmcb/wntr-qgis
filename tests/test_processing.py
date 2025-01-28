@@ -214,9 +214,9 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     sim = wntr.sim.EpanetSimulator(wn)
     outputresults = sim.run_sim()
 
-    print("Original results")  # noqa
+    print("***Original results***")  # noqa
     print(inputresults.link["headloss"])  # noqa
-    print("Final results")  # noqa
+    print("***Final results***")  # noqa
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
@@ -225,7 +225,13 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
         ), f" when testing {i}"
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
-            all(sublist) for sublist in np.isclose(inputresults.link[i], outputresults.link[i], rtol=0.005, atol=1e-05)
+            all(sublist)
+            for sublist in np.isclose(
+                inputresults.link[i],
+                outputresults.link[i],
+                rtol=0.005,
+                atol=1e-04,
+            )
         ), f" when testing {i}"
 
 
