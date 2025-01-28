@@ -86,7 +86,7 @@ class WqDependencyManagement:
                 "--target=" + cls.package_directory(),
                 "--no-deps",
                 "--find-links=" + cls.wheels_directory(),
-                "wntr",
+                "wntr==1.2.0",
             ],
             check=False,
             **kwargs,
