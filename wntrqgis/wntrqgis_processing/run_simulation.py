@@ -179,16 +179,16 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         project_settings.set(SettingKey.SIMULATION_DURATION, duration)
         wn.options.time.duration = duration * 3600
 
-        sources = {lyr: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
+        sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
         try:
-            crs = sources[ModelLayer.JUNCTIONS].sourceCrs()
+            crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
         except AttributeError:
             raise QgsProcessingException(self.tr("A junctions layer is required.")) from None
 
         try:
             # network_model.add_features_to_network_model(sources, wn)
-            wntrqgis.from_qgis(sources, wn, context.project(), crs=crs, units=wq_flow_unit.name)
+            wntrqgis.from_qgis(sources, wq_flow_unit.name, wn, context.project(), crs=crs)
             check_network(wn)
         except NetworkModelError as e:
             raise QgsProcessingException(self.tr("Error preparing model - " + str(e))) from None

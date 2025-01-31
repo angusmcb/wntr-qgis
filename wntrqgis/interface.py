@@ -11,7 +11,7 @@ import importlib
 import math
 import pathlib
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from qgis.core import (
     NULL,
@@ -200,7 +200,7 @@ def to_qgis(
     # layers: str | None = None,
     # fields: list | None = None,
     # filename: str | None = None,
-) -> dict[str, QgsVectorLayer] | None:
+) -> dict[str, QgsVectorLayer]:
     """Write from WNTR network model to QGIS Layers
 
     Args:
@@ -710,36 +710,48 @@ class _Curves:
 
 @needs_wntr_pandas
 def from_qgis(
-    layers: dict[ModelLayer, QgsFeatureSource],
+    layers: dict[Literal["JUNCTIONS", "RESERVOIRS", "TANKS", "PIPES", "VALVES", "PUMPS"], QgsFeatureSource],
+    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"],
     wn: wntr.network.WaterNetworkModel | None = None,
     project: QgsProject | None = None,
     crs: QgsCoordinateReferenceSystem | str | None = None,
-    units: str | None = None,
     # headloss_formula: str | None = None,
 ) -> wntr.network.WaterNetworkModel:
     """Read from QGIS layers or feature sources to a WNTR ``WaterNetworkModel``
 
     Args:
         layers: layers to read from
-        wn: the model that the layers will be read into. Will create a new model if left blank.
-        project: QgsProject instance, if none will use the current QgsProject.instance()
-        crs: all geometry will be transformed into this crs for adding to the water network model
         units: The flow unit set that the layers being read use.
-            If not set it will default to the value in ``wn.options.hydraulic.inpfile_units``.
+        wn: The `WaterNetworkModel` that the layers will be read into. Will create a new model if `None`.
+        project: QgsProject instance, if `None` the current `QgsProject.instance()` will be used.
+        crs: All geometry will be transformed into this coordinate reference system.
+            If not set the geometry of the first layer will be used.
         headloss_formula: the headloss formula to use. If not set will default to option in the water network model."""
-
     if not wn:
         wn = wntr.network.WaterNetworkModel()
-    flow_units = (
-        wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
-    )
+    try:
+        flow_units = wntr.epanet.FlowUnits[str(units).upper()]
+    except KeyError as e:
+        msg = f"Units {e} is not a known set of units. Possible units are: " + ", ".join(FlowUnit._member_names_)
+        raise ValueError(msg) from None
+
     headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
+
     unit_conversion = _Converter(flow_units, headloss_formula_type)
 
     reader = _FromGis(unit_conversion, project)
     if crs:
         reader.crs = QgsCoordinateReferenceSystem(crs)
-    reader.add_features_to_network_model(layers, wn)
+
+    try:
+        model_layers = {}
+        for layer_name, layer in layers.items():
+            model_layers.update({ModelLayer(str(layer_name).upper()): layer})
+    except ValueError:
+        msg = f"'{layer_name}' is not a valid layer type."
+        raise ValueError(msg) from None
+
+    reader.add_features_to_network_model(model_layers, wn)
 
     return wn
 
@@ -817,21 +829,30 @@ class _FromGis:
 
             source_df.columns = [shapefile_name_map.get(col, col) for col in source_df.columns]
 
+            source_df = self._columns_to_numeric(source_df)
+
             if model_layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]:
                 source_df["node_type"] = model_layer.name[:-1].title()
                 node_dfs.append(source_df)
             else:
                 source_df["link_type"] = model_layer.name[:-1].title()
                 link_dfs.append(source_df)
-
-        node_df = pd.concat(node_dfs, sort=False, ignore_index=True)
-        link_df = pd.concat(link_dfs, sort=False, ignore_index=True)
+        try:
+            node_df = pd.concat(node_dfs, sort=False, ignore_index=True)
+        except ValueError:
+            raise NetworkModelError("No nodes provided")
+        try:
+            link_df = pd.concat(link_dfs, sort=False, ignore_index=True)
+        except ValueError:
+            raise NetworkModelError("No nodes provided")
 
         self._fill_names(node_df)
         self._fill_names(link_df)
 
         node_df = self._convert_dataframe(node_df, ModelLayer.TANKS)  # hack as I know tanks is needed for diameter
         link_df = self._convert_dataframe(link_df)
+
+        node_df = self._add_minimum_node_cols(node_df)
 
         node_df = self._process_node_geometry(node_df)
         link_df = self._process_link_geometry(link_df)
@@ -870,8 +891,22 @@ class _FromGis:
             feature_list.append(attrs)
         return pd.DataFrame(feature_list, columns=column_names)
 
+    def _columns_to_numeric(self, source_df: pd.DataFrame) -> pd.DataFrame:
+        for column_name in source_df.columns:
+            try:
+                expected_type = ModelField[column_name.upper()].python_type
+            except KeyError:
+                continue
+            if expected_type is not float:
+                continue
+            try:
+                source_df[column_name] = pd.to_numeric(source_df[column_name])
+            except ValueError as e:
+                raise NetworkModelError(f"Problem in column {column_name}: {e}") from None
+        return source_df
+
     def _convert_dataframe(self, source_df: pd.DataFrame, layer: ModelLayer | None = None) -> pd.DataFrame:
-        for fieldname in source_df.select_dtypes(include=[np.floating]):
+        for fieldname in source_df.select_dtypes(include=[np.number]):
             try:
                 field = ModelField[str(fieldname).upper()]
             except KeyError:
@@ -958,7 +993,7 @@ class _FromGis:
         if "name" not in df.columns:
             df["name"] = pd.NA
 
-        existing_names = df.loc[:, "name"].unique().tolist()
+        existing_names = df.loc[:, "name"].dropna().unique().tolist()
         mask = (df["name"].isna()) | (df["name"] == "")
         names_required = mask.sum()
 
@@ -968,7 +1003,7 @@ class _FromGis:
             if str(next_name) not in existing_names:
                 new_names.append(str(next_name))
             next_name += 1
-        df.loc[mask, "name"] = pd.Series(new_names)
+        df.loc[mask, "name"] = new_names
 
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
@@ -1045,6 +1080,17 @@ class _FromGis:
 
     def _get_vertex_list(self, geometry: QgsGeometry):
         return [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
+
+    def _add_minimum_node_cols(self, node_df: pd.DataFrame) -> pd.DataFrame:
+        if "elevation" not in node_df:
+            node_df["elevation"] = 0.0
+        node_df["elevation"] = node_df["elevation"].fillna(0.0)
+
+        if "base_head" not in node_df:
+            node_df["base_head"] = 0.0
+        node_df["base_head"] = node_df["base_head"].fillna(0.0)
+
+        return node_df
 
 
 @needs_wntr_pandas
