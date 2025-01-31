@@ -114,7 +114,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
         try:
-            wn = wntr.network.read_inpfile(input_file)
+            wn: wntr.network.WaterNetworkModel = wntr.network.read_inpfile(input_file)
         except FileNotFoundError as e:
             msg = f".inp file does not exist ({input_file})"
             raise QgsProcessingException(msg) from e
