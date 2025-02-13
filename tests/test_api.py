@@ -1,14 +1,11 @@
-from pathlib import Path
-
 import geopandas as gpd
 import pytest
 import wntr
 from qgis.core import QgsProject, QgsVectorLayer
 
-import wntrqgis
 import wntrqgis as wq
 import wntrqgis.elements
-from wntrqgis import interface
+import wntrqgis.interface
 from wntrqgis.elements import FieldGroup
 
 
@@ -16,14 +13,18 @@ def to_layers(gdfs: dict[str, gpd.GeoDataFrame]) -> dict[str, QgsVectorLayer]:
     return {key: QgsVectorLayer(gdf.to_json(), str(key), "ogr") for key, gdf in gdfs.items()}
 
 
+def to_gdf(layers: dict[str, QgsVectorLayer]) -> dict[str, gpd.GeoDataFrame]:
+    return {key: gpd.GeoDataFrame.from_features(val.getFeatures()) for key, val in layers.items()}
+
+
 def test_get_field_groups():
     wn = wntr.network.WaterNetworkModel()
-    assert interface._get_field_groups(wn) == FieldGroup(0)
+    assert wntrqgis.interface._get_field_groups(wn) == FieldGroup(0)
     wn.options.quality.parameter = "CHEMICAL"
     wn.options.report.energy = "YES"
     wn.options.hydraulic.demand_model = "PDD"
     assert (
-        interface._get_field_groups(wn)
+        wntrqgis.interface._get_field_groups(wn)
         == FieldGroup.PRESSURE_DEPENDENT_DEMAND | FieldGroup.ENERGY | FieldGroup.WATER_QUALITY_ANALYSIS
     )
 
@@ -80,7 +81,7 @@ def test_flegere(qgis_new_project, flegere_gdfs):
 def test_flegere_broken_layername(qgis_new_project, flegere_layers):
     flegere_layers["wrongname"] = flegere_layers["junctions"]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="'wrongname' is not a valid layer type."):
         wq.from_qgis(flegere_layers, "LPS")
 
 
@@ -92,7 +93,7 @@ def test_flegere_snap(qgis_new_project, flegere_layers):
 
     wq.to_qgis(wn)
 
-    wq.interface.check_network(wn)
+    wntrqgis.interface.check_network(wn)
 
 
 def test_flegere_naming(flegere_layers):
@@ -107,7 +108,8 @@ def test_flegere_no_attributes(flegere_gdfs):
 
 
 @pytest.mark.parametrize(
-    "unit,expected_demand", {("GPM", 6.30901964e-05), ("SI", 1), ("sI", 1), ("LPS", 0.001), ("CFS", 0.0283168466)}
+    ("unit", "expected_demand"),
+    {("GPM", 6.30901964e-05), ("SI", 1), ("sI", 1), ("LPS", 0.001), ("lps", 0.001), ("CFS", 0.0283168466)},
 )
 def test_flegere_conversion(qgis_new_project, flegere_layers, unit, expected_demand):
     wn = wq.from_qgis(flegere_layers, unit)
@@ -117,12 +119,14 @@ def test_flegere_conversion(qgis_new_project, flegere_layers, unit, expected_dem
 def test_flegere_bad_units(qgis_new_project, flegere_layers):
     with pytest.raises(
         ValueError,
-        match="Units 'NON-EXISTANT' is not a known set of units. Possible units are: LPS, LPM, MLD, CMH, CFS, GPM, MGD, IMGD, AFD, SI",
+        match="Units 'NON-EXISTANT' is not a known set of units. Possible units are: LPS, LPM, MLD, CMH, CFS, GPM, MGD, IMGD, AFD, SI",  # noqa: E501
     ):
         wq.from_qgis(flegere_layers, units="Non-existant")
 
 
-@pytest.mark.parametrize("unit,expected_length", [("LPS", 100), ("GPM", 328.0839895013123), ("LPM", "100")])
+@pytest.mark.parametrize(
+    ("unit", "expected_length"), [("LPS", 100), ("LPS", 100.0), ("GPM", 328.0839895013123), ("LPM", "100")]
+)
 def test_flegere_length(flegere_gdfs, unit, expected_length):
     flegere_gdfs["pipes"].loc[0, "length"] = expected_length
     with pytest.warns(UserWarning, match=r"1 pipes have very different attribute length vs measured length"):
@@ -142,3 +146,39 @@ def test_flegere_extra_attribute(flegere_gdfs):
     wn = wq.from_qgis(to_layers(flegere_gdfs), "lps")
     assert wn.get_node("1").extra_value == "extra value"
     assert wn.get_link("1").extra_number == 55
+
+
+def test_flegere_load_results(flegere_layers):
+    wn = wq.from_qgis(flegere_layers, "lps")
+
+    sim = wntr.sim.EpanetSimulator(wn)
+    sim_results = sim.run_sim()
+
+    layers = wq.to_qgis(wn, sim_results, units="lps")
+
+    # [print(s) for s in sim_results.node.values()]
+
+    result_gdfs = to_gdf(layers)
+
+    # print(result_gdfs["NODES"])
+    # print(result_gdfs["LINKS"].head())
+
+    assert result_gdfs["NODES"].iloc[0]["demand"] == 1.0
+
+
+def test_flegere_time_results(flegere_layers):
+    wn = wq.from_qgis(flegere_layers, "lps")
+    wn.options.time.duration = 3600
+    sim = wntr.sim.EpanetSimulator(wn)
+    sim_results = sim.run_sim()
+
+    layers = wq.to_qgis(wn, sim_results, units="lps")
+
+    # [print(s) for s in sim_results.node.values()]
+
+    result_gdfs = to_gdf(layers)
+
+    # print(result_gdfs["NODES"])
+    # print(result_gdfs["LINKS"].head())
+
+    assert result_gdfs["NODES"].iloc[0]["demand"] == [1.0, 1.0]
