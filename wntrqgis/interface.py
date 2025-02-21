@@ -876,8 +876,6 @@ class _FromGis:
 
             source_df.columns = [shapefile_name_map.get(col, col) for col in source_df.columns]
 
-            source_df = self._columns_to_numeric(source_df)
-
             if model_layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]:
                 source_df["node_type"] = model_layer.name[:-1].title()
                 node_dfs.append(source_df)
@@ -895,6 +893,9 @@ class _FromGis:
         except ValueError:
             msg = "No links provided"
             raise NetworkModelError(msg) from ValueError
+
+        node_df = self._fix_column_types(node_df)
+        link_df = self._fix_column_types(link_df)
 
         self._fill_names(node_df)
         self._fill_names(link_df)
@@ -923,7 +924,7 @@ class _FromGis:
     def _to_dict(self, df: pd.DataFrame) -> list[dict]:
         columns = df.columns.tolist()
         return [
-            {k: v for k, v in zip(columns, m) if not (v != v or v is None)}  # noqa: PLR0124
+            {k: v for k, v in zip(columns, m) if not (v is pd.NA or v != v or v is None)}  # noqa: PLR0124
             for m in df.itertuples(index=False, name=None)
         ]
 
@@ -942,16 +943,22 @@ class _FromGis:
             feature_list.append(attrs)
         return pd.DataFrame(feature_list, columns=column_names)
 
-    def _columns_to_numeric(self, source_df: pd.DataFrame) -> pd.DataFrame:
+    def _fix_column_types(self, source_df: pd.DataFrame) -> pd.DataFrame:
+        """For some file types, notably json, numbers might be imported as strings.
+
+        Also, for boolean values that come in as number types (int or float), they must finish as nullable int.
+          (wntr doesn't accept floats for bool)"""
         for column_name in source_df.columns:
             try:
                 expected_type = ModelField[column_name.upper()].python_type
             except KeyError:
                 continue
-            if expected_type is not float:
-                continue
+
             try:
-                source_df[column_name] = pd.to_numeric(source_df[column_name])
+                if expected_type is float:
+                    source_df[column_name] = pd.to_numeric(source_df[column_name])
+                elif expected_type is bool:
+                    source_df[column_name] = pd.to_numeric(source_df[column_name]).astype("Int64").astype("object")
             except ValueError as e:
                 msg = f"Problem in column {column_name}: {e}"
                 raise NetworkModelError(msg) from None
