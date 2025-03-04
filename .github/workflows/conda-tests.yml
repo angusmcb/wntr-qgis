@@ -34,7 +34,7 @@ jobs:
           auto-activate-base: false
       - name: Install packages
         run: |
-          conda install -y pytest ${{ matrix.wntr-version}} ${{ matrix.qgis }}
+          conda install -y pytest ${{ matrix.wntr-version}} ${{ matrix.qgis }} geopandas
           pip install pytest-qgis pytest-cov
       - name: Conda info
         run: |

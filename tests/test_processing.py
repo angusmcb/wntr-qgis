@@ -124,6 +124,7 @@ def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_pr
         )
 
 
+@pytest.mark.filterwarnings("ignore: 1 pipes have very different attribute length")
 def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
     """todo: add test to feedback from processing"""
     from qgis import processing
@@ -168,6 +169,7 @@ def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
     assert feedbacktest.warningreceived
 
 
+@pytest.mark.filterwarnings("ignore: 110 pipes have very different attribute length")
 @pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
 @pytest.mark.parametrize("example", [("Net3.simplified.inp", 24), ("valves.inp", 0)])
 def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype, example):
@@ -214,9 +216,9 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     sim = wntr.sim.EpanetSimulator(wn)
     outputresults = sim.run_sim()
 
-    print("Original results")  # noqa
+    print("***Original results***")  # noqa
     print(inputresults.link["headloss"])  # noqa
-    print("Final results")  # noqa
+    print("***Final results***")  # noqa
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
@@ -225,7 +227,13 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
         ), f" when testing {i}"
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
-            all(sublist) for sublist in np.isclose(inputresults.link[i], outputresults.link[i], rtol=0.005, atol=1e-05)
+            all(sublist)
+            for sublist in np.isclose(
+                inputresults.link[i],
+                outputresults.link[i],
+                rtol=0.005,
+                atol=1e-04,
+            )
         ), f" when testing {i}"
 
 

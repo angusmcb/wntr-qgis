@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from qgis.core import (
@@ -81,9 +82,13 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             if self.parameterAsBoolean(parameters, analysis_type.name, context):
                 analysis_types_to_use = analysis_types_to_use | analysis_type
 
-        outputs: dict[str, str] = {}
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
+        # for shapefile writing
+        warnings.filterwarnings("ignore", "Field", RuntimeWarning)
+        warnings.filterwarnings("ignore", "Normalized/laundered field name:", RuntimeWarning)
+
+        outputs: dict[str, str] = {}
         for layer in ModelLayer:
             fields = layer.qgs_fields(analysis_types_to_use)
             wkb_type = layer.qgs_wkb_type

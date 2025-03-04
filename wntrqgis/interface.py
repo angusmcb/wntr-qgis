@@ -8,10 +8,11 @@ import ast
 import enum
 import functools
 import importlib
+import logging
 import math
 import pathlib
 import warnings
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from qgis.core import (
     NULL,
@@ -47,12 +48,13 @@ from wntrqgis.elements import (
     ResultLayer,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
     import pandas as pd  # noqa
     import numpy as np  # noqa
     from numpy.typing import ArrayLike
 
+logger = logging.getLogger(__name__)
 
 QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
 QGIS_DISTANCE_UNIT_METERS = (
@@ -68,11 +70,7 @@ def needs_wntr_pandas(func):
 
     @functools.wraps(func)
     def check_wntr(*args, **kwargs):
-        try:
-            pd  # noqa: B018, F823
-            wntr  # noqa
-            np  # noqa
-        except NameError:
+        if "wntr" not in globals():
             importlib.invalidate_caches()
             import numpy as np
             import pandas as pd
@@ -96,11 +94,15 @@ class _Converter:
         headloss_formula: Used to determine how to handle conversion of the roughness coefficient
     """
 
-    def __init__(self, flow_units: FlowUnit | wntr.epanet.util.FlowUnits, headloss_formula: HeadlossFormula):
-        if isinstance(flow_units, wntr.epanet.util.FlowUnits):
-            self._flow_units = flow_units
-        else:
-            self._flow_units = wntr.epanet.util.FlowUnits[flow_units.name]
+    def __init__(
+        self,
+        flow_units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"],
+        headloss_formula: HeadlossFormula,
+    ):
+        try:
+            self._flow_units = wntr.epanet.FlowUnits[flow_units.upper()]
+        except KeyError as e:
+            raise UnitError(e) from None
 
         self._darcy_weisbach = headloss_formula is HeadlossFormula.DARCY_WEISBACH
 
@@ -196,11 +198,11 @@ def to_qgis(
     wn: wntr.network.WaterNetworkModel | pathlib.Path | str,
     results: wntr.sim.SimulationResults | None = None,
     crs: QgsCoordinateReferenceSystem | str | None = None,
-    units: str | None = None,
+    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"] | None = None,
     # layers: str | None = None,
     # fields: list | None = None,
     # filename: str | None = None,
-) -> dict[str, QgsVectorLayer] | None:
+) -> dict[str, QgsVectorLayer]:
     """Write from WNTR network model to QGIS Layers
 
     Args:
@@ -261,12 +263,17 @@ class Writer:
         self,
         wn: wntr.network.WaterNetworkModel,
         results: wntr.sim.SimulationResults | None = None,
-        units: str | None = None,
+        units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"] | None = None,
     ) -> None:
-        flow_units = (
-            wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
-        )
-        self._converter = _Converter(flow_units, HeadlossFormula(wn.options.hydraulic.headloss))
+        if not units:
+            units = wn.options.hydraulic.inpfile_units
+            units_friendly_name = FlowUnit[units].value
+            logger.warning(
+                "No units specified. Will use the value specified in WaterNetworkModel object: %s",
+                units_friendly_name,
+            )
+
+        self._converter = _Converter(units, HeadlossFormula(wn.options.hydraulic.headloss))
 
         self._timestep = None
         if not wn.options.time.duration:
@@ -310,21 +317,17 @@ class Writer:
 
         link: wntr.network.elements.Link
         for name, link in wn.links():
-            point_list: list[QgsPoint] = []
-            point_list.append(QgsPoint(*link.start_node.coordinates))
-            point_list.extend(QgsPoint(*vertex) for vertex in link.vertices)
-            point_list.append(QgsPoint(*link.end_node.coordinates))
+            point_list = [
+                QgsPoint(*vertex)
+                for vertex in [
+                    link.start_node.coordinates,
+                    *link.vertices,
+                    link.end_node.coordinates,
+                ]
+            ]
             geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
 
         return geometries
-
-    def _get_fields(self, layer: ModelLayer | ResultLayer) -> list[ModelField | ResultField]:
-        layer_fields = layer.wq_fields()
-
-        if isinstance(layer, ResultLayer):
-            layer_fields.append(ModelField.NAME)
-
-        return [field for field in self.fields if field in layer_fields]
 
     def get_qgsfields(self, layer: ModelLayer | ResultLayer) -> QgsFields:
         """Get the set of QgsFields that will be written by 'write'.
@@ -335,17 +338,57 @@ class Writer:
         Args:
             layer: 'JUNCTIONS','PIPES','LINKS' etc.
         """
-        fields = QgsFields()  # nice constructor didn't arrive until qgis 3.40
-        for f in self._get_fields(layer):
-            if f in ResultField and self._timestep is None:
-                fields.append(
+        if isinstance(layer, ResultLayer):
+            layer_df = self._result_dfs.get(layer, pd.DataFrame())
+        else:
+            layer_df = self._model_dfs.get(layer, pd.DataFrame())
+
+        field_names = layer_df.columns.to_list()
+        field_names.extend(field.name for field in self.fields if field in layer.wq_fields())
+        field_names = list(dict.fromkeys(field_names))  # de-duplicate
+
+        layer_df = layer_df.convert_dtypes(convert_integer=False)
+        dtypes = layer_df.dtypes
+
+        qgs_fields = QgsFields()  # nice constructor didn't arrive until qgis 3.40
+
+        for f in field_names:
+            try:
+                dtype = ModelField[f.upper()].python_type
+            except KeyError:
+                try:
+                    dtype = ResultField[f.upper()].python_type
+                except KeyError:
+                    dtype = dtypes[f]
+
+            f = cast(str, f)
+            is_result_field = f.upper() in ResultField._member_names_
+
+            if is_result_field:
+                dtype = float
+
+            precision = (2 if is_result_field else 5) if pd.api.types.is_float_dtype(dtype) else 0
+
+            if is_result_field and self._timestep is None:
+                qgs_fields.append(
                     QgsField(
-                        f.name.lower(), self._get_qgs_field_type(list), subType=self._get_qgs_field_type(f.python_type)
+                        f.lower(),
+                        self._get_qgs_field_type(list),
+                        subType=self._get_qgs_field_type(dtype),
+                        len=10 if pd.api.types.is_float_dtype(dtype) else 0,
+                        prec=precision,
                     )
                 )
             else:
-                fields.append(QgsField(f.name.lower(), self._get_qgs_field_type(f.python_type)))
-        return fields
+                qgs_fields.append(
+                    QgsField(
+                        f.lower(),
+                        self._get_qgs_field_type(dtype),
+                        len=10 if pd.api.types.is_float_dtype(dtype) else 0,
+                        prec=precision,
+                    )
+                )
+        return qgs_fields
 
     def write(self, layer: ModelLayer | ResultLayer, sink: QgsFeatureSink) -> None:
         """Write a fields from a layer to a Qgis feature sink
@@ -357,25 +400,27 @@ class Writer:
         field_names = self.get_qgsfields(layer).names()
 
         if isinstance(layer, ResultLayer):
-            df = self._result_dfs.get(layer, pd.DataFrame())
+            layer_df = self._result_dfs.get(layer, pd.DataFrame())
         else:
-            df = self._model_dfs.get(layer, pd.DataFrame())
+            layer_df = self._model_dfs.get(layer, pd.DataFrame())
 
-        missing_cols = list(set(field_names) - set(df.columns))
+        missing_cols = list(set(field_names) - set(layer_df.columns))
 
         if len(missing_cols) > 0:
-            df[missing_cols] = NULL
+            layer_df[missing_cols] = NULL
 
-        ordered_df = df[field_names]
+        ordered_df = layer_df[field_names]
 
         attribute_series = pd.Series(
             ordered_df.to_numpy().tolist(),
             index=ordered_df.index,
         )
 
+        geometries = self._geometries[layer.element_family]
+
         for name, attributes in attribute_series.items():
             f = QgsFeature()
-            f.setGeometry(self._geometries[layer.element_family][name])
+            f.setGeometry(geometries[name])
             f.setAttributes(
                 [value if not (isinstance(value, (int, float)) and math.isnan(value)) else NULL for value in attributes]
             )
@@ -388,19 +433,25 @@ class Writer:
 
         df_nodes = pd.DataFrame(wn_dict["nodes"])
         if len(df_nodes) > 0:
-            df_nodes.set_index("name", drop=False, inplace=True)
-
-            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"].copy()
-            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"].copy()
-            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"].copy()
+            df_nodes = df_nodes.set_index("name", drop=False)
+            df_nodes = df_nodes.drop(
+                columns=["coordinates", "demand_timeseries_list"],
+                errors="ignore",
+            )
+            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"].dropna(axis=1, how="all")
+            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"].dropna(axis=1, how="all")
+            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"].dropna(axis=1, how="all")
 
         df_links = pd.DataFrame(wn_dict["links"])
         if len(df_links) > 0:
-            df_links.set_index("name", drop=False, inplace=True)
-
-            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"].copy()
-            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"].copy()
-            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"].copy()
+            df_links = df_links.set_index("name", drop=False)
+            df_links = df_links.drop(
+                columns=["start_node_name", "end_node_name", "vertices"],
+                errors="ignore",
+            )
+            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"].dropna(axis=1, how="all")
+            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"].dropna(axis=1, how="all")
+            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"].dropna(axis=1, how="all")
 
         patterns = _Patterns(wn)
         curves = _Curves(wn, self._converter)
@@ -409,6 +460,13 @@ class Writer:
             if len(df) == 0:
                 continue
 
+            if (
+                lyr in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]
+                and "initial_quality" in df
+                and (df["initial_quality"] == 0.0).all()
+            ):
+                df.drop(columns=["initial_quality"], inplace=True)  # noqa: PD002
+
             if lyr is ModelLayer.JUNCTIONS:
                 # Special case for demands
                 df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
@@ -416,46 +474,51 @@ class Writer:
                 # 'demand_pattern' didn't exist on node prior to wntr 1.3.0 so we have to go searching:
                 df["demand_pattern"] = wn.query_node_attribute(
                     "demand_timeseries_list", node_type=wntr.network.model.Junction
-                ).apply(lambda dtl: patterns.get_pattern_string(dtl.pattern_list()[0]))
+                ).apply(lambda dtl: patterns.get(dtl.pattern_list()[0]))
 
             elif lyr is ModelLayer.RESERVOIRS:
                 if "head_pattern_name" in df:
-                    df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get_pattern_string_from_name)
+                    df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
+                    df.drop(columns="head_pattern_name", inplace=True)  # noqa: PD002
 
             elif lyr is ModelLayer.TANKS:
                 if "vol_curve_name" in df:
-                    df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get_curve_string_from_name)
+                    df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
+                    df.drop(columns="vol_curve_name", inplace=True)  # noqa: PD002
 
             elif lyr is ModelLayer.PUMPS:
                 # not all pumps will have a pump curve (power pumps)!
                 if "pump_curve_name" in df:
-                    df["pump_curve"] = df["pump_curve_name"].apply(curves.get_curve_string_from_name)
+                    df["pump_curve"] = df["pump_curve_name"].apply(curves.get)
+                    df.drop(columns="pump_curve_name", inplace=True)  # noqa: PD002
 
                 if "speed_pattern_name" in df:
-                    df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get_pattern_string_from_name)
+                    df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get)
+                    df.drop(columns="speed_pattern_name", inplace=True)  # noqa: PD002
                 # 'energy pattern' is not called energy pattern name!
                 if "energy_pattern" in df:
-                    df["energy_pattern"] = df["energy_pattern"].apply(patterns.get_pattern_string_from_name)
+                    df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
 
             elif lyr is ModelLayer.VALVES:
-                df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"] = self._converter.from_si(
-                    pd.to_numeric(df.loc[df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"]),
-                    wntr.epanet.HydParam.Pressure,
-                )
+                p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
+                df.loc[p_valves_setting] = self._converter.from_si(
+                    df.loc[p_valves_setting].to_numpy(), wntr.epanet.HydParam.Pressure
+                ).round(5)
                 df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
-                    pd.to_numeric(df.loc[df["valve_type"] == "FCV", "initial_setting"]), wntr.epanet.HydParam.Flow
-                )
+                    df.loc[df["valve_type"] == "FCV", "initial_setting"].to_numpy(), wntr.epanet.HydParam.Flow
+                ).round(5)
                 if "headloss_curve" in df:
                     df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
                         df["valve_type"] == "GPV", "headloss_curve_name"
-                    ].apply(curves.get_curve_string_from_name)
+                    ].apply(curves.get)
 
             for fieldname in df.select_dtypes(include=[np.floating]):
                 try:
                     field = ModelField[str(fieldname).upper()]
                 except KeyError:
                     continue
-                df[fieldname] = self._converter.from_si(df[fieldname], field, lyr)
+                converted_array = self._converter.from_si(df[fieldname].to_numpy(), field, lyr)
+                df[fieldname] = converted_array.round(5)
 
         return dfs
 
@@ -501,21 +564,27 @@ class Writer:
         else:
             converted_df = self._converter.from_si(df, field)
 
+        converted_df = converted_df.round(2)
+
         return converted_df
 
-    def _get_qgs_field_type(self, python_type: type[str | float | bool | int | list]) -> QMetaType | QVariant:
-        if issubclass(python_type, str):
-            return QMetaType.QString if USE_QMETATYPE else QVariant.String
-        if issubclass(python_type, float):
-            return QMetaType.Double if USE_QMETATYPE else QVariant.Double
-        if issubclass(python_type, bool):
-            return QMetaType.Bool if USE_QMETATYPE else QVariant.Bool
-        if issubclass(python_type, int):
-            return QMetaType.Int if USE_QMETATYPE else QVariant.Int
-        if issubclass(python_type, list):
+    def _get_qgs_field_type(self, dtype: Any) -> QMetaType | QVariant:
+        if dtype is list:  # Must be checked before string type
             return QMetaType.QVariantList if USE_QMETATYPE else QVariant.List
 
-        raise KeyError
+        if pd.api.types.is_string_dtype(dtype):
+            return QMetaType.QString if USE_QMETATYPE else QVariant.String
+
+        if pd.api.types.is_float_dtype(dtype):
+            return QMetaType.Double if USE_QMETATYPE else QVariant.Double
+
+        if pd.api.types.is_bool_dtype(dtype):
+            return QMetaType.Bool if USE_QMETATYPE else QVariant.Bool
+
+        if pd.api.types.is_integer_dtype(dtype):
+            return QMetaType.Int if USE_QMETATYPE else QVariant.Int
+
+        raise KeyError(f"Couldn't get qgs field type for {dtype}")  # noqa: EM102, TRY003
 
 
 class _SpatialIndex:
@@ -523,14 +592,14 @@ class _SpatialIndex:
         self._node_spatial_index = QgsSpatialIndex()
         self._nodelist: list[tuple[QgsPointXY, str]] = []
 
-    def add_node_to_spatial_index(self, geometry: QgsGeometry, element_name: str):
-        point = geometry.constGet().clone()
+    def add_node(self, geometry: QgsGeometry, element_name: str):
+        point = geometry.asPoint()
         feature_id = len(self._nodelist)
         self._nodelist.append((point, element_name))
-        self._node_spatial_index.addFeature(feature_id, point.boundingBox())
+        self._node_spatial_index.addFeature(feature_id, geometry.boundingBox())
 
-    def _snapper(self, line_vertex_point: QgsPoint, original_length: float):
-        nearest = self._node_spatial_index.nearestNeighbor(QgsPointXY(line_vertex_point))
+    def _snapper(self, line_vertex_point: QgsPointXY, original_length: float):
+        nearest = self._node_spatial_index.nearestNeighbor(line_vertex_point)
         matched_node_point, matched_node_name = self._nodelist[nearest[0]]
         snap_distance = matched_node_point.distance(line_vertex_point)
         if snap_distance > original_length * 0.1:
@@ -539,11 +608,19 @@ class _SpatialIndex:
             raise RuntimeError(msg)
         return (matched_node_point, matched_node_name)
 
-    def snap_link_to_nodes(
+    def snap_link(
         self,
         geometry: QgsGeometry,
     ):
-        vertices = list(geometry.vertices())
+        try:
+            vertices = geometry.asPolyline()
+        except TypeError:
+            msg = "All links must be single part lines"
+            raise TypeError(msg) from None
+        except ValueError:
+            msg = "All links must have valid geometry"
+            raise ValueError(msg) from None
+
         start_point = vertices.pop(0)
         end_point = vertices.pop()
         original_length = geometry.length()
@@ -558,7 +635,7 @@ class _SpatialIndex:
             msg = f"connects to the same node on both ends ({start_node_name})"
             raise RuntimeError(msg)
 
-        snapped_geometry = QgsGeometry.fromPolyline([new_start_point, *vertices, new_end_point])
+        snapped_geometry = QgsGeometry.fromPolylineXY([new_start_point, *vertices, new_end_point])
 
         return snapped_geometry, start_node_name, end_node_name
 
@@ -570,13 +647,14 @@ class _Patterns:
         self._existing_patterns: dict[tuple, str] = {}
         self._wn = wn
 
-    def add_pattern_to_wn(self, pattern: str | list | None):
-        if not pattern:
-            return None
+    def add(self, pattern: str | list | None):
         if isinstance(pattern, str) and pattern != "":
             patternlist = [float(item) for item in pattern.split()]
+
         elif isinstance(pattern, list):
             patternlist = pattern
+        else:
+            return None
 
         pattern_tuple = tuple(patternlist)
 
@@ -589,16 +667,21 @@ class _Patterns:
         self._next_pattern_name += 1
         return name
 
-    def get_pattern_string_from_name(self, pattern_name: str | None) -> str | None:
-        if not pattern_name:
+    def add_all(self, pattern_series: pd.Series | Any, layer_name: str, pattern_name: str) -> pd.Series | None:
+        if not isinstance(pattern_series, pd.Series):
             return None
-        # Do we need ever try to get non existant patterns? For now that will error
-        return self.get_pattern_string(self._wn.get_pattern(pattern_name))
+        try:
+            pattern_map = {pattern: self.add(pattern) for pattern in pattern_series.unique()}
+        except ValueError as e:
+            raise PatternError(e, layer_name, pattern_name) from None
+        return pattern_series.map(pattern_map)
 
-    def get_pattern_string(self, pattern: wntr.network.elements.Pattern | None) -> str | None:
-        if not pattern:
-            return None
-        return " ".join(map(str, pattern.multipliers))
+    def get(self, pattern: wntr.network.elements.Pattern | str | None) -> str | None:
+        if isinstance(pattern, str):
+            pattern = self._wn.get_pattern(pattern)
+        if isinstance(pattern, wntr.network.elements.Pattern):
+            return " ".join(map(str, pattern.multipliers))
+        return None
 
 
 @needs_wntr_pandas
@@ -614,31 +697,36 @@ class _Curves:
         VOLUME = "VOLUME"
         HEADLOSS = "HEADLOSS"
 
-    def add_curve_to_wn(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
-        if not curve_string:
+    def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
+        if not curve_string or not isinstance(curve_string, str):
             return None
 
         name = str(self._next_curve_name)
         curve_points: list = ast.literal_eval(curve_string)
-        curve_points = self._convert_curve_points(curve_points, curve_type, self._converter.to_si)
+        curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
         self._next_curve_name += 1
         return name
 
-    def get_curve_string_from_name(self, curve_name: Any) -> str | None:
-        if not curve_name or not isinstance(curve_name, str):
-            return None
+    def _add_all(self, curve_series: pd.Series, curve_type: _Curves.Type) -> pd.Series | None:
+        try:
+            curve_map = {curve: self._add_one(curve, curve_type) for curve in curve_series.unique()}
+        except ValueError as e:
+            raise CurveError(e, curve_type) from None
+        return curve_series.map(curve_map, na_action="ignore")
 
+    add_head = functools.partialmethod(_add_all, curve_type=Type.HEAD)
+    add_efficiency = functools.partialmethod(_add_all, curve_type=Type.EFFICIENCY)
+    add_volume = functools.partialmethod(_add_all, curve_type=Type.VOLUME)
+    add_headloss = functools.partialmethod(_add_all, curve_type=Type.HEADLOSS)
+
+    def get(self, curve_name: str) -> str | None:
         curve: wntr.network.elements.Curve = self._wn.get_curve(curve_name)
 
-        converted_points = self._convert_curve_points(
-            curve.points, _Curves.Type(curve.curve_type), self._converter.from_si
-        )
+        converted_points = self._convert_points(curve.points, _Curves.Type(curve.curve_type), self._converter.from_si)
         return repr(converted_points)
 
-    def _convert_curve_points(
-        self, points: list, curve_type: _Curves.Type, conversion_function
-    ) -> list[tuple[float, float]]:
+    def _convert_points(self, points: list, curve_type: _Curves.Type, conversion_function) -> list[tuple[float, float]]:
         converted_points: list[tuple[float, float]] = []
         HydParam = wntr.epanet.HydParam  # noqa: N806
 
@@ -663,46 +751,54 @@ class _Curves:
                 y = conversion_function(point[1], HydParam.HeadLoss)
                 converted_points.append((x, y))
         else:
-            raise KeyError
-            # for point in points:
-            #     x = point[0]
-            #     y = point[1]
-            #     converted_points.append((x, y))
+            raise KeyError("Curve type not specified")  # noqa: EM101, TRY003 # pragma: no cover
         return converted_points
 
 
 @needs_wntr_pandas
 def from_qgis(
-    layers: dict[ModelLayer, QgsFeatureSource],
+    layers: dict[Literal["JUNCTIONS", "RESERVOIRS", "TANKS", "PIPES", "VALVES", "PUMPS"], QgsFeatureSource],
+    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"],
     wn: wntr.network.WaterNetworkModel | None = None,
     project: QgsProject | None = None,
     crs: QgsCoordinateReferenceSystem | str | None = None,
-    units: str | None = None,
     # headloss_formula: str | None = None,
 ) -> wntr.network.WaterNetworkModel:
     """Read from QGIS layers or feature sources to a WNTR ``WaterNetworkModel``
 
     Args:
         layers: layers to read from
-        wn: the model that the layers will be read into. Will create a new model if left blank.
-        project: QgsProject instance, if none will use the current QgsProject.instance()
-        crs: all geometry will be transformed into this crs for adding to the water network model
         units: The flow unit set that the layers being read use.
-            If not set it will default to the value in ``wn.options.hydraulic.inpfile_units``.
+        wn: The `WaterNetworkModel` that the layers will be read into. Will create a new model if `None`.
+        project: QgsProject instance, if `None` the current `QgsProject.instance()` will be used.
+        crs: All geometry will be transformed into this coordinate reference system.
+            If not set the geometry of the first layer will be used.
         headloss_formula: the headloss formula to use. If not set will default to option in the water network model."""
-
     if not wn:
         wn = wntr.network.WaterNetworkModel()
-    flow_units = (
-        wntr.epanet.FlowUnits[str(units)] if units else wntr.epanet.FlowUnits[wn.options.hydraulic.inpfile_units]
-    )
+    # try:
+    #     flow_units = wntr.epanet.FlowUnits[str(units).upper()]
+    # except KeyError as e:
+    #     msg = f"Units {e} is not a known set of units. Possible units are: " + ", ".join(FlowUnit._member_names_)
+    #     raise ValueError(msg) from None
+
     headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
-    unit_conversion = _Converter(flow_units, headloss_formula_type)
+
+    unit_conversion = _Converter(units, headloss_formula_type)
 
     reader = _FromGis(unit_conversion, project)
     if crs:
         reader.crs = QgsCoordinateReferenceSystem(crs)
-    reader.add_features_to_network_model(layers, wn)
+
+    try:
+        model_layers = {}
+        for layer_name, layer in layers.items():
+            model_layers.update({ModelLayer(str(layer_name).upper()): layer})
+    except ValueError:
+        msg = f"'{layer_name}' is not a valid layer type."
+        raise ValueError(msg) from None
+
+    reader.add_features_to_network_model(model_layers, wn)
 
     return wn
 
@@ -756,313 +852,304 @@ class _FromGis:
             NetworkModelError: if the network cannot be created
         """
 
-        self._pipe_length_warnings: list[str] = []
-        self._used_names: dict[ElementFamily, set[str]] = {ElementFamily.NODE: set(), ElementFamily.LINK: set()}
-
         self.patterns = _Patterns(wn)
         self.curves = _Curves(wn, self._converter)
-        spatial_index = _SpatialIndex()
+        self._spatial_index = _SpatialIndex()
+
+        node_dfs: list[pd.DataFrame] = []
+        link_dfs: list[pd.DataFrame] = []
+
+        shapefile_name_map = {wq_field.name[:10].lower(): wq_field.name.lower() for wq_field in ModelField}
 
         for model_layer in ModelLayer:
             source = feature_sources.get(model_layer)
             if source is None:
                 continue
 
-            map_of_columns_to_fields = self._map_columns_to_fields(source, model_layer)
-
-            required_fields = [f for f in model_layer.wq_fields() if FieldGroup.REQUIRED in f.field_group]
-
             if not self.crs:
                 self.crs = source.sourceCrs()
 
-            feature_request = QgsFeatureRequest().setDestinationCrs(self.crs, self._transform_context)
+            source_df = self._source_to_df(source)
 
-            # df = self._source_to_df(source, map_of_columns_to_fields)
-            # for column in df.select_dtypes(include=[np.floating]):
-            #     df[column] = self._unit_conversion.to_si(df[column], column, model_layer)
+            if not source_df.shape[0]:
+                continue
 
-            for ft in source.getFeatures(feature_request):
-                ft = cast(QgsFeature, ft)
-                atts = self._get_attributes_from_feature(map_of_columns_to_fields, ft)
+            source_df.columns = [shapefile_name_map.get(col, col) for col in source_df.columns]
 
-                for f, v in atts.items():
-                    atts[f] = self._converter.to_si(v, f, model_layer)
+            if model_layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]:
+                source_df["node_type"] = model_layer.name[:-1].title()
+                node_dfs.append(source_df)
+            else:
+                source_df["link_type"] = model_layer.name[:-1].title()
+                link_dfs.append(source_df)
 
-                element_name = self._get_element_name(atts.get(ModelField.NAME), model_layer)
+        try:
+            node_df = pd.concat(node_dfs, sort=False, ignore_index=True)
+        except ValueError:
+            msg = "No nodes provided"
+            raise NetworkModelError(msg) from ValueError
+        try:
+            link_df = pd.concat(link_dfs, sort=False, ignore_index=True)
+        except ValueError:
+            msg = "No links provided"
+            raise NetworkModelError(msg) from ValueError
 
-                # TODO:  should check existance of columns before checking on individual features
-                for required_field in required_fields:
-                    if atts.get(required_field) is None:
-                        msg = (
-                            f"in {model_layer.friendly_name} the feature '{element_name}' "
-                            f"must have a value for '{required_field.name.lower()}'"
-                        )
-                        raise NetworkModelError(msg)
+        node_df = self._fix_column_types(node_df)
+        link_df = self._fix_column_types(link_df)
 
-                geometry = ft.geometry()
+        self._fill_names(node_df)
+        self._fill_names(link_df)
 
-                if geometry.isNull():
-                    msg = f"in {model_layer.friendly_name} the feature {element_name} has no geometry"
-                    raise NetworkModelError(msg)
+        node_df = self._convert_dataframe(node_df, ModelLayer.TANKS)  # hack as I know tanks is needed for diameter
+        link_df = self._convert_dataframe(link_df)
 
-                if model_layer.element_family is ElementFamily.NODE:
-                    spatial_index.add_node_to_spatial_index(geometry, element_name)
-                else:
-                    try:
-                        geometry, start_node_name, end_node_name = spatial_index.snap_link_to_nodes(geometry)
-                    except RuntimeError as e:
-                        msg = f"in {model_layer.friendly_name} the feature {element_name}: {e} "
-                        raise NetworkModelError(e) from None
+        node_df = self._add_minimum_node_cols(node_df)
 
-                try:
-                    if model_layer is ModelLayer.JUNCTIONS:
-                        self._add_junction(wn, element_name, geometry, atts)
-                    elif model_layer is ModelLayer.TANKS:
-                        self._add_tank(wn, element_name, geometry, atts)
-                    elif model_layer is ModelLayer.RESERVOIRS:
-                        self._add_reservoir(wn, element_name, geometry, atts)
-                    elif model_layer is ModelLayer.PIPES:
-                        self._add_pipe(wn, element_name, geometry, atts, start_node_name, end_node_name)
-                    elif model_layer is ModelLayer.PUMPS:
-                        self._add_pump(wn, element_name, geometry, atts, start_node_name, end_node_name)
-                    elif model_layer is ModelLayer.VALVES:
-                        self._add_valve(wn, element_name, geometry, atts, start_node_name, end_node_name)
-                except (AssertionError, ValueError, RuntimeError) as e:
-                    msg = f"in {model_layer.friendly_name} error when adding '{element_name}' to WNTR - {e}"
-                    raise NetworkModelError(msg) from e
+        node_df = self._process_node_geometry(node_df)
+        link_df = self._process_link_geometry(link_df)
 
-        self._output_pipe_length_warnings()
+        node_df = self._do_node_patterns_curves(node_df)
+        link_df = self._do_link_patterns_curves(link_df)
 
-    def _source_to_df(self, source: QgsFeatureSource, map_of_columns_to_fields: list[ModelField | str | None]):
-        map_of_columns_to_fields = list(map_of_columns_to_fields)
-        map_of_columns_to_fields.append("geometry")
-        ftlist = []
-        ft: QgsFeature
-        for ft in source.getFeatures():
-            attrs = [attr if attr != NULL else None for attr in ft]
-            attrs.append(ft.geometry())
-            ftlist.append(attrs)
-        return pd.DataFrame(ftlist, columns=map_of_columns_to_fields)
+        wn_dict: dict[str, Any] = {}
+        wn_dict["nodes"] = self._to_dict(node_df)
+        wn_dict["links"] = self._to_dict(link_df)
 
-    def _get_attributes_from_feature(
-        self, map_of_columns_to_fields: list[ModelField | None], feature: QgsFeature
-    ) -> dict[ModelField, Any]:
-        # slightly faster than zip
-        atts = {}
-        for i, field in enumerate(map_of_columns_to_fields):
-            if field is not None:
-                att = feature[i]
-                if att is not None and att != NULL:
-                    atts[field] = att
-        return atts
+        logging.getLogger("wntr.network.io").setLevel(logging.CRITICAL)
+        try:
+            wn = wntr.network.from_dict(wn_dict, wn)
+        except AssertionError as e:
+            raise WntrError(e) from None
 
-    def _get_element_name(self, name_from_source: str | None, layer: ModelLayer) -> str:
-        if name_from_source:
-            if name_from_source in self._used_names[layer.element_family]:
-                msg = (
-                    f"node name '{name_from_source}' is duplicated - "
-                    "names must be unique across junctions, tanks and reservoirs"
-                    if layer.element_family is ElementFamily.NODE
-                    else f"link name '{name_from_source}' is duplicated - "
-                    "names must be unique across pipes, pumps and valves"
-                )
-                raise NetworkModelError(msg)
-            feature_name = name_from_source
-        else:
-            i = 1
-            while str(i) in self._used_names[layer.element_family]:
-                i += 1
-            feature_name = str(i)
-        self._used_names[layer.element_family].add(feature_name)
-        return feature_name
-
-    def _map_columns_to_fields(self, feature_source: QgsFeatureSource, layer: ModelLayer):
-        shape_name_map = {wq_field.name[:10]: wq_field.name for wq_field in ModelField}
-        column_names = [
-            shape_name_map[fname.upper()] if fname.upper() in shape_name_map else fname.upper()
-            for fname in feature_source.fields().names()
+    def _to_dict(self, df: pd.DataFrame) -> list[dict]:
+        columns = df.columns.tolist()
+        return [
+            {k: v for k, v in zip(columns, m) if not (v is pd.NA or v != v or v is None)}  # noqa: PLR0124
+            for m in df.itertuples(index=False, name=None)
         ]
-        possible_column_names = {field.name for field in layer.wq_fields()}  # this creates a set not dict
-        return [ModelField[cname] if cname in possible_column_names else None for cname in column_names]
+
+    def _source_to_df(self, source: QgsFeatureSource):
+        column_names = [name.lower() for name in source.fields().names()]
+        column_names.append("geometry")
+
+        feature_list: list[list] = []
+        feature_request = QgsFeatureRequest().setDestinationCrs(self.crs, self._transform_context)
+        ft: QgsFeature
+        for ft in source.getFeatures(feature_request):
+            attrs = [attr if attr != NULL else np.nan for attr in ft]
+            geometry = ft.geometry()
+            geometry.convertToSingleType()
+            attrs.append(geometry)
+            feature_list.append(attrs)
+        return pd.DataFrame(feature_list, columns=column_names)
+
+    def _fix_column_types(self, source_df: pd.DataFrame) -> pd.DataFrame:
+        """For some file types, notably json, numbers might be imported as strings.
+
+        Also, for boolean values that come in as number types (int or float), they must finish as nullable int.
+          (wntr doesn't accept floats for bool)"""
+        for column_name in source_df.columns:
+            try:
+                expected_type = ModelField[column_name.upper()].python_type
+            except KeyError:
+                continue
+
+            try:
+                if expected_type is float:
+                    source_df[column_name] = pd.to_numeric(source_df[column_name])
+                elif expected_type is bool:
+                    source_df[column_name] = pd.to_numeric(source_df[column_name]).astype("Int64").astype("object")
+            except ValueError as e:
+                msg = f"Problem in column {column_name}: {e}"
+                raise NetworkModelError(msg) from None
+        return source_df
+
+    def _convert_dataframe(self, source_df: pd.DataFrame, layer: ModelLayer | None = None) -> pd.DataFrame:
+        for fieldname in source_df.select_dtypes(include=[np.number]):
+            try:
+                field = ModelField[str(fieldname).upper()]
+            except KeyError:
+                continue
+            source_df[fieldname] = self._converter.to_si(source_df[fieldname].to_numpy(), field, layer)
+        return source_df
+
+    def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
+        null_geometry = df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
+        if null_geometry:
+            msg = f"in nodes, {null_geometry} feature(s) have no geometry"
+            raise NetworkModelError(msg)
+
+        for geometry, name in df.loc[:, ["geometry", "name"]].itertuples(index=False):
+            self._spatial_index.add_node(geometry, name)
+
+        df.loc[:, "coordinates"] = df.loc[:, "geometry"].apply(self._get_point_coordinates)
+
+        return df.drop(columns="geometry")
+
+    def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
+        null_geometry = link_df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
+        if null_geometry:
+            msg = f"in links, {null_geometry} feature(s) have no geometry"
+            raise NetworkModelError(msg)
+
+        snapped_data = []
+        try:
+            for geometry, name in link_df.loc[:, ["geometry", "name"]].itertuples(index=False):  # noqa: B007
+                snapped_data.append(self._spatial_index.snap_link(geometry))
+        except RuntimeError as e:
+            msg = f"problem snapping the feature {name}: {e} "
+            raise NetworkModelError(msg) from None
+        link_df[["geometry", "start_node_name", "end_node_name"]] = snapped_data
+
+        link_df["vertices"] = link_df["geometry"].map(
+            lambda geometry: [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
+        )
+
+        if "length" not in link_df.columns:
+            link_df["length"] = np.nan
+        pipes = link_df["link_type"] == "Pipe"
+        link_df.loc[pipes, "length"] = self._process_pipe_length(link_df.loc[pipes])
+
+        return link_df.drop(columns="geometry")
+
+    def _process_pipe_length(self, pipe_df: pd.DataFrame) -> pd.Series:
+        calculated_lengths: pd.Series = pipe_df.loc[:, "geometry"].map(self._get_length)
+        attribute_lengths = pipe_df.loc[:, "length"]
+
+        has_attr_length = attribute_lengths.notna()
+
+        mismatch = ~np.isclose(
+            calculated_lengths.loc[has_attr_length],
+            attribute_lengths.loc[has_attr_length],
+            rtol=0.05,
+            atol=10,
+        )
+
+        if mismatch.any():
+            examples = pd.concat(
+                [pipe_df["name"], calculated_lengths, attribute_lengths],
+                axis=1,
+                ignore_index=True,
+            )
+            examples.columns = pd.Index(["name", "attribute_length", "calculated_length"])
+            examples = examples.loc[has_attr_length].loc[mismatch]
+            examples = examples.head(5)
+            msg = (
+                f"{mismatch.sum()} pipes"
+                " have very different attribute length vs measured length. First five are: "
+                + ", ".join(
+                    examples.apply("{name} ({attribute_length:.0f}m vs {calculated_length:.0f}m)".format_map, axis=1)
+                )
+            )
+            warnings.warn(msg, stacklevel=1)
+
+        return attribute_lengths.fillna(calculated_lengths)
+
+    def _fill_names(self, df: pd.DataFrame) -> None:
+        existing_names = pd.Series()
+        mask: pd.Series[bool] | bool
+
+        if "name" not in df.columns:
+            df["name"] = pd.NA
+
+        existing_names = df.loc[:, "name"].dropna().unique().tolist()
+        mask = (df["name"].isna()) | (df["name"] == "")
+        names_required = mask.sum()
+
+        new_names: list[str] = []
+        next_name = 1
+        while len(new_names) < names_required:
+            if str(next_name) not in existing_names:
+                new_names.append(str(next_name))
+            next_name += 1
+        df.loc[mask, "name"] = new_names
 
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
         return point.x(), point.y()
 
-    def _get_pipe_length(self, attribute_length: float | None, geometry: QgsGeometry, pipe_name: str):
+    def _get_length(self, geometry: QgsGeometry):
         length = self._measurer.measureLength(geometry)
 
         if self._measurer.lengthUnits() != QGIS_DISTANCE_UNIT_METERS:
             length = self._measurer.convertLengthMeasurement(length, QGIS_DISTANCE_UNIT_METERS)
 
-        if not attribute_length:
-            if math.isnan(length):
-                msg = (
-                    "cannot calculate length of pipe"
-                    " (probably due to a problem with the selected coordinate reference system)"
-                )
-                raise RuntimeError(msg)
-            return length
-
-        if not math.isclose(attribute_length, length, rel_tol=0.05, abs_tol=10):
-            # warnings are raised in bulk later, as very slow otherwise
-            self._pipe_length_warnings.append(pipe_name)
-        return attribute_length
-
-    def _output_pipe_length_warnings(self):
-        if self._pipe_length_warnings:
+        if math.isnan(length):
             msg = (
-                f"the following {len(self._pipe_length_warnings)} pipes"
-                " had very different measured length vs attribute:" + ",".join(self._pipe_length_warnings)
+                "cannot calculate length of pipe"
+                " (probably due to a problem with the selected coordinate reference system)"
             )
-            warnings.warn(msg, stacklevel=1)
+            raise RuntimeError(msg)
+        return length
+
+    def _do_node_patterns_curves(self, node_df: pd.DataFrame) -> pd.DataFrame:
+        node_df["demand_pattern_name"] = self.patterns.add_all(node_df.get("demand_pattern"), "junctions", "demand")
+
+        if "base_demand" in node_df.columns:
+            has_demand = node_df.loc[:, "base_demand"].notna()
+
+            node_df.loc[has_demand, "demand_timeseries_list"] = pd.Series(
+                [
+                    [{"base_val": demand[0], "pattern_name": demand[1]}]
+                    for demand in node_df.loc[has_demand, ["base_demand", "demand_pattern_name"]].itertuples(
+                        index=False, name=None
+                    )
+                ]
+            )
+
+        # tanks volume curve
+        if "vol_curve" in node_df:
+            node_df["vol_curve_name"] = self.curves.add_volume(node_df["vol_curve"])
+
+        # reservoir head pattern
+        if "head_pattern" in node_df:
+            node_df["head_pattern_name"] = self.patterns.add_all(node_df.get("head_pattern"), "reservoirs", "head")
+
+        return node_df.drop(
+            columns=["vol_curve", "head_pattern", "base_demand", "demand_pattern", "demand_pattern_name"],
+            errors="ignore",
+        )
+
+    def _do_link_patterns_curves(self, link_df: pd.DataFrame) -> pd.DataFrame:
+        if "valve_type" in link_df.columns:
+            if "initial_setting" in link_df:
+                pressure_valves = link_df["valve_type"].str.upper().isin(["PRV", "PSV", "PBV"])
+                link_df.loc[pressure_valves, "initial_setting"] = link_df.loc[pressure_valves, "initial_setting"].apply(
+                    self._converter.to_si, field=wntr.epanet.HydParam.Pressure
+                )
+
+                fcvs = link_df["valve_type"].str.upper() == "FCV"
+                link_df.loc[fcvs, "initial_setting"] = link_df.loc[fcvs, "initial_setting"].apply(
+                    self._converter.to_si, field=wntr.epanet.HydParam.Flow
+                )
+            if "headloss_curve" in link_df:
+                gpvs = link_df["valve_type"].str.upper() == "GPV"
+                link_df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(link_df.loc[gpvs, "headloss_curve"])
+
+        if "pump_curve" in link_df:
+            link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
+
+        if "speed_pattern" in link_df:
+            link_df["speed_pattern_name"] = self.patterns.add_all(link_df.get("speed_pattern"), "pumps", "speed")
+
+        return link_df.drop(
+            columns=["headloss_curve", "pump_curve", "speed_pattern"],
+            errors="ignore",
+        )
 
     def _get_vertex_list(self, geometry: QgsGeometry):
-        vertices = list(geometry.vertices())
-        return [(v.x(), v.y()) for v in vertices[1:-1]]
+        return [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
 
-    def _add_junction(
-        self, wn: wntr.network.WaterNetworkModel, name: str, geometry: QgsGeometry, attributes: dict[ModelField, Any]
-    ):
-        # Prefer adding nodes using 'add_...()' function as wntr does more error checking this way
-        wn.add_junction(
-            name,
-            base_demand=attributes.get(ModelField.BASE_DEMAND, 0),
-            demand_pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.DEMAND_PATTERN)),
-            elevation=attributes.get(ModelField.ELEVATION, 0),
-            coordinates=self._get_point_coordinates(geometry),
-            # demand_category=category,  NOT IMPLEMENTED
-        )
-        n: wntr.network.elements.Junction = wn.get_node(name)
-        n.emitter_coefficient = attributes.get(ModelField.EMITTER_COEFFICIENT)
-        n.initial_quality = attributes.get(ModelField.INITIAL_QUALITY)
-        n.minimum_pressure = attributes.get(ModelField.MINIMUM_PRESSURE)
-        n.pressure_exponent = attributes.get(ModelField.PRESSURE_EXPONENT)
-        n.required_pressure = attributes.get(ModelField.REQUIRED_PRESSURE)
+    def _add_minimum_node_cols(self, node_df: pd.DataFrame) -> pd.DataFrame:
+        if "elevation" not in node_df:
+            node_df["elevation"] = 0.0
+        node_df["elevation"] = node_df["elevation"].fillna(0.0)
 
-    def _add_tank(
-        self, wn: wntr.network.WaterNetworkModel, name: str, geometry: QgsGeometry, attributes: dict[ModelField, Any]
-    ):
-        wn.add_tank(
-            name,
-            elevation=attributes.get(ModelField.ELEVATION, 0),
-            init_level=attributes.get(ModelField.INIT_LEVEL),  # REQUIRED
-            min_level=attributes.get(ModelField.MIN_LEVEL),  # REQUIRED
-            max_level=attributes.get(ModelField.MAX_LEVEL),  # REQUIRED
-            diameter=attributes.get(ModelField.DIAMETER, 0),
-            min_vol=attributes.get(ModelField.MIN_VOL, 0),
-            vol_curve=self.curves.add_curve_to_wn(attributes.get(ModelField.VOL_CURVE), _Curves.Type.VOLUME),
-            overflow=attributes.get(ModelField.OVERFLOW, False),
-            coordinates=self._get_point_coordinates(geometry),
-        )
-        n: wntr.network.elements.Tank = wn.get_node(name)
-        n.initial_quality = attributes.get(ModelField.INITIAL_QUALITY)
-        n.mixing_fraction = attributes.get(ModelField.MIXING_FRACTION)
-        if attributes.get(ModelField.MIXING_MODEL):
-            n.mixing_model = attributes.get(ModelField.MIXING_MODEL)  # WNTR BUG : doesn't accept 'none' value
-        n.bulk_coeff = attributes.get(ModelField.BULK_COEFF)
+        if "base_head" not in node_df:
+            node_df["base_head"] = 0.0
+        node_df["base_head"] = node_df["base_head"].fillna(0.0)
 
-    def _add_reservoir(
-        self, wn: wntr.network.WaterNetworkModel, name: str, geometry: QgsGeometry, attributes: dict[ModelField, Any]
-    ):
-        wn.add_reservoir(
-            name,
-            base_head=attributes.get(ModelField.BASE_HEAD, 0),
-            head_pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.HEAD_PATTERN)),
-            coordinates=self._get_point_coordinates(geometry),
-        )
-        n: wntr.network.elements.Reservoir = wn.get_node(name)
-        n.initial_quality = attributes.get(ModelField.INITIAL_QUALITY)
-
-    def _add_pipe(
-        self,
-        wn: wntr.network.WaterNetworkModel,
-        name: str,
-        geometry: QgsGeometry,
-        attributes: dict[ModelField, Any],
-        start_node_name: str,
-        end_node_name: str,
-    ):
-        wn.add_pipe(
-            name,
-            start_node_name,
-            end_node_name,
-            length=self._get_pipe_length(attributes.get(ModelField.LENGTH), geometry, name),
-            diameter=attributes.get(ModelField.DIAMETER),  # REQUIRED
-            roughness=attributes.get(ModelField.ROUGHNESS),  # REQUIRED
-            minor_loss=attributes.get(ModelField.MINOR_LOSS, 0.0),
-            initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
-            check_valve=attributes.get(ModelField.CHECK_VALVE, False) is True
-            or str(attributes.get(ModelField.CHECK_VALVE)).lower() == "true",
-        )
-        link: wntr.network.elements.Pipe = wn.get_link(name)
-        link.bulk_coeff = attributes.get(ModelField.BULK_COEFF)
-        link.wall_coeff = attributes.get(ModelField.WALL_COEFF)
-        link.vertices = self._get_vertex_list(geometry)
-
-    def _add_pump(
-        self,
-        wn: wntr.network.WaterNetworkModel,
-        name: str,
-        geometry: QgsGeometry,
-        attributes: dict[ModelField, Any],
-        start_node_name: str,
-        end_node_name: str,
-    ):
-        wn.add_pump(
-            name,
-            start_node_name,
-            end_node_name,
-            pump_type=attributes.get(ModelField.PUMP_TYPE, ""),
-            pump_parameter=attributes.get(ModelField.POWER)  # TODO: ERROR MESSAGES OF THIS ARE NOT CLEAR
-            if str(attributes.get(ModelField.PUMP_TYPE, "")).lower() == "power"
-            else self.curves.add_curve_to_wn(attributes.get(ModelField.PUMP_CURVE), _Curves.Type.HEAD),
-            speed=attributes.get(ModelField.BASE_SPEED, 1.0),
-            pattern=self.patterns.add_pattern_to_wn(attributes.get(ModelField.SPEED_PATTERN)),
-            initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
-        )
-        link: wntr.network.elements.Pump = wn.get_link(name)
-        link.efficiency = self.curves.add_curve_to_wn(attributes.get(ModelField.EFFICIENCY), _Curves.Type.EFFICIENCY)
-        link.energy_pattern = self.patterns.add_pattern_to_wn(attributes.get(ModelField.ENERGY_PATTERN))
-        link.energy_price = attributes.get(ModelField.ENERGY_PRICE)
-        link.initial_setting = attributes.get(ModelField.INITIAL_SETTING)  # bug ???
-        link.vertices = self._get_vertex_list(geometry)
-
-    def _add_valve(
-        self,
-        wn: wntr.network.WaterNetworkModel,
-        name: str,
-        geometry: QgsGeometry,
-        attributes: dict[ModelField, Any],
-        start_node_name: str,
-        end_node_name: str,
-    ):
-        if str(attributes.get(ModelField.VALVE_TYPE)).upper() == "GPV":
-            initial_setting = self.curves.add_curve_to_wn(
-                attributes.get(ModelField.HEADLOSS_CURVE), _Curves.Type.HEADLOSS
-            )
-        elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["PRV", "PSV", "PBV"]:
-            initial_setting = self._converter.to_si(
-                attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Pressure
-            )
-        elif str(attributes.get(ModelField.VALVE_TYPE)).upper() in ["FCV"]:
-            initial_setting = self._converter.to_si(
-                attributes.get(ModelField.INITIAL_SETTING, 0), wntr.epanet.HydParam.Flow
-            )
-        else:
-            initial_setting = attributes.get(ModelField.INITIAL_SETTING, 0)
-        wn.add_valve(
-            name,
-            start_node_name,
-            end_node_name,
-            diameter=attributes.get(ModelField.DIAMETER),
-            valve_type=attributes.get(ModelField.VALVE_TYPE),
-            minor_loss=attributes.get(ModelField.MINOR_LOSS, 0.0),
-            initial_setting=initial_setting,
-            initial_status=attributes.get(ModelField.INITIAL_STATUS, "Open"),
-        )
-        link: wntr.network.elements.Valve = wn.get_link(name)
-        link.vertices = self._get_vertex_list(geometry)
+        return node_df
 
 
 @needs_wntr_pandas
@@ -1106,5 +1193,48 @@ def _get_field_groups(wn: wntr.network.WaterNetworkModel):
     return field_groups
 
 
+def _get(df: pd.DataFrame, col: str) -> pd.Series:
+    return df.get(col, pd.Series(index=df.index, name=col))
+
+
 class NetworkModelError(Exception):
+    # def __init__(self, exception):
+    #     super().__init__(f"error preparing model; {exception}")
     pass
+
+
+class PatternError(NetworkModelError, ValueError):
+    def __init__(self, exception, layer, pattern_name):
+        super().__init__(
+            f"in {layer} problem reading {pattern_name} pattern ({exception})."
+            " Patterns should be of the form 1 2.0 3 4.0, where each numeric value is seperated by one ore more spaces."
+        )
+
+
+class CurveError(NetworkModelError, ValueError):
+    def __init__(self, exception, curve_type: _Curves.Type):
+        curve_name = ""
+        if curve_type is _Curves.Type.HEAD:
+            curve_name = "pump head"
+        elif curve_type is _Curves.Type.EFFICIENCY:
+            curve_name = "pump efficiency"
+        elif curve_type is _Curves.Type.HEADLOSS:
+            curve_name = "general purpose valve headloss"
+        elif curve_type is _Curves.Type.VOLUME:
+            curve_name = "tank volume"
+
+        super().__init__(
+            f"problem reading {curve_name} curve ({exception})" "Curves hould be of the form [(1,2), (3,4)]"
+        )
+
+
+class WntrError(NetworkModelError):
+    def __init__(self, exception):
+        super().__init__(f"error from WNTR. {exception}")
+
+
+class UnitError(NetworkModelError, ValueError):
+    def __init__(self, exception):
+        super().__init__(
+            f"Units {exception} is not a known set of units. Possible units are: " + ", ".join(FlowUnit._member_names_)
+        )

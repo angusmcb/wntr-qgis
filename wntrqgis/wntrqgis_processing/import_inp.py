@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -113,7 +114,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
         try:
-            wn = wntr.network.read_inpfile(input_file)
+            wn: wntr.network.WaterNetworkModel = wntr.network.read_inpfile(input_file)
         except FileNotFoundError as e:
             msg = f".inp file does not exist ({input_file})"
             raise QgsProcessingException(msg) from e
@@ -155,8 +156,11 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
-        outputs: dict[str, str] = {}
+        # for shapefile writing
+        warnings.filterwarnings("ignore", "Field", RuntimeWarning)
+        warnings.filterwarnings("ignore", "Normalized/laundered field name:", RuntimeWarning)
 
+        outputs: dict[str, str] = {}
         for layer in ModelLayer:
             fields = network_writer.get_qgsfields(layer)
             (sink, outputs[layer]) = self.parameterAsSink(

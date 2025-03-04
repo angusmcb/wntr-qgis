@@ -13,12 +13,14 @@ from qgis.core import (
     QgsLineSymbol,
     QgsMarkerLineSymbolLayer,
     QgsMarkerSymbol,
+    QgsPalLayerSettings,
     QgsProperty,
     QgsSimpleLineSymbolLayer,
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
     QgsStyle,
     QgsVectorLayer,
+    QgsVectorLayerSimpleLabeling,
     QgsVectorLayerTemporalProperties,
 )
 
@@ -72,7 +74,7 @@ class _FieldStyles:
             )
         if python_type_class is str:
             return QgsEditorWidgetSetup("TextEdit", {"IsMultiline": False, "UseHtml": False})
-        raise KeyError
+        raise KeyError  # pragma: no cover
 
     @property
     def default_value(self):
@@ -117,7 +119,10 @@ class _LayerStyler:
 
         field: QgsField
         for i, field in enumerate(layer.fields()):
-            field_styler = _FieldStyles(ModelField(field.name()), self.layer_type)
+            try:
+                field_styler = _FieldStyles(ModelField(field.name()), self.layer_type)
+            except ValueError:
+                continue
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
             layer.setDefaultValueDefinition(i, field_styler.default_value)
 
@@ -135,7 +140,7 @@ class _LayerStyler:
         classification_method.setLabelTrimTrailingZeroes(False)
         renderer.setClassificationMethod(classification_method)
 
-        renderer.updateClasses(layer, 8)
+        renderer.updateClasses(layer, 5)
 
         color_ramp = QgsStyle().defaultStyle().colorRamp("Spectral")
         color_ramp.invert()
@@ -147,6 +152,14 @@ class _LayerStyler:
             temporal_properties: QgsVectorLayerTemporalProperties = layer.temporalProperties()
             temporal_properties.setIsActive(True)
             temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
+
+        label_settings = QgsPalLayerSettings()
+        label_settings.drawLabels = False
+        label_settings.fieldName = "flowrate"
+        label_settings.decimals = 1
+        label_settings.formatNumbers = True
+
+        layer.setLabeling(QgsVectorLayerSimpleLabeling(label_settings))
 
     @property
     def _symbol(self):
@@ -192,7 +205,7 @@ class _LayerStyler:
             arrow.setDataDefinedAngle(exp)
             return self._line_with_marker(line, arrow)
 
-        raise KeyError
+        raise KeyError  # pragma: no cover
 
     def _line_with_marker(self, background_line, marker):
         marker_line = QgsMarkerLineSymbolLayer.create(CENTRAL_PLACEMENT)

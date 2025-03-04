@@ -313,6 +313,8 @@ select = [
     "SIM",
     # isort
     "I",
+    # pandas
+    "PD",
 ]
 exclude = []
 

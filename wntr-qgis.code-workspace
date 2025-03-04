@@ -20,6 +20,7 @@
         "python.testing.unittestEnabled": false,
         "cSpell.language": "en,en-GB",
         "cSpell.words": [
+            "dropna",
             "EPANET",
             "WNTR"
         ]

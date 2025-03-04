@@ -1,0 +1,15 @@
+{
+    "type": "Feature",
+    "properties": {
+        "name": "top_res",
+        "base_head": 100.0,
+        "head_pattern": ""
+    },
+    "geometry": {
+        "type": "Point",
+        "coordinates": [
+            6.8530694,
+            45.9355063
+        ]
+    }
+},
