@@ -29,3 +29,15 @@ def test_actions(qgis_app, qgis_iface, qgis_processing):
     #     action.activate(QAction.Trigger)
 
     # plugin_class.load_example()
+
+
+def test_algorithm_properties():
+    from wntrqgis.wntrqgis_processing.provider import Provider
+
+    provider = Provider()
+    provider.loadAlgorithms()
+
+    for alg in provider.algorithms():
+        assert alg.displayName() is not None
+        assert alg.shortHelpString() is not None
+        assert alg.icon() is not None
