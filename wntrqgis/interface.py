@@ -1141,9 +1141,6 @@ class _FromGis:
             errors="ignore",
         )
 
-    def _get_vertex_list(self, geometry: QgsGeometry):
-        return [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
-
     def _add_minimum_node_cols(self, node_df: pd.DataFrame) -> pd.DataFrame:
         if "elevation" not in node_df:
             node_df["elevation"] = 0.0
@@ -1220,10 +1217,6 @@ def _get_field_groups(wn: wntr.network.WaterNetworkModel):
         field_groups = field_groups | FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
     return field_groups
-
-
-def _get(df: pd.DataFrame, col: str) -> pd.Series:
-    return df.get(col, pd.Series(index=df.index, name=col))
 
 
 class NetworkModelError(Exception):
