@@ -2,7 +2,7 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import wntr
-from qgis.core import QgsProject, QgsVectorLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
 import wntrqgis as wq
 import wntrqgis.elements
@@ -65,14 +65,14 @@ def test_to_qgis_results(example, qgis_new_project):
     assert isinstance(layers["NODES"], QgsVectorLayer)
 
 
-@pytest.mark.filterwarnings("ignore: 984 pipes have very different attribute length")
+@pytest.mark.filterwarnings("ignore: 22 pipes have very different attribute length")
 def test_from_qgis(qgis_new_project):
     inpfile = wntrqgis.examples["KY1"]
     layers = wntrqgis.to_qgis(inpfile)
 
     del layers[wntrqgis.elements.ModelLayer.VALVES]
 
-    new_wn = wntrqgis.from_qgis(layers, "GPM")
+    new_wn = wntrqgis.from_qgis(layers, "GPM", crs="EPSG:3089")
 
     assert new_wn
 
@@ -195,3 +195,75 @@ def test_flegere_time_results(flegere_layers):
     # print(result_gdfs["LINKS"].head())
 
     assert result_gdfs["NODES"].iloc[0]["demand"] == [1.0, 1.0]
+
+
+def test_to_qgis_valid_crs_string():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
+    wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
+    wn.add_pipe("P1", "J1", "J2", length=100, diameter=0.3, roughness=100)
+
+    crs = "EPSG:3857"
+    layers = wntrqgis.to_qgis(wn, crs=crs)
+    assert isinstance(layers, dict)
+    assert "JUNCTIONS" in layers
+    assert layers["JUNCTIONS"].crs().authid() == crs
+
+
+def test_to_qgis_valid_crs_object():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
+    wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
+    wn.add_pipe("P1", "J1", "J2", length=100, diameter=0.3, roughness=100)
+
+    crs = QgsCoordinateReferenceSystem("EPSG:3857")
+    layers = wntrqgis.to_qgis(wn, crs=crs)
+    assert isinstance(layers, dict)
+    assert "JUNCTIONS" in layers
+    assert layers["JUNCTIONS"].crs().authid() == crs.authid()
+
+
+def test_to_qgis_invalid_crs_string():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
+    wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
+    wn.add_pipe("P1", "J1", "J2", length=100, diameter=0.3, roughness=100)
+
+    crs = "INVALID_CRS"
+    with pytest.raises(ValueError, match=f"CRS {crs} is not valid."):
+        wntrqgis.to_qgis(wn, crs=crs)
+
+
+def test_to_qgis_invalid_crs_object():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
+    wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
+    wn.add_pipe("P1", "J1", "J2", length=100, diameter=0.3, roughness=100)
+
+    crs = QgsCoordinateReferenceSystem("INVALID_CRS")
+    with pytest.raises(ValueError, match="is not valid."):
+        wntrqgis.to_qgis(wn, crs=crs)
+
+
+def test_to_qgis_default_crs():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
+    wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
+    wn.add_pipe("P1", "J1", "J2", length=100, diameter=0.3, roughness=100)
+
+    layers = wntrqgis.to_qgis(wn)
+    assert isinstance(layers, dict)
+    assert "JUNCTIONS" in layers
+    assert layers["JUNCTIONS"].crs().isValid() is False
+
+
+def test_to_qgis_no_crs():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
+    wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
+    wn.add_pipe("P1", "J1", "J2", length=100, diameter=0.3, roughness=100)
+
+    layers = wntrqgis.to_qgis(wn, crs=None)
+    assert isinstance(layers, dict)
+    assert "JUNCTIONS" in layers
+    assert layers["JUNCTIONS"].crs().isValid() is False

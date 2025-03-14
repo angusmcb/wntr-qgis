@@ -219,6 +219,14 @@ def to_qgis(
     writer = Writer(wn, results, units)
     map_layers: dict[str, QgsVectorLayer] = {}
 
+    if crs:
+        crs_object = QgsCoordinateReferenceSystem(crs)
+        if not crs_object.isValid():
+            msg = f"CRS {crs} is not valid."
+            raise ValueError(msg)
+    else:
+        crs_object = QgsCoordinateReferenceSystem()
+
     model_layers: list[ModelLayer | ResultLayer] = list(ResultLayer if results else ModelLayer)
     for model_layer in model_layers:
         layer = QgsVectorLayer(
@@ -226,12 +234,7 @@ def to_qgis(
             model_layer.friendly_name,
             "memory",
         )
-        if crs:
-            crs_object = QgsCoordinateReferenceSystem(crs)
-            if not crs_object.isValid():
-                msg = f"CRS {crs} is not valid."
-                raise ValueError(msg)
-            layer.setCrs(crs_object)
+        layer.setCrs(crs_object)
         data_provider = layer.dataProvider()
         data_provider.addAttributes(writer.get_qgsfields(model_layer))
         writer.write(model_layer, data_provider)
