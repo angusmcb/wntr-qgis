@@ -1,4 +1,5 @@
 import geopandas as gpd
+import pandas as pd
 import pytest
 import wntr
 from qgis.core import QgsProject, QgsVectorLayer
@@ -20,6 +21,7 @@ def to_gdf(layers: dict[str, QgsVectorLayer]) -> dict[str, gpd.GeoDataFrame]:
 def test_get_field_groups():
     wn = wntr.network.WaterNetworkModel()
     assert wntrqgis.interface._get_field_groups(wn) == FieldGroup(0)
+
     wn.options.quality.parameter = "CHEMICAL"
     wn.options.report.energy = "YES"
     wn.options.hydraulic.demand_model = "PDD"
@@ -29,27 +31,38 @@ def test_get_field_groups():
     )
 
 
-def test_examples():
-    example = wntrqgis.Example.KY1
-    assert isinstance(example, str)
-    wntr.network.WaterNetworkModel(example)
-
-
-def test_to_qgis(qgis_new_project):
-    inpfile = wntrqgis.Example.KY1
-
-    wntrqgis.to_qgis(inpfile)
-
-
-def test_to_qgis_results(qgis_new_project):
-    inpfile = wntrqgis.Example.KY1
-
-    wn = wntr.network.WaterNetworkModel(inpfile)
-
+@pytest.mark.parametrize("example", wntrqgis.examples.values())
+def test_examples(example):
+    assert example.endswith(".inp")
+    wn = wntr.network.WaterNetworkModel(example)
+    assert wn
     sim = wntr.sim.EpanetSimulator(wn)
-    sim_results = sim.run_sim()
+    results = sim.run_sim()
+    assert isinstance(results.node["demand"], pd.DataFrame)
 
-    wntrqgis.to_qgis(wn, sim_results)
+
+@pytest.mark.parametrize("example", wntrqgis.examples.values())
+def test_to_qgis(example, qgis_new_project):
+    layers = wntrqgis.to_qgis(example)
+    assert isinstance(layers, dict)
+    assert isinstance(layers["JUNCTIONS"], QgsVectorLayer)
+    assert isinstance(layers["PIPES"], QgsVectorLayer)
+    assert isinstance(layers["RESERVOIRS"], QgsVectorLayer)
+    assert isinstance(layers["TANKS"], QgsVectorLayer)
+    assert isinstance(layers["VALVES"], QgsVectorLayer)
+    assert isinstance(layers["PUMPS"], QgsVectorLayer)
+
+
+@pytest.mark.parametrize("example", wntrqgis.examples.values())
+def test_to_qgis_results(example, qgis_new_project):
+    wn = wntr.network.WaterNetworkModel(example)
+    sim = wntr.sim.EpanetSimulator(wn)
+    results = sim.run_sim()
+    layers = wntrqgis.to_qgis(wn, results)
+
+    assert isinstance(layers, dict)
+    assert isinstance(layers["LINKS"], QgsVectorLayer)
+    assert isinstance(layers["NODES"], QgsVectorLayer)
 
 
 @pytest.mark.filterwarnings("ignore: 984 pipes have very different attribute length")
