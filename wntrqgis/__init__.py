@@ -21,7 +21,7 @@ if _packages_path not in sys.path:
 #     setup_pydevd,
 # )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from qgis.gui import QgisInterface
 
 # debugger = os.environ.get("QGIS_PLUGIN_USE_DEBUGGER", "").lower()

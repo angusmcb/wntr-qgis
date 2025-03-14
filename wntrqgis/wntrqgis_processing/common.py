@@ -17,7 +17,7 @@ from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import SettingKey, ProjectSettings
 from wntrqgis.style import style
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     import wntr
 LOGGER = logging.getLogger("wntrqgis")
 
