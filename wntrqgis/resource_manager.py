@@ -36,6 +36,13 @@ def _inp_path(example_name: str) -> str:
     return str(RESOURCES_PATH / "examples" / (example_name + ".inp"))
 
 
+examples = {
+    "KY1": _inp_path("ky1"),
+    "KY10": _inp_path("ky10"),  # Dataset from Kentucky Water Research Institute
+    "VALVES": _inp_path("valves"),
+}
+
+
 class Example:
     """A namespace for  easily accessing file path of examples
 
@@ -43,9 +50,12 @@ class Example:
 
     The actual value of the path will vary from one system to another.
 
-    >>> wntrqgis.Example.KY1  # "C:\\Users\\....\\examples\\ky1.inp"
+    >>> import wntrqgis as wq
+    >>> wq.Example.KY1
+    '...examples\\\\ky1.inp'
 
-    >>> wn = wntr.network.WaterNetworkModel(wntrqgis.Example.KY1)"""
+    >>> import wntr
+    >>> wn = wntr.network.WaterNetworkModel(wq.Example.KY1)"""
 
     KY1: str = _inp_path("ky1")
     """KY1 from Kentucky University
