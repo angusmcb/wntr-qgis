@@ -14,6 +14,7 @@ from qgis.PyQt.QtCore import QVariant
 import wntrqgis.elements
 from wntrqgis.interface import (
     NetworkModelError,
+    UnitError,
     Writer,
     _Converter,
     _Curves,
@@ -57,6 +58,11 @@ def test_converter_from_si(wn):
     converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
     value = converter.from_si(1.0, wntrqgis.elements.ModelField.ELEVATION)
     assert value == 1.0
+
+
+def test_converter_invalid_units():
+    with pytest.raises(UnitError):
+        _Converter("INVALID_UNIT", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
 
 
 def test_to_qgis(wn):
@@ -128,6 +134,12 @@ def test_patterns_get(wn):
     assert pattern == "1.0 2.0 3.0"
 
 
+def test_patterns_add_invalid():
+    patterns = _Patterns(wntr.network.WaterNetworkModel())
+    assert patterns.add(None) is None
+    assert patterns.add("") is None
+
+
 def test_curves_add_one(wn):
     curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
     curve_name = curves._add_one("[(1,2), (3,4)]", _Curves.Type.HEAD)
@@ -139,6 +151,12 @@ def test_curves_get(wn):
     curve_name = curves._add_one("[(1,2), (3,4)]", _Curves.Type.HEAD)
     curve = curves.get(curve_name)
     assert curve == "[(1.0, 2), (3.0, 4)]"
+
+
+def test_curves_add_invalid(wn):
+    curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
+    assert curves._add_one(None, _Curves.Type.HEAD) is None
+    assert curves._add_one("", _Curves.Type.HEAD) is None
 
 
 def test_writer_get_qgsfields(wn):
@@ -158,6 +176,13 @@ def test_writer_write(wn, qgs_layer):
     assert sink.featureCount() > 0
 
 
+def test_writer_write_no_features(wn, qgs_layer):
+    writer = Writer(wn)
+    sink = qgs_layer.dataProvider()
+    writer.write(wntrqgis.elements.ModelLayer.JUNCTIONS, sink)
+    assert sink.featureCount() == 0
+
+
 def test_spatial_index_add_node():
     index = _SpatialIndex()
     geometry = QgsGeometry(QgsPoint(1, 1))
@@ -173,6 +198,54 @@ def test_spatial_index_snap_link():
     snapped_geometry, start_node, end_node = index.snap_link(geometry)
     assert start_node == "node1"
     assert end_node == "node2"
+
+
+def test_spatial_index_snap_link_nearby():
+    index = _SpatialIndex()
+    index.add_node(QgsGeometry(QgsPoint(1, 1)), "node1")
+    index.add_node(QgsGeometry(QgsPoint(2, 2)), "node2")
+    geometry = QgsGeometry.fromPolyline([QgsPoint(1.01, 1.01), QgsPoint(1.92, 1.92)])
+    snapped_geometry, start_node, end_node = index.snap_link(geometry)
+    assert start_node == "node1"
+    assert end_node == "node2"
+    assert snapped_geometry.asPolyline() == [QgsPointXY(1, 1), QgsPointXY(2, 2)]
+
+
+def test_spatial_index_snap_link_far_apart():
+    index = _SpatialIndex()
+    index.add_node(QgsGeometry(QgsPoint(1, 1)), "node1")
+    index.add_node(QgsGeometry(QgsPoint(2, 2)), "node2")
+    geometry = QgsGeometry.fromPolyline([QgsPoint(10, 10), QgsPoint(20, 20)])
+    with pytest.raises(RuntimeError, match=r"nearest node to snap to is too far \(node2\)"):
+        index.snap_link(geometry)
+
+
+def test_spatial_index_snap_link_same_node():
+    index = _SpatialIndex()
+    index.add_node(QgsGeometry(QgsPoint(1, 1)), "node1")
+    geometry = QgsGeometry.fromPolyline([QgsPoint(1.01, 1.01), QgsPoint(2, 3), QgsPoint(1.02, 1.02)])
+    with pytest.raises(RuntimeError, match="connects to the same node on both ends"):
+        index.snap_link(geometry)
+
+
+def test_spatial_index_snap_link_multi_part():
+    index = _SpatialIndex()
+    index.add_node(QgsGeometry(QgsPoint(1, 1)), "node1")
+    index.add_node(QgsGeometry(QgsPoint(2, 2)), "node2")
+    geometry = QgsGeometry.fromMultiPolylineXY(
+        [[QgsPointXY(1, 1), QgsPointXY(2, 2)], [QgsPointXY(3, 3), QgsPointXY(4, 4)]]
+    )
+    with pytest.raises(RuntimeError, match="All links must be single part lines"):
+        index.snap_link(geometry)
+
+
+def test_spatial_index_snap_link_invalid_geometry():
+    index = _SpatialIndex()
+    index.add_node(QgsGeometry(QgsPoint(1, 1)), "node1")
+    index.add_node(QgsGeometry(QgsPoint(2, 2)), "node2")
+    geometry = QgsGeometry()  # Invalid geometry
+    with pytest.raises(RuntimeError, match="All links must have valid geometry"):
+        index.snap_link(geometry)
 
 
 def test_check_network_no_junctions():
