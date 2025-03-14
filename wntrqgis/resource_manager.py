@@ -38,13 +38,13 @@ def _inp_path(example_name: str) -> str:
 
 examples = {
     "KY1": _inp_path("ky1"),
-    "KY10": _inp_path("ky10"),  # Dataset from Kentucky Water Research Institute
+    "KY10": _inp_path("ky10"),
     "VALVES": _inp_path("valves"),
 }
 
-
+"""
 class Example:
-    """A namespace for  easily accessing file path of examples
+    A namespace for  easily accessing file path of examples
 
     Can be used directly to create a WNTR ``WaterNetworkModel``
 
@@ -55,33 +55,32 @@ class Example:
     '...examples\\\\ky1.inp'
 
     >>> import wntr
-    >>> wn = wntr.network.WaterNetworkModel(wq.Example.KY1)"""
+    >>> wn = wntr.network.WaterNetworkModel(wq.Example.KY1)
 
     KY1: str = _inp_path("ky1")
-    """KY1 from Kentucky University
+    KY1 from Kentucky University
 
-    :meta hide-value: """
+    :meta hide-value:
 
     KY10: str = _inp_path("ky10")
-    """KY10 from kentucky
+    KY10 from kentucky
 
     Dataset from `Kentucky Water Research Institute <https://uknowledge.uky.edu/wdst/12/>`_.
     Slightly modified to eliminate overlapping nodes to make it spatial-compatible.
 
 
 
-    :meta hide-value: """
+    :meta hide-value:
 
     VALVES: str = _inp_path("valves")
-    """Valves
+    Valves
 
     An example of all the different valve available.
 
-    :meta hide-value: """
+    :meta hide-value:
 
+"""
 
-# def example(file):
-#     """Get an example file path.
 
 #     The pathlib.Path object is available with:
 #         wntrqgis.Example

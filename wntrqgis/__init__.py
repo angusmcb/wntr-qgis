@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import wntrqgis.dependency_management
 from wntrqgis.interface import from_qgis, to_qgis
-from wntrqgis.resource_manager import Example, examples
+from wntrqgis.resource_manager import examples
 
 _packages_path = wntrqgis.dependency_management.WqDependencyManagement.package_directory()
 if _packages_path not in sys.path:
