@@ -2,7 +2,8 @@
 addopts = "--doctest-glob='*.rst' --ignore=wntrqgis/packages --doctest-modules"
 testpaths = ['tests/','docs/','wntrqgis/']
 filterwarnings = [
-    'ignore: .*pkg_resources'
+    'ignore: .*pkg_resources',
+    'ignore:Use of .. or absolute path in a resource path is not allowed:DeprecationWarning'
 ]
 pythonpath = [
   "."
