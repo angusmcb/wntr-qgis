@@ -466,7 +466,7 @@ class Writer:
                 and "initial_quality" in df
                 and (df["initial_quality"] == 0.0).all()
             ):
-                df.drop(columns=["initial_quality"], inplace=True)
+                df.drop(columns=["initial_quality"], inplace=True)  # noqa: PD002
 
             if lyr is ModelLayer.JUNCTIONS:
                 # Special case for demands
