@@ -3,7 +3,7 @@
 Once installed, the plugin can be used in several different ways within QGIS:
 1. Through the toolbar buttons and items within the 'Plugins' menu. This is the simplest way to run the plugin.
 2. Through the processing toolbox. This gives more options and allows for more automation. This includes chaining with other algorithms using the {ref}`graphical modeller <qgisdocs:processing.modeler>`. (If you can't see the processing toolbox activate it in the menu View -> Panels -> Processing Toolbox.)
-3. This plugin can be used with WNTR directly from the {ref}`Python Console <qgisdocs:pythonconsole>` within QGIS.
+3. This plugin has an API which can be used from the {ref}`Python Console <qgisdocs:pythonconsole>` within QGIS. This allows access to all WNTR functionality.
 
 To experiment quickly, you can load an example from the 'plugins' menu.
 
@@ -24,12 +24,12 @@ The layers are normal QGIS layers and can be edited / modified / processed / sty
     - *External data sources* or any other layers can be used as background maps or data sources for drawing the network.
 
 1. **Running the simulation.**
-The plugin will load your nodes, links, patterns, curves and options into WNTR and run the model It will then process the output into a new link and node layer containing all calculated results. Configure your analysis options to exploit the full power or WNTR and EPANET.
+The plugin will load your nodes, links, patterns, curves and options into WNTR and run the model. It will then process the output into a new link and node layer containing all calculated results. Configure your analysis options to exploit the full power or WNTR and EPANET.
 
 
 1. **Viewing the results.**
 Use all the power of QGIS to view and analyse your results.
    - Use all of QGIS's styling functions to look at all the results in nodes and links - pressure, flow, head, etc.
-   - Use QGIS's temporal manager to view how your results change over time.
+   - Use QGIS's temporal manager to view how the results change over time.
 
 ![](../_static/example.gif)
