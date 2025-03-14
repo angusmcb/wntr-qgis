@@ -1,8 +1,11 @@
 [tool.pytest.ini_options]
-addopts = "-v"
-testpaths = ['tests/']
+addopts = "--doctest-glob='*.rst' --ignore=wntrqgis/packages --doctest-modules"
+testpaths = ['tests/','docs/','wntrqgis/']
 filterwarnings = [
     'ignore: .*pkg_resources'
+]
+pythonpath = [
+  "."
 ]
 [tool.coverage.report]
 omit = ["wntrqgis/qgis_plugin_tools/*","wntrqgis/packages/*"]

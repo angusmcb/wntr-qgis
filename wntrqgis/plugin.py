@@ -4,7 +4,10 @@ import contextlib
 import enum
 import typing
 
-import processing
+try:
+    import processing
+except ImportError:
+    processing = None
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -83,7 +86,7 @@ class Plugin:
 
             console.console_sci._init_statements.extend(  # noqa SLF001
                 [
-                    "import wntrqgis as wq",
+                    "import wntrqgis",
                     """
 try:
     import wntr
