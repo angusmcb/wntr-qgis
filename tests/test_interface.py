@@ -173,3 +173,50 @@ def test_spatial_index_snap_link():
     snapped_geometry, start_node, end_node = index.snap_link(geometry)
     assert start_node == "node1"
     assert end_node == "node2"
+
+
+def test_check_network_no_junctions():
+    wn = wntr.network.WaterNetworkModel()
+    with pytest.raises(NetworkModelError, match="At least one junction is necessary"):
+        check_network(wn)
+
+
+def test_check_network_no_tanks_or_reservoirs():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("j1")
+    wn.add_junction("j2")
+    wn.add_pipe("p1", "j1", "j2")
+    with pytest.raises(NetworkModelError, match="At least one tank or reservoir is required"):
+        check_network(wn)
+
+
+def test_check_network_no_links():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("j1")
+    wn.add_junction("j2")
+    wn.add_tank("t1")
+    with pytest.raises(NetworkModelError, match=r"At least one link \(pipe, pump or valve\) is necessary"):
+        check_network(wn)
+
+
+def test_check_network_orphan_nodes():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("j1")
+    wn.add_junction("j2")
+    wn.add_tank("t1")
+    wn.add_pipe("p1", "j1", "j2")
+    with pytest.raises(NetworkModelError, match="the following nodes are not connected to any links: t1"):
+        check_network(wn)
+
+
+def test_check_network_valid():
+    wn = wntr.network.WaterNetworkModel()
+    wn.add_junction("j1")
+    wn.add_junction("j2")
+    wn.add_tank("t1")
+    wn.add_pipe("p1", "j1", "j2")
+    wn.add_pipe("p2", "j2", "t1")
+    try:
+        check_network(wn)
+    except NetworkModelError:
+        pytest.fail("check_network raised NetworkModelError unexpectedly!")
