@@ -480,22 +480,22 @@ class Writer:
             elif lyr is ModelLayer.RESERVOIRS:
                 if "head_pattern_name" in df:
                     df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
-                    df.drop(columns="head_pattern_name", inplace=True)
+                    df.drop(columns="head_pattern_name", inplace=True)  # noqa: PD002
 
             elif lyr is ModelLayer.TANKS:
                 if "vol_curve_name" in df:
                     df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
-                    df.drop(columns="vol_curve_name", inplace=True)
+                    df.drop(columns="vol_curve_name", inplace=True)  # noqa: PD002
 
             elif lyr is ModelLayer.PUMPS:
                 # not all pumps will have a pump curve (power pumps)!
                 if "pump_curve_name" in df:
                     df["pump_curve"] = df["pump_curve_name"].apply(curves.get)
-                    df.drop(columns="pump_curve_name", inplace=True)
+                    df.drop(columns="pump_curve_name", inplace=True)  # noqa: PD002
 
                 if "speed_pattern_name" in df:
                     df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get)
-                    df.drop(columns="speed_pattern_name", inplace=True)
+                    df.drop(columns="speed_pattern_name", inplace=True)  # noqa: PD002
                 # 'energy pattern' is not called energy pattern name!
                 if "energy_pattern" in df:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
