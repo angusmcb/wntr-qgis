@@ -255,11 +255,6 @@ class Writer:
         units: The units that it should be written in values include ``"LPS"``, ``"GPM"`` etc.
             Default is to use the units within the WaterNetworkModel options
 
-    Example:
-        Writing a set of model layers:
-            >>> writer = Writer(wn, units="LPS")
-            >>> writer.fields.append("length")
-            >>> etc...
     """
 
     def __init__(
@@ -340,6 +335,9 @@ class Writer:
 
         Args:
             layer: 'JUNCTIONS','PIPES','LINKS' etc.
+
+        Returns:
+            QgsFields: The set of fields to be written.
         """
         if isinstance(layer, ResultLayer):
             layer_df = self._result_dfs.get(layer, pd.DataFrame())
@@ -394,7 +392,7 @@ class Writer:
         return qgs_fields
 
     def write(self, layer: ModelLayer | ResultLayer, sink: QgsFeatureSink) -> None:
-        """Write a fields from a layer to a Qgis feature sink
+        """Write a fields from a layer to a QGIS feature sink
 
         Args:
             layer: which layer should be written to the sink: 'JUNCTIONS','PIPES','LINKS' etc.
@@ -468,7 +466,7 @@ class Writer:
                 and "initial_quality" in df
                 and (df["initial_quality"] == 0.0).all()
             ):
-                df.drop(columns=["initial_quality"], inplace=True)  # noqa: PD002
+                df.drop(columns=["initial_quality"], inplace=True)
 
             if lyr is ModelLayer.JUNCTIONS:
                 # Special case for demands
@@ -482,22 +480,22 @@ class Writer:
             elif lyr is ModelLayer.RESERVOIRS:
                 if "head_pattern_name" in df:
                     df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
-                    df.drop(columns="head_pattern_name", inplace=True)  # noqa: PD002
+                    df.drop(columns="head_pattern_name", inplace=True)
 
             elif lyr is ModelLayer.TANKS:
                 if "vol_curve_name" in df:
                     df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
-                    df.drop(columns="vol_curve_name", inplace=True)  # noqa: PD002
+                    df.drop(columns="vol_curve_name", inplace=True)
 
             elif lyr is ModelLayer.PUMPS:
                 # not all pumps will have a pump curve (power pumps)!
                 if "pump_curve_name" in df:
                     df["pump_curve"] = df["pump_curve_name"].apply(curves.get)
-                    df.drop(columns="pump_curve_name", inplace=True)  # noqa: PD002
+                    df.drop(columns="pump_curve_name", inplace=True)
 
                 if "speed_pattern_name" in df:
                     df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get)
-                    df.drop(columns="speed_pattern_name", inplace=True)  # noqa: PD002
+                    df.drop(columns="speed_pattern_name", inplace=True)
                 # 'energy pattern' is not called energy pattern name!
                 if "energy_pattern" in df:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
@@ -1167,6 +1165,28 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
 
     Raises:
         NetworkModelError: if any checks fail
+
+    Example:
+        >>> wn = wntr.network.WaterNetworkModel()
+        >>> wn.add_junction("j1")
+        >>> wn.add_junction("j2")
+        >>> wn.add_pipe("p1", "j1", "j2")
+        >>> check_network(wn)
+        Traceback (most recent call last):
+        ...
+        wntrqgis.interface.NetworkModelError: At least one tank or reservoir is required
+
+        >>> wn = wntr.network.WaterNetworkModel()
+        >>> wn.add_junction("j1")
+        >>> wn.add_junction("j2")
+        >>> wn.add_tank("t1")
+        >>> wn.add_pipe("p1", "j1", "j2")
+        >>> check_network(wn)
+        Traceback (most recent call last):
+        ...
+        wntrqgis.interface.NetworkModelError: the following nodes are not connected to any links: t1
+
+
     """
     if not wn.num_junctions:
         msg = "At least one junction is necessary"
@@ -1185,6 +1205,9 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
 
 @needs_wntr_pandas
 def _get_field_groups(wn: wntr.network.WaterNetworkModel):
+    """Utility function for guessing what types of analysis a specific wn will undertake,
+    and therefore which field types should be included."""
+
     field_groups = FieldGroup(0)
     if wn.options.quality.parameter.upper() != "NONE":  # intentional string 'none'
         field_groups = field_groups | FieldGroup.WATER_QUALITY_ANALYSIS

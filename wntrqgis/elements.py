@@ -286,7 +286,13 @@ class _AbstractField(Enum):
 
 
 class ModelField(_AbstractField):
-    """All recognised fields that could be in a model layer"""
+    """All recognised fields that could be in a model layer
+
+    >>> for field in ModelField:
+    ...     assert (
+    ...         field.name.lower() == field.value.lower()
+    ...     ), f"{field.name} != {field.value}"
+    """
 
     NAME = "name", str, FieldGroup.BASE
     ELEVATION = "elevation", float, FieldGroup.BASE
@@ -327,7 +333,7 @@ class ModelField(_AbstractField):
     PRESSURE_EXPONENT = "pressure_exponent", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
     EFFICIENCY = "efficiency", str, FieldGroup.ENERGY
-    ENERGY_PATTERN = "emergy_pattern", float, FieldGroup.ENERGY
+    ENERGY_PATTERN = "energy_pattern", float, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
 
     @property
