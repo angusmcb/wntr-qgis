@@ -67,7 +67,7 @@ def test_to_qgis_results(example, qgis_new_project):
 
 @pytest.mark.filterwarnings("ignore: 984 pipes have very different attribute length")
 def test_from_qgis(qgis_new_project):
-    inpfile = wntrqgis.Example.KY1
+    inpfile = wntrqgis.examples["KY1"]
     layers = wntrqgis.to_qgis(inpfile)
 
     del layers[wntrqgis.elements.ModelLayer.VALVES]
