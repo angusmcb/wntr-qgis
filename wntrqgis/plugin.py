@@ -326,7 +326,7 @@ except ModuleNotFoundError:
         )
         QgsProject.instance().setTransformContext(transform_context)
 
-        parameters = {"INPUT": wntrqgis.Example.KY10, "CRS": network_crs, **self._empty_model_layer_dict()}
+        parameters = {"INPUT": wntrqgis.examples["KY10"], "CRS": network_crs, **self._empty_model_layer_dict()}
         self.run_alg_async(
             "wntr:importinp",
             parameters,
