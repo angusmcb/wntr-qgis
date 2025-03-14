@@ -227,8 +227,11 @@ def to_qgis(
             "memory",
         )
         if crs:
-            crs = QgsCoordinateReferenceSystem(crs)
-            layer.setCrs(crs)
+            crs_object = QgsCoordinateReferenceSystem(crs)
+            if not crs_object.isValid():
+                msg = f"CRS {crs} is not valid."
+                raise ValueError(msg)
+            layer.setCrs(crs_object)
         data_provider = layer.dataProvider()
         data_provider.addAttributes(writer.get_qgsfields(model_layer))
         writer.write(model_layer, data_provider)
