@@ -620,10 +620,10 @@ class _SpatialIndex:
             vertices = geometry.asPolyline()
         except TypeError:
             msg = "All links must be single part lines"
-            raise TypeError(msg) from None
+            raise RuntimeError(msg) from None
         except ValueError:
             msg = "All links must have valid geometry"
-            raise ValueError(msg) from None
+            raise RuntimeError(msg) from None
 
         start_point = vertices.pop(0)
         end_point = vertices.pop()
