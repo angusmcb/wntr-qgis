@@ -293,3 +293,18 @@ def test_check_network_valid():
         check_network(wn)
     except NetworkModelError:
         pytest.fail("check_network raised NetworkModelError unexpectedly!")
+
+
+def test_get_field_groups():
+    from wntrqgis.elements import FieldGroup
+
+    wn = wntr.network.WaterNetworkModel()
+    assert wntrqgis.interface._get_field_groups(wn) == FieldGroup(0)
+
+    wn.options.quality.parameter = "CHEMICAL"
+    wn.options.report.energy = "YES"
+    wn.options.hydraulic.demand_model = "PDD"
+    assert (
+        wntrqgis.interface._get_field_groups(wn)
+        == FieldGroup.PRESSURE_DEPENDENT_DEMAND | FieldGroup.ENERGY | FieldGroup.WATER_QUALITY_ANALYSIS
+    )
