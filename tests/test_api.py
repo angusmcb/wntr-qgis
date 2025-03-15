@@ -1,3 +1,5 @@
+import warnings
+
 import geopandas as gpd
 import pandas as pd
 import pytest
@@ -295,34 +297,36 @@ def pipe_layer():
 
 
 def setup_layers(qgs_layer, pipe_layer):
-    # Add some nodes to the junctions layer
-    provider = qgs_layer.dataProvider()
-    provider.addAttributes([QgsField("name", QVariant.String)])
-    qgs_layer.updateFields()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="QgsField constructor is deprecated")
+        # Add some nodes to the junctions layer
+        provider = qgs_layer.dataProvider()
+        provider.addAttributes([QgsField("name", QVariant.String)])
+        qgs_layer.updateFields()
 
-    feature1 = QgsFeature()
-    feature1.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 1)))
-    feature1.setAttributes(["J1"])
-    provider.addFeature(feature1)
+        feature1 = QgsFeature()
+        feature1.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 1)))
+        feature1.setAttributes(["J1"])
+        provider.addFeature(feature1)
 
-    feature2 = QgsFeature()
-    feature2.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(2, 2)))
-    feature2.setAttributes(["J2"])
-    provider.addFeature(feature2)
+        feature2 = QgsFeature()
+        feature2.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(2, 2)))
+        feature2.setAttributes(["J2"])
+        provider.addFeature(feature2)
 
-    qgs_layer.updateExtents()
+        qgs_layer.updateExtents()
 
-    # Add some pipes
-    pipe_provider = pipe_layer.dataProvider()
-    pipe_provider.addAttributes([QgsField("name", QVariant.String)])
-    pipe_layer.updateFields()
+        # Add some pipes
+        pipe_provider = pipe_layer.dataProvider()
+        pipe_provider.addAttributes([QgsField("name", QVariant.String)])
+        pipe_layer.updateFields()
 
-    pipe_feature = QgsFeature()
-    pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
-    pipe_feature.setAttributes(["P1"])
-    pipe_provider.addFeature(pipe_feature)
+        pipe_feature = QgsFeature()
+        pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
+        pipe_feature.setAttributes(["P1"])
+        pipe_provider.addFeature(pipe_feature)
 
-    pipe_layer.updateExtents()
+        pipe_layer.updateExtents()
 
 
 @pytest.mark.parametrize("headloss", ["H-W", "D-W", "C-M"])
@@ -337,6 +341,7 @@ def test_from_qgis_headloss(qgis_project, qgs_layer, pipe_layer, headloss):
     assert wn.options.hydraulic.headloss == headloss
 
 
+@pytest.mark.skipif(wntr.__version__ == "1.2.0", reason="Problem with headloss conversion in older wntr versions")
 @pytest.mark.parametrize(
     ("headloss", "unit", "expected_roughness"),
     [
@@ -351,6 +356,7 @@ def test_from_qgis_headloss(qgis_project, qgs_layer, pipe_layer, headloss):
         ("C-M", "GPM", 100),
     ],
 )
+@pytest.mark.filterwarnings("ignore: QgsField constructor is deprecated")
 def test_roughness_conversion(qgis_project, qgs_layer, pipe_layer, headloss, unit, expected_roughness):
     setup_layers(qgs_layer, pipe_layer)
     layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
@@ -367,6 +373,8 @@ def test_roughness_conversion(qgis_project, qgs_layer, pipe_layer, headloss, uni
     assert wn.get_link("P1").roughness == expected_roughness
 
 
+@pytest.mark.filterwarnings("ignore: QgsField constructor is deprecated")
+@pytest.mark.skipif(wntr.__version__ == "1.2.0", reason="Problem with headloss conversion in older wntr versions")
 @pytest.mark.filterwarnings("ignore:Changing the headloss formula")
 @pytest.mark.parametrize(
     ("headloss", "unit", "expected_roughness"),
@@ -382,6 +390,7 @@ def test_roughness_conversion(qgis_project, qgs_layer, pipe_layer, headloss, uni
         ("C-M", "GPM", 100),
     ],
 )
+@pytest.mark.filterwarnings("ignore: QgsField constructor is deprecated")
 def test_roughness_conversion_with_wn_options(qgis_project, qgs_layer, pipe_layer, headloss, unit, expected_roughness):
     setup_layers(qgs_layer, pipe_layer)
     layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
