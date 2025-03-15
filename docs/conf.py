@@ -7,6 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import os
+import subprocess
 import sys
 
 project = "Water Network Tools for Resiliance - QGIS Integration"
@@ -99,3 +100,55 @@ sys.path.insert(0, os.path.abspath(".."))
 autodoc_type_aliases = {"Iterable": "Iterable", "ArrayLike": "ArrayLike"}
 # add_module_names = False
 autodoc_member_order = "bysource"
+
+
+# -- Custom code to generate attributes table ------------------------------
+def generate_attributes_table():
+    from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
+
+    table_template = """
+.. table:: Possible {layer_name} Layer Attributes
+
+    +---------------------+------------------------------+
+    | Attribute           | If not set                   |
+    +=====================+==============================+
+{rows}
+"""
+
+    row_template = (
+        "    | {attribute:<19} | {default:<28} |\n    +---------------------+------------------------------+\n"
+    )
+
+    tables = []
+    for layer in ModelLayer:
+        rows = []
+        for field in layer.wq_fields():
+            default = "*Required*" if FieldGroup.REQUIRED in field.field_group else "None"
+            rows.append(row_template.format(attribute=field.name.lower(), default=default))
+        table = table_template.format(layer_name=layer.name.capitalize(), rows="".join(rows))
+        tables.append(table)
+
+    return "\n".join(tables)
+
+
+def run_generate_attributes_table_script(app):
+    output_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "user_guide/creating_the_model.rst"))
+    with open(output_file) as file:
+        content = file.readlines()
+
+    start_marker = ".. AUTO-GENERATED-ATTRIBUTES-TABLE-START\n"
+    end_marker = ".. AUTO-GENERATED-ATTRIBUTES-TABLE-END\n"
+
+    start_index = content.index(start_marker) + 1
+    end_index = content.index(end_marker)
+
+    generated_table = generate_attributes_table()
+
+    new_content = content[:start_index] + [generated_table] + content[end_index:]
+
+    with open(output_file, "w") as file:
+        file.writelines(new_content)
+
+
+def setup(app):
+    app.connect("builder-inited", run_generate_attributes_table_script)
