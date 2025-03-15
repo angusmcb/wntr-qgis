@@ -773,7 +773,8 @@ def from_qgis(
     Args:
         layers: layers to read from
         units: The flow unit set that the layers being read use.
-        headloss: the headloss formula to use (H-W for Hazen Williams, D-W for Darcy Weisbach, or C-M for Chezy-Manning).
+        headloss: the headloss formula to use
+            (H-W for Hazen Williams, D-W for Darcy Weisbach, or C-M for Chezy-Manning).
             Must be set if there is no wn.
             If wn is provided, headloss in wn.options.hydraulic.headloss will be used instead.
         wn: The `WaterNetworkModel` that the layers will be read into. Will create a new model if `None`.
