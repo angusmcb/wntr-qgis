@@ -11,7 +11,7 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QMetaType
+from qgis.PyQt.QtCore import QVariant
 
 import wntrqgis as wq
 import wntrqgis.elements
@@ -297,7 +297,7 @@ def pipe_layer():
 def setup_layers(qgs_layer, pipe_layer):
     # Add some nodes to the junctions layer
     provider = qgs_layer.dataProvider()
-    provider.addAttributes([QgsField("name", QMetaType.QString)])
+    provider.addAttributes([QgsField("name", QVariant.String)])
     qgs_layer.updateFields()
 
     feature1 = QgsFeature()
@@ -314,7 +314,7 @@ def setup_layers(qgs_layer, pipe_layer):
 
     # Add some pipes
     pipe_provider = pipe_layer.dataProvider()
-    pipe_provider.addAttributes([QgsField("name", QMetaType.QString)])
+    pipe_provider.addAttributes([QgsField("name", QVariant.String)])
     pipe_layer.updateFields()
 
     pipe_feature = QgsFeature()
@@ -354,7 +354,7 @@ def test_from_qgis_headloss(qgis_project, qgs_layer, pipe_layer, headloss):
 def test_roughness_conversion(qgis_project, qgs_layer, pipe_layer, headloss, unit, expected_roughness):
     setup_layers(qgs_layer, pipe_layer)
     layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
-    pipe_layer.dataProvider().addAttributes([QgsField("roughness", QMetaType.Double)])
+    pipe_layer.dataProvider().addAttributes([QgsField("roughness", QVariant.Double)])
     pipe_layer.updateFields()
     pipe_feature = QgsFeature()
     pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
@@ -385,7 +385,7 @@ def test_roughness_conversion(qgis_project, qgs_layer, pipe_layer, headloss, uni
 def test_roughness_conversion_with_wn_options(qgis_project, qgs_layer, pipe_layer, headloss, unit, expected_roughness):
     setup_layers(qgs_layer, pipe_layer)
     layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
-    pipe_layer.dataProvider().addAttributes([QgsField("roughness", QMetaType.Double)])
+    pipe_layer.dataProvider().addAttributes([QgsField("roughness", QVariant.Double)])
     pipe_layer.updateFields()
     pipe_feature = QgsFeature()
     pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
