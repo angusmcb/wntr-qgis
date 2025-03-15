@@ -947,8 +947,8 @@ class _FromGis:
         logging.getLogger("wntr.network.io").setLevel(logging.CRITICAL)
         try:
             wn = wntr.network.from_dict(wn_dict, wn)
-        except AssertionError as e:
-            raise WntrError(e) from None
+        except (AssertionError, RuntimeError, ValueError) as e:
+            raise WntrError(e) from e
 
     def _to_dict(self, df: pd.DataFrame) -> list[dict]:
         columns = df.columns.tolist()
