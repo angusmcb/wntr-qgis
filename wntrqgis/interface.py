@@ -789,13 +789,20 @@ def from_qgis(
             raise ValueError(msg)
         headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
     else:
+        wn = wntr.network.WaterNetworkModel()
+
         if not headloss:
             msg = "headloss must be set if wn is not set: possible values are: H-W, D-W, C-M "
             raise ValueError(msg)
         headloss_formula_type = HeadlossFormula(headloss)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=UserWarning,
+                message="Changing the headloss formula from H-W to D-W will not change",
+            )
+            wn.options.hydraulic.headloss = headloss
 
-    if not wn:
-        wn = wntr.network.WaterNetworkModel()
     # try:
     #     flow_units = wntr.epanet.FlowUnits[str(units).upper()]
     # except KeyError as e:
