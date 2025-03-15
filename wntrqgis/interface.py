@@ -926,6 +926,9 @@ class _FromGis:
         self._fill_names(node_df)
         self._fill_names(link_df)
 
+        self._check_for_duplicate_names(node_df)
+        self._check_for_duplicate_names(link_df)
+
         node_df = self._convert_dataframe(node_df, ModelLayer.TANKS)  # hack as I know tanks is needed for diameter
         link_df = self._convert_dataframe(link_df)
 
@@ -1173,6 +1176,21 @@ class _FromGis:
         node_df["base_head"] = node_df["base_head"].fillna(0.0)
 
         return node_df
+
+    def _check_for_duplicate_names(self, df: pd.DataFrame) -> None:
+        """Check for duplicate 'name' entries in the dataframe.
+
+        Args:
+            df: DataFrame to check for duplicates.
+
+        Raises:
+            ValueError: If duplicates are found.
+        """
+        if "name" in df.columns:
+            duplicates = df.loc[df["name"].duplicated(), "name"]
+            if not duplicates.empty:
+                msg = f"Duplicate names found: {', '.join(duplicates.unique())}"
+                raise NetworkModelError(msg)
 
 
 @needs_wntr_pandas
