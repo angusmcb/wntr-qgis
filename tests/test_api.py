@@ -2,12 +2,22 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import wntr
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsFeature,
+    QgsField,
+    QgsGeometry,
+    QgsPointXY,
+    QgsProject,
+    QgsVectorLayer,
+)
+from qgis.PyQt.QtCore import QMetaType
 
 import wntrqgis as wq
 import wntrqgis.elements
 import wntrqgis.interface
 from wntrqgis.elements import FieldGroup
+from wntrqgis.interface import from_qgis
 
 
 def to_layers(gdfs: dict[str, gpd.GeoDataFrame]) -> dict[str, QgsVectorLayer]:
@@ -267,3 +277,143 @@ def test_to_qgis_no_crs():
     assert isinstance(layers, dict)
     assert "JUNCTIONS" in layers
     assert layers["JUNCTIONS"].crs().isValid() is False
+
+
+@pytest.fixture
+def qgis_project():
+    return QgsProject.instance()
+
+
+@pytest.fixture
+def qgs_layer():
+    return QgsVectorLayer("Point", "test_layer", "memory")
+
+
+@pytest.fixture
+def pipe_layer():
+    return QgsVectorLayer("LineString", "pipes", "memory")
+
+
+def setup_layers(qgs_layer, pipe_layer):
+    # Add some nodes to the junctions layer
+    provider = qgs_layer.dataProvider()
+    provider.addAttributes([QgsField("name", QMetaType.QString)])
+    qgs_layer.updateFields()
+
+    feature1 = QgsFeature()
+    feature1.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 1)))
+    feature1.setAttributes(["J1"])
+    provider.addFeature(feature1)
+
+    feature2 = QgsFeature()
+    feature2.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(2, 2)))
+    feature2.setAttributes(["J2"])
+    provider.addFeature(feature2)
+
+    qgs_layer.updateExtents()
+
+    # Add some pipes
+    pipe_provider = pipe_layer.dataProvider()
+    pipe_provider.addAttributes([QgsField("name", QMetaType.QString)])
+    pipe_layer.updateFields()
+
+    pipe_feature = QgsFeature()
+    pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
+    pipe_feature.setAttributes(["P1"])
+    pipe_provider.addFeature(pipe_feature)
+
+    pipe_layer.updateExtents()
+
+
+@pytest.mark.parametrize("headloss", ["H-W", "D-W", "C-M"])
+def test_from_qgis_headloss(qgis_project, qgs_layer, pipe_layer, headloss):
+    setup_layers(qgs_layer, pipe_layer)
+    layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
+    wn = from_qgis(layers, "LPS", headloss=headloss, project=qgis_project)
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert "J1" in wn.junction_name_list
+    assert "J2" in wn.junction_name_list
+    assert "P1" in wn.pipe_name_list
+    assert wn.options.hydraulic.headloss == headloss
+
+
+@pytest.mark.parametrize(
+    ("headloss", "unit", "expected_roughness"),
+    [
+        ("H-W", "LPS", 100),
+        ("D-W", "LPS", 0.1),
+        ("C-M", "LPS", 100),
+        ("H-W", "SI", 100),
+        ("D-W", "SI", 100),
+        ("C-M", "SI", 100),
+        ("H-W", "GPM", 100),
+        ("D-W", "GPM", 0.030480000000000004),
+        ("C-M", "GPM", 100),
+    ],
+)
+def test_roughness_conversion(qgis_project, qgs_layer, pipe_layer, headloss, unit, expected_roughness):
+    setup_layers(qgs_layer, pipe_layer)
+    layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
+    pipe_layer.dataProvider().addAttributes([QgsField("roughness", QMetaType.Double)])
+    pipe_layer.updateFields()
+    pipe_feature = QgsFeature()
+    pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
+    pipe_feature.setAttributes(["P1", 100])  # Roughness in mm
+    pipe_layer.dataProvider().addFeature(pipe_feature)
+    pipe_layer.updateExtents()
+
+    wn = from_qgis(layers, unit, headloss=headloss, project=qgis_project)
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert wn.get_link("P1").roughness == expected_roughness
+
+
+@pytest.mark.filterwarnings("ignore:Changing the headloss formula")
+@pytest.mark.parametrize(
+    ("headloss", "unit", "expected_roughness"),
+    [
+        ("H-W", "LPS", 100),
+        ("D-W", "LPS", 0.1),
+        ("C-M", "LPS", 100),
+        ("H-W", "SI", 100),
+        ("D-W", "SI", 100),
+        ("C-M", "SI", 100),
+        ("H-W", "GPM", 100),
+        ("D-W", "GPM", 0.030480000000000004),
+        ("C-M", "GPM", 100),
+    ],
+)
+def test_roughness_conversion_with_wn_options(qgis_project, qgs_layer, pipe_layer, headloss, unit, expected_roughness):
+    setup_layers(qgs_layer, pipe_layer)
+    layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
+    pipe_layer.dataProvider().addAttributes([QgsField("roughness", QMetaType.Double)])
+    pipe_layer.updateFields()
+    pipe_feature = QgsFeature()
+    pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
+    pipe_feature.setAttributes(["P1", 100])  # Roughness in mm
+    pipe_layer.dataProvider().addFeature(pipe_feature)
+    pipe_layer.updateExtents()
+
+    wn = wntr.network.WaterNetworkModel()
+    wn.options.hydraulic.headloss = headloss
+
+    wn = from_qgis(layers, unit, wn=wn, project=qgis_project)
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert wn.get_link("P1").roughness == expected_roughness
+
+
+def test_from_qgis_invalid_headloss(qgs_layer, pipe_layer):
+    setup_layers(qgs_layer, pipe_layer)
+    layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
+    with pytest.raises(ValueError, match="headloss must be set if wn is not set: possible values are: H-W, D-W, C-M"):
+        from_qgis(layers, "LPS", headloss=None)
+
+
+def test_from_qgis_invalid_headloss_with_wn(qgs_layer, pipe_layer):
+    setup_layers(qgs_layer, pipe_layer)
+    layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
+    wn = wntr.network.WaterNetworkModel()
+    with pytest.raises(
+        ValueError,
+        match="Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead",
+    ):
+        from_qgis(layers, "LPS", headloss="INVALID", wn=wn)
