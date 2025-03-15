@@ -188,7 +188,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         try:
             # network_model.add_features_to_network_model(sources, wn)
-            wntrqgis.from_qgis(sources, wq_flow_unit.name, wn, context.project(), crs=crs)
+            wntrqgis.from_qgis(sources, wq_flow_unit.name, wn=wn, project=context.project(), crs=crs)
             check_network(wn)
         except NetworkModelError as e:
             raise QgsProcessingException(self.tr("Error preparing model - " + str(e))) from None

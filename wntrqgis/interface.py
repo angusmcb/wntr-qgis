@@ -763,21 +763,37 @@ class _Curves:
 def from_qgis(
     layers: dict[Literal["JUNCTIONS", "RESERVOIRS", "TANKS", "PIPES", "VALVES", "PUMPS"], QgsFeatureSource],
     units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"],
+    headloss: Literal["H-W", "D-W", "C-M"] | None = None,
     wn: wntr.network.WaterNetworkModel | None = None,
     project: QgsProject | None = None,
     crs: QgsCoordinateReferenceSystem | str | None = None,
-    # headloss_formula: str | None = None,
 ) -> wntr.network.WaterNetworkModel:
     """Read from QGIS layers or feature sources to a WNTR ``WaterNetworkModel``
 
     Args:
         layers: layers to read from
         units: The flow unit set that the layers being read use.
+        headloss: the headloss formula to use (H-W for Hazen Williams, D-W for Darcy Weisbach, or C-M for Chezy-Manning).
+            Must be set if there is no wn.
+            If wn is provided, headloss in wn.options.hydraulic.headloss will be used instead.
         wn: The `WaterNetworkModel` that the layers will be read into. Will create a new model if `None`.
         project: QgsProject instance, if `None` the current `QgsProject.instance()` will be used.
         crs: All geometry will be transformed into this coordinate reference system.
             If not set the geometry of the first layer will be used.
-        headloss_formula: the headloss formula to use. If not set will default to option in the water network model."""
+
+    """
+
+    if wn:
+        if headloss:
+            msg = "Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead"
+            raise ValueError(msg)
+        headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
+    else:
+        if not headloss:
+            msg = "headloss must be set if wn is not set: possible values are: H-W, D-W, C-M "
+            raise ValueError(msg)
+        headloss_formula_type = HeadlossFormula(headloss)
+
     if not wn:
         wn = wntr.network.WaterNetworkModel()
     # try:
@@ -785,8 +801,6 @@ def from_qgis(
     # except KeyError as e:
     #     msg = f"Units {e} is not a known set of units. Possible units are: " + ", ".join(FlowUnit._member_names_)
     #     raise ValueError(msg) from None
-
-    headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
 
     unit_conversion = _Converter(units, headloss_formula_type)
 

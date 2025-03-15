@@ -104,7 +104,7 @@ def test_from_qgis(wn, qgis_project, qgs_layer):
     pipe_layer.updateExtents()
 
     layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
-    new_wn = from_qgis(layers, "LPS", wn, qgis_project)
+    new_wn = from_qgis(layers, "LPS", wn=wn, project=qgis_project)
     assert isinstance(new_wn, wntr.network.WaterNetworkModel)
     assert "J1" in new_wn.junction_name_list
     assert "J2" in new_wn.junction_name_list

@@ -72,7 +72,7 @@ def test_from_qgis(qgis_new_project):
 
     del layers[wntrqgis.elements.ModelLayer.VALVES]
 
-    new_wn = wntrqgis.from_qgis(layers, "GPM", crs="EPSG:3089")
+    new_wn = wntrqgis.from_qgis(layers, "GPM", "H-W", crs="EPSG:3089")
 
     assert new_wn
 
@@ -86,7 +86,7 @@ def test_empty_wn(qgis_new_project):
 
 def test_flegere(qgis_new_project, flegere_gdfs):
     flegere_layers = to_layers(flegere_gdfs)
-    wn = wq.from_qgis(flegere_layers, "lps")
+    wn = wq.from_qgis(flegere_layers, "lps", "H-W")
     layers = wq.to_qgis(wn)
     assert isinstance(layers["JUNCTIONS"], QgsVectorLayer)
 
@@ -95,14 +95,14 @@ def test_flegere_broken_layername(qgis_new_project, flegere_layers):
     flegere_layers["wrongname"] = flegere_layers["junctions"]
 
     with pytest.raises(ValueError, match="'wrongname' is not a valid layer type."):
-        wq.from_qgis(flegere_layers, "LPS")
+        wq.from_qgis(flegere_layers, "LPS", "H-W")
 
 
 @pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
 def test_flegere_snap(qgis_new_project, flegere_layers):
     QgsProject.instance().addMapLayers(flegere_layers.values())
 
-    wn = wq.from_qgis(flegere_layers, "LPS")
+    wn = wq.from_qgis(flegere_layers, "LPS", "H-W")
 
     wq.to_qgis(wn)
 
@@ -110,14 +110,14 @@ def test_flegere_snap(qgis_new_project, flegere_layers):
 
 
 def test_flegere_naming(flegere_layers):
-    wn = wq.from_qgis(flegere_layers, "lps")
+    wn = wq.from_qgis(flegere_layers, "lps", "H-W")
     assert wn.node_name_list == ["1", "top_res", "2"]
     assert wn.link_name_list == ["1", "vertex"]
 
 
 def test_flegere_no_attributes(flegere_gdfs):
     attless_gdfs = {k: gpd.GeoDataFrame(v["geometry"]) for k, v in flegere_gdfs.items()}
-    wq.from_qgis(to_layers(attless_gdfs), "lps")
+    wq.from_qgis(to_layers(attless_gdfs), "lps", "H-W")
 
 
 @pytest.mark.parametrize(
@@ -125,7 +125,7 @@ def test_flegere_no_attributes(flegere_gdfs):
     {("GPM", 6.30901964e-05), ("SI", 1), ("sI", 1), ("LPS", 0.001), ("lps", 0.001), ("CFS", 0.0283168466)},
 )
 def test_flegere_conversion(qgis_new_project, flegere_layers, unit, expected_demand):
-    wn = wq.from_qgis(flegere_layers, unit)
+    wn = wq.from_qgis(flegere_layers, unit, "H-W")
     assert wn.get_node("1").base_demand == expected_demand
 
 
@@ -134,7 +134,7 @@ def test_flegere_bad_units(qgis_new_project, flegere_layers):
         ValueError,
         match="Units 'NON-EXISTANT' is not a known set of units. Possible units are: LPS, LPM, MLD, CMH, CFS, GPM, MGD, IMGD, AFD, SI",  # noqa: E501
     ):
-        wq.from_qgis(flegere_layers, units="Non-existant")
+        wq.from_qgis(flegere_layers, units="Non-existant", headloss="H-W")
 
 
 @pytest.mark.parametrize(
@@ -143,26 +143,26 @@ def test_flegere_bad_units(qgis_new_project, flegere_layers):
 def test_flegere_length(flegere_gdfs, unit, expected_length):
     flegere_gdfs["pipes"].loc[0, "length"] = expected_length
     with pytest.warns(UserWarning, match=r"1 pipes have very different attribute length vs measured length"):
-        wn = wq.from_qgis(to_layers(flegere_gdfs), unit)
+        wn = wq.from_qgis(to_layers(flegere_gdfs), unit, "H-W")
     assert wn.get_link("1").length == 100
 
 
 @pytest.mark.parametrize("unit", [("LPS"), ("GPM")])
 def test_flegere_calculated_length(flegere_layers, unit):
-    wn = wq.from_qgis(flegere_layers, unit)
+    wn = wq.from_qgis(flegere_layers, unit, "H-W")
     assert wn.get_link("1").length == 1724.2674093330734, "calculated length wrong"
 
 
 def test_flegere_extra_attribute(flegere_gdfs):
     flegere_gdfs["junctions"]["extra_value"] = "extra value"
     flegere_gdfs["pipes"]["extra_number"] = 55
-    wn = wq.from_qgis(to_layers(flegere_gdfs), "lps")
+    wn = wq.from_qgis(to_layers(flegere_gdfs), "lps", "H-W")
     assert wn.get_node("1").extra_value == "extra value"
     assert wn.get_link("1").extra_number == 55
 
 
 def test_flegere_load_results(flegere_layers):
-    wn = wq.from_qgis(flegere_layers, "lps")
+    wn = wq.from_qgis(flegere_layers, "lps", "H-W")
 
     sim = wntr.sim.EpanetSimulator(wn)
     sim_results = sim.run_sim()
@@ -180,7 +180,7 @@ def test_flegere_load_results(flegere_layers):
 
 
 def test_flegere_time_results(flegere_layers):
-    wn = wq.from_qgis(flegere_layers, "lps")
+    wn = wq.from_qgis(flegere_layers, "lps", "H-W")
     wn.options.time.duration = 3600
     sim = wntr.sim.EpanetSimulator(wn)
     sim_results = sim.run_sim()
