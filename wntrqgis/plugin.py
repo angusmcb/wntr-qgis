@@ -284,11 +284,13 @@ except ModuleNotFoundError:
 
         task = QgsProcessingAlgRunnerTask(algorithm, parameters, context, feedback)
         task.executed.connect(task_finished)
+
         QgsApplication.taskManager().addTask(task)
+        return task
 
     def create_template_layers(self) -> None:
         parameters = {"CRS": QgsProject.instance().crs(), **self._empty_model_layer_dict()}
-        self.run_alg_async("wntr:templatelayers", parameters, success_message="Template Layers Created")
+        return self.run_alg_async("wntr:templatelayers", parameters, success_message="Template Layers Created")
 
     def load_inp_file(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
@@ -305,7 +307,7 @@ except ModuleNotFoundError:
         crs = crs_selector.crs()
 
         parameters = {"INPUT": str(filepath), "CRS": crs, **self._empty_model_layer_dict()}
-        self.run_alg_async(
+        return self.run_alg_async(
             "wntr:importinp",
             parameters,
             success_message="Loaded .inp file",
@@ -327,7 +329,7 @@ except ModuleNotFoundError:
         QgsProject.instance().setTransformContext(transform_context)
 
         parameters = {"INPUT": wntrqgis.examples["KY10"], "CRS": network_crs, **self._empty_model_layer_dict()}
-        self.run_alg_async(
+        return self.run_alg_async(
             "wntr:importinp",
             parameters,
             on_finish=self.load_osm,
@@ -402,7 +404,11 @@ class WqProcessingFeedback(QgsProcessingFeedback):
         super().__init__(logFeedback)
 
     def setProgressText(self, text: str | None):  # noqa N802
-        iface.statusBarIface().showMessage(text)
+        try:
+            iface.statusBarIface().showMessage(text)
+        except AttributeError:
+            # in case of badly patched iface in testing
+            pass
         super().setProgressText(text)
 
     def reportError(self, error: str | None, fatalError: bool = False):  # noqa N802

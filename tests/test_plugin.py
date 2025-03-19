@@ -1,3 +1,21 @@
+from unittest.mock import patch
+
+import pytest
+from qgis.core import QgsCoordinateReferenceSystem, QgsTask
+from qgis.PyQt.QtWidgets import QAction
+
+import wntrqgis
+import wntrqgis.plugin
+
+
+@pytest.fixture
+def plugin():
+    plugin_class = wntrqgis.plugin.Plugin()
+    plugin_class.initGui()
+    plugin_class.initProcessing()
+    return plugin_class
+
+
 def test_load_plugin(qgis_app, qgis_iface):
     import qgis.utils
 
@@ -7,28 +25,42 @@ def test_load_plugin(qgis_app, qgis_iface):
 def test_class_factory(qgis_app, qgis_iface):
     from qgis.utils import iface
 
-    import wntrqgis
-
     plugin_class = wntrqgis.classFactory(iface)
 
     assert plugin_class
     plugin_class.initGui()
-    plugin_class.initProcessing()
 
 
-def test_actions(qgis_app, qgis_iface, qgis_processing):
-    # from qgis.PyQt.QtWidgets import QAction
+def test_create_template_layers(qgis_app, qgis_iface, qgis_processing, plugin, mocker):
+    mocker.patch("wntrqgis.plugin.processing")
+    mocker.patch.object(wntrqgis.plugin.iface, "statusBarIface", create=True)
+    task = plugin.create_template_layers()
+    assert task.waitForFinished()
+    assert task.status() == QgsTask.TaskStatus.Complete
 
-    import wntrqgis.plugin
 
-    plugin_class = wntrqgis.plugin.Plugin()
-    plugin_class.initGui()
-    plugin_class.initProcessing()
+@pytest.mark.parametrize("file", wntrqgis.examples.values())
+def test_load_inp_file(qgis_app, qgis_iface, qgis_processing, mocker, plugin, file):
+    opendialog = mocker.patch("wntrqgis.plugin.QFileDialog", autospec=True)
+    opendialog.getOpenFileName.return_value = (file, "")
+    projectiondialog = mocker.patch("wntrqgis.plugin.QgsProjectionSelectionDialog", autospec=True)
+    projectiondialog.exec.return_value = QgsCoordinateReferenceSystem("EPSG:4326")
 
-    # for action in plugin_class.actions:
-    #     action.activate(QAction.Trigger)
+    mocker.patch("wntrqgis.plugin.processing")
+    mocker.patch.object(wntrqgis.plugin.iface, "statusBarIface", create=True)
 
-    # plugin_class.load_example()
+    task = plugin.load_inp_file()
+
+    assert task.waitForFinished()
+    assert task.status() == QgsTask.TaskStatus.Complete
+
+
+def test_load_example(qgis_app, qgis_iface, qgis_processing, plugin, mocker):
+    mocker.patch("wntrqgis.plugin.processing")
+    mocker.patch.object(wntrqgis.plugin.iface, "statusBarIface", create=True)
+    task = plugin.load_example()
+    assert task.waitForFinished()
+    assert task.status() == QgsTask.TaskStatus.Complete
 
 
 def test_algorithm_properties():
