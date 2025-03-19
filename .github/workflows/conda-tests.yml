@@ -35,7 +35,7 @@ jobs:
       - name: Install packages
         run: |
           conda install -y pytest ${{ matrix.wntr-version}} ${{ matrix.qgis }} geopandas
-          pip install pytest-qgis pytest-cov
+          pip install pytest-qgis pytest-cov pytest-mock
       - name: Conda info
         run: |
           conda info
