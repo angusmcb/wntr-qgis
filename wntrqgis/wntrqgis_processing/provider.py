@@ -8,21 +8,11 @@ from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm
 
 
 class Provider(QgsProcessingProvider):
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._id = "wntr"
-        self._name = "WNTR"
-
     def id(self) -> str:
-        return self._id
+        return "wntr"
 
     def name(self) -> str:
-        return self._name
-
-    def load(self) -> bool:
-        self.refreshAlgorithms()
-        return True
+        return "WNTR"
 
     def icon(self):
         return WqIcon.LOGO.q_icon
