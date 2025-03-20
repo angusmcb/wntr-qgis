@@ -2,12 +2,7 @@ from __future__ import annotations
 
 import pytest
 import wntr
-from qgis.core import (
-    QgsFeature,
-    QgsGeometry,
-    QgsPointXY,
-    QgsVectorLayer,
-)
+from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
 import wntrqgis
 
@@ -49,12 +44,12 @@ def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: l
 
 @pytest.fixture
 def simple_layers():
-    junction_layer = layer("point", [("name", str), ("base_demand", float)])
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("length", float)])
     add_point(junction_layer, (1, 1), ["J1", 1])
     tank_layer = layer("point", [("name", str)])
-    add_point(tank_layer, (2, 2), ["T1"])
+    add_point(tank_layer, (4, 5), ["T1"])
     pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (2, 2)], ["P1", 100])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
@@ -248,3 +243,29 @@ def test_bad_units(simple_layers):
         match="Units 'NON-EXISTANT' is not a known set of units. Possible units are: LPS, LPM, MLD, CMH, CFS, GPM, MGD, IMGD, AFD, SI",  # noqa: E501
     ):
         wntrqgis.from_qgis(simple_layers, units="Non-existant", headloss="H-W")
+
+
+def test_length_measurement_4326(qgis_new_project, simple_layers):
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
+
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    pipe = wn.get_link("P1")
+    assert pipe.length == 556597.4539663679
+
+
+# def test_length_measurement_4326_ellipsoidal(qgis_new_project, simple_layers):
+#     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W", crs="EPSG:7030")
+
+#     assert isinstance(wn, wntr.network.WaterNetworkModel)
+#     pipe = wn.get_link("P1")
+#     assert pipe.length == 556597.4539663679
+
+
+def test_length_measurement_utm(qgis_new_project, simple_layers):
+    for layer in simple_layers.values():
+        layer.setCrs(QgsCoordinateReferenceSystem("EPSG:32600"))
+
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    pipe = wn.get_link("P1")
+    assert pipe.length == 5.0

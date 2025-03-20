@@ -4,10 +4,6 @@ import contextlib
 import enum
 import typing
 
-try:
-    import processing
-except ImportError:
-    processing = None
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -70,6 +66,7 @@ class Plugin:
 
         self.actions: list[typing.Any] = []
         self.menu = "Water Network Tools for Resilience"
+        self.testing_wait_finished = False
 
         s = QgsSettings()
         oldversion = s.value(WNTR_SETTING_VERSION, None)
@@ -168,13 +165,6 @@ except ModuleNotFoundError:
 
     def initGui(self) -> None:  # noqa N802
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-        # self._progress_bar = QProgressBar()
-        # self._progress_bar.setRange(0, 0)
-        # # iface.mainWindow().statusBar().addWidget(progress_bar)
-        # # Could be replaced by the following if you want same position as the default QGIS component for progress bar
-
-        # self._progress_bar.hide()
-        # iface.statusBarIface().addPermanentWidget(self._progress_bar)
 
         self.add_action(
             join_pixmap(WqIcon.NEW.q_pixmap, WqIcon.LOGO.q_pixmap),
@@ -270,6 +260,8 @@ except ModuleNotFoundError:
                 iface.statusBarIface().clearMessage()
                 return
 
+            import processing
+
             processing.gui.Postprocessing.handleAlgorithmResults(algorithm, context, feedback, results)
             iface.statusBarIface().clearMessage()
             if on_finish:
@@ -286,11 +278,12 @@ except ModuleNotFoundError:
         task.executed.connect(task_finished)
 
         QgsApplication.taskManager().addTask(task)
-        return task
+        if self.testing_wait_finished:
+            assert task.waitForFinished()  # noqa: S101
 
     def create_template_layers(self) -> None:
         parameters = {"CRS": QgsProject.instance().crs(), **self._empty_model_layer_dict()}
-        return self.run_alg_async("wntr:templatelayers", parameters, success_message="Template Layers Created")
+        self.run_alg_async("wntr:templatelayers", parameters, success_message="Template Layers Created")
 
     def load_inp_file(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
@@ -307,7 +300,7 @@ except ModuleNotFoundError:
         crs = crs_selector.crs()
 
         parameters = {"INPUT": str(filepath), "CRS": crs, **self._empty_model_layer_dict()}
-        return self.run_alg_async(
+        self.run_alg_async(
             "wntr:importinp",
             parameters,
             success_message="Loaded .inp file",
@@ -329,7 +322,7 @@ except ModuleNotFoundError:
         QgsProject.instance().setTransformContext(transform_context)
 
         parameters = {"INPUT": wntrqgis.examples["KY10"], "CRS": network_crs, **self._empty_model_layer_dict()}
-        return self.run_alg_async(
+        self.run_alg_async(
             "wntr:importinp",
             parameters,
             on_finish=self.load_osm,
@@ -337,6 +330,8 @@ except ModuleNotFoundError:
         )
 
     def open_settings(self) -> None:
+        import processing
+
         processing.execAlgorithmDialog("wntr:settings")
 
     def run_simulation(self) -> None:
@@ -404,11 +399,8 @@ class WqProcessingFeedback(QgsProcessingFeedback):
         super().__init__(logFeedback)
 
     def setProgressText(self, text: str | None):  # noqa N802
-        try:
-            iface.statusBarIface().showMessage(text)
-        except AttributeError:
-            # in case of badly patched iface in testing
-            pass
+        iface.statusBarIface().showMessage(text)
+
         super().setProgressText(text)
 
     def reportError(self, error: str | None, fatalError: bool = False):  # noqa N802

@@ -40,6 +40,21 @@ def plugin_provider(qgis_app, qgis_processing):
     return provider
 
 
+@pytest.fixture(autouse=True)
+def patch_iface(qgis_iface, qgis_processing, mocker):
+    import processing
+
+    import wntrqgis.plugin
+
+    mocker.patch.object(wntrqgis.plugin.iface, "statusBarIface", create=True)
+    mocker.patch.object(processing.gui.Postprocessing.iface, "layerTreeView", create=True)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def setup_processing(qgis_processing):
+    pass
+
+
 @pytest.fixture
 def get_example():
     def _(file_name: str):

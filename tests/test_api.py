@@ -16,8 +16,15 @@ def to_gdf(layers: dict[str, QgsVectorLayer]) -> dict[str, gpd.GeoDataFrame]:
     return {key: gpd.GeoDataFrame.from_features(val.getFeatures()) for key, val in layers.items()}
 
 
+def clean_layers(layers: dict[str, QgsVectorLayer]):
+    for layer in layers.values():
+        if layer.id() not in QgsProject.instance().mapLayers(True):
+            QgsProject.instance().addMapLayer(layer)
+            QgsProject.instance().removeMapLayer(layer)
+
+
 @pytest.mark.filterwarnings("ignore: 22 pipes have very different attribute length")
-def test_from_qgis(qgis_new_project):
+def test_basic_round_trip(qgis_new_project):
     inpfile = wntrqgis.examples["KY1"]
     layers = wntrqgis.to_qgis(inpfile)
 
@@ -25,7 +32,7 @@ def test_from_qgis(qgis_new_project):
 
     new_wn = wntrqgis.from_qgis(layers, "GPM", "H-W", crs="EPSG:3089")
 
-    assert new_wn
+    assert isinstance(new_wn, wntr.network.WaterNetworkModel)
 
 
 def test_flegere(qgis_new_project, flegere_gdfs):
@@ -33,6 +40,7 @@ def test_flegere(qgis_new_project, flegere_gdfs):
     wn = wq.from_qgis(flegere_layers, "lps", "H-W")
     layers = wq.to_qgis(wn)
     assert isinstance(layers["JUNCTIONS"], QgsVectorLayer)
+    clean_layers(flegere_layers)
 
 
 @pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
@@ -51,23 +59,28 @@ def test_flegere_snap(qgis_new_project, flegere_layers):
 )
 def test_flegere_length(flegere_gdfs, unit, expected_length):
     flegere_gdfs["pipes"].loc[0, "length"] = expected_length
+    flegere_layers = to_layers(flegere_gdfs)
     with pytest.warns(UserWarning, match=r"1 pipes have very different attribute length vs measured length"):
-        wn = wq.from_qgis(to_layers(flegere_gdfs), unit, "H-W")
+        wn = wq.from_qgis(flegere_layers, unit, "H-W")
     assert wn.get_link("1").length == 100
+    clean_layers(flegere_layers)
 
 
 @pytest.mark.parametrize("unit", [("LPS"), ("GPM")])
 def test_flegere_calculated_length(flegere_layers, unit):
     wn = wq.from_qgis(flegere_layers, unit, "H-W")
     assert wn.get_link("1").length == 1724.2674093330734, "calculated length wrong"
+    clean_layers(flegere_layers)
 
 
 def test_flegere_extra_attribute(flegere_gdfs):
     flegere_gdfs["junctions"]["extra_value"] = "extra value"
     flegere_gdfs["pipes"]["extra_number"] = 55
-    wn = wq.from_qgis(to_layers(flegere_gdfs), "lps", "H-W")
+    flegere_layers = to_layers(flegere_gdfs)
+    wn = wq.from_qgis(flegere_layers, "lps", "H-W")
     assert wn.get_node("1").extra_value == "extra value"
     assert wn.get_link("1").extra_number == 55
+    clean_layers(flegere_layers)
 
 
 def test_flegere_load_results(flegere_layers):
@@ -86,6 +99,7 @@ def test_flegere_load_results(flegere_layers):
     # print(result_gdfs["LINKS"].head())
 
     assert result_gdfs["NODES"].iloc[0]["demand"] == 1.0
+    clean_layers(flegere_layers)
 
 
 def test_flegere_time_results(flegere_layers):
@@ -104,3 +118,4 @@ def test_flegere_time_results(flegere_layers):
     # print(result_gdfs["LINKS"].head())
 
     assert result_gdfs["NODES"].iloc[0]["demand"] == [1.0, 1.0]
+    clean_layers(flegere_layers)

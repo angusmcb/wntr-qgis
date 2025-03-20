@@ -101,27 +101,23 @@ def test_alg_import_inp_all_examples(
     assert all(outkey in expectedoutputs for outkey in result)
 
 
-def test_alg_import_inp_and_load_result(qgis_processing, qgis_iface, qgis_new_project):
-    from qgis import processing
+@pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
+def test_alg_import_inp_and_load_result(qgis_new_project):
+    import processing
 
-    # note this doesn't really work to actually load results, but should test style loader doesn't have errors
-
-    with contextlib.suppress(AttributeError):
-        processing.runAndLoadResults(
-            "wntr:importinp",
-            {
-                "CRS": "EPSG:32629",
-                "INPUT": str(
-                    Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.simplified.inp"
-                ),
-                "JUNCTIONS": "TEMPORARY_OUTPUT",
-                "PIPES": "TEMPORARY_OUTPUT",
-                "PUMPS": "TEMPORARY_OUTPUT",
-                "RESERVOIRS": "TEMPORARY_OUTPUT",
-                "TANKS": "TEMPORARY_OUTPUT",
-                "VALVES": "TEMPORARY_OUTPUT",
-            },
-        )
+    processing.runAndLoadResults(
+        "wntr:importinp",
+        {
+            "CRS": "EPSG:32629",
+            "INPUT": str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.simplified.inp"),
+            "JUNCTIONS": "TEMPORARY_OUTPUT",
+            "PIPES": "TEMPORARY_OUTPUT",
+            "PUMPS": "TEMPORARY_OUTPUT",
+            "RESERVOIRS": "TEMPORARY_OUTPUT",
+            "TANKS": "TEMPORARY_OUTPUT",
+            "VALVES": "TEMPORARY_OUTPUT",
+        },
+    )
 
 
 @pytest.mark.filterwarnings("ignore: 1 pipes have very different attribute length")
