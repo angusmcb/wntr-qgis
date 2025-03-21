@@ -15,6 +15,7 @@ fixtures:
 """
 
 from pathlib import Path
+from unittest.mock import Mock
 
 import geopandas as gpd
 import pytest
@@ -23,14 +24,10 @@ from qgis.core import QgsVectorLayer
 from wntrqgis.dependency_management import WqDependencyManagement
 
 
-@pytest.fixture(autouse=True)
-def patch_iface(qgis_iface, qgis_processing, mocker):
-    import processing
-
-    import wntrqgis.plugin
-
-    mocker.patch.object(wntrqgis.plugin.iface, "statusBarIface", create=True)
-    mocker.patch.object(processing.gui.Postprocessing.iface, "layerTreeView", create=True)
+@pytest.fixture(autouse=True, scope="session")
+def patch_iface(qgis_app, qgis_iface):
+    qgis_iface.statusBarIface = Mock()
+    qgis_iface.layerTreeView = Mock()
 
 
 @pytest.fixture(autouse=True, scope="session")
