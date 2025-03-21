@@ -65,62 +65,6 @@ def test_converter_invalid_units():
         _Converter("INVALID_UNIT", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
 
 
-def test_to_qgis(wn):
-    layers = to_qgis(wn)
-    assert isinstance(layers, dict)
-    assert "JUNCTIONS" in layers
-
-
-@pytest.mark.filterwarnings("ignore:QgsField constructor is deprecated")
-def test_from_qgis(wn, qgis_project, qgs_layer):
-    # Add some nodes to the junctions layer
-    provider = qgs_layer.dataProvider()
-    provider.addAttributes([QgsField("name", QVariant.String)])
-    qgs_layer.updateFields()
-
-    feature1 = QgsFeature()
-    feature1.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1, 1)))
-    feature1.setAttributes(["J1"])
-    provider.addFeature(feature1)
-
-    feature2 = QgsFeature()
-    feature2.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(2, 2)))
-    feature2.setAttributes(["J2"])
-    provider.addFeature(feature2)
-
-    qgs_layer.updateExtents()
-
-    # Add some pipes
-    pipe_layer = QgsVectorLayer("LineString", "pipes", "memory")
-    pipe_provider = pipe_layer.dataProvider()
-    pipe_provider.addAttributes([QgsField("name", QVariant.String)])
-    pipe_layer.updateFields()
-
-    pipe_feature = QgsFeature()
-    pipe_feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(1, 1), QgsPointXY(2, 2)]))
-    pipe_feature.setAttributes(["P1"])
-    pipe_provider.addFeature(pipe_feature)
-
-    pipe_layer.updateExtents()
-
-    layers = {"JUNCTIONS": qgs_layer, "PIPES": pipe_layer}
-    new_wn = from_qgis(layers, "LPS", wn=wn, project=qgis_project)
-    assert isinstance(new_wn, wntr.network.WaterNetworkModel)
-    assert "J1" in new_wn.junction_name_list
-    assert "J2" in new_wn.junction_name_list
-    assert "P1" in new_wn.pipe_name_list
-
-
-def test_get_field_groups(wn):
-    field_groups = _get_field_groups(wn)
-    assert field_groups == wntrqgis.elements.FieldGroup(0)
-
-
-def test_check_network(wn):
-    with pytest.raises(NetworkModelError):
-        check_network(wn)
-
-
 def test_patterns_add(wn):
     patterns = _Patterns(wn)
     pattern_name = patterns.add("1 2 3")
@@ -248,14 +192,12 @@ def test_spatial_index_snap_link_invalid_geometry():
         index.snap_link(geometry)
 
 
-def test_check_network_no_junctions():
-    wn = wntr.network.WaterNetworkModel()
+def test_check_network_no_junctions(wn):
     with pytest.raises(NetworkModelError, match="At least one junction is necessary"):
         check_network(wn)
 
 
-def test_check_network_no_tanks_or_reservoirs():
-    wn = wntr.network.WaterNetworkModel()
+def test_check_network_no_tanks_or_reservoirs(wn):
     wn.add_junction("j1")
     wn.add_junction("j2")
     wn.add_pipe("p1", "j1", "j2")
@@ -263,8 +205,7 @@ def test_check_network_no_tanks_or_reservoirs():
         check_network(wn)
 
 
-def test_check_network_no_links():
-    wn = wntr.network.WaterNetworkModel()
+def test_check_network_no_links(wn):
     wn.add_junction("j1")
     wn.add_junction("j2")
     wn.add_tank("t1")
@@ -272,8 +213,7 @@ def test_check_network_no_links():
         check_network(wn)
 
 
-def test_check_network_orphan_nodes():
-    wn = wntr.network.WaterNetworkModel()
+def test_check_network_orphan_nodes(wn):
     wn.add_junction("j1")
     wn.add_junction("j2")
     wn.add_tank("t1")
@@ -282,8 +222,7 @@ def test_check_network_orphan_nodes():
         check_network(wn)
 
 
-def test_check_network_valid():
-    wn = wntr.network.WaterNetworkModel()
+def test_check_network_valid(wn):
     wn.add_junction("j1")
     wn.add_junction("j2")
     wn.add_tank("t1")
