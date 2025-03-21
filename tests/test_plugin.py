@@ -17,6 +17,11 @@ def start_plugin(load_plugin):
 
 
 @pytest.fixture
+def processing_provider(qgis_app, start_plugin):
+    return qgis_app.processingRegistry().providerById("wntr")
+
+
+@pytest.fixture
 def get_plugin_class(start_plugin):
     return qgis.utils.plugins["wntrqgis"]
 
@@ -67,13 +72,21 @@ def test_load_example(patched_plugin, qgis_new_project):
     assert len(QgsProject.instance().mapLayers()) == 7
 
 
-def test_algorithm_properties():
-    from wntrqgis.wntrqgis_processing.provider import Provider
+def test_processing_provider(processing_provider):
+    from qgis.core import QgsProcessingProvider
 
-    provider = Provider()
-    provider.loadAlgorithms()
+    assert processing_provider
 
-    for alg in provider.algorithms():
+    assert isinstance(processing_provider, QgsProcessingProvider)
+
+
+@pytest.mark.parametrize("algorithm", ["importinp", "run"])
+def test_processing_alg_loaded(processing_provider, algorithm):
+    assert processing_provider.algorithm(algorithm)
+
+
+def test_algorithm_properties(processing_provider):
+    for alg in processing_provider.algorithms():
         assert alg.displayName() is not None
         assert alg.shortHelpString() is not None
         assert alg.icon() is not None

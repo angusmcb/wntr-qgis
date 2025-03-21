@@ -21,23 +21,6 @@ import pytest
 from qgis.core import QgsVectorLayer
 
 from wntrqgis.dependency_management import WqDependencyManagement
-from wntrqgis.wntrqgis_processing.provider import Provider
-
-
-@pytest.fixture(autouse=True, scope="session")
-def plugin_provider(qgis_app, qgis_processing):
-    provider = Provider()
-
-    qgis_app.processingRegistry().addProvider(provider)
-
-    # test_scripts_path = Path(__file__).parent / "scripts"
-    # scripts_paths = ProcessingConfig.getSetting(RUtils.RSCRIPTS_FOLDER) + ";" + test_scripts_path.as_posix()
-
-    # ProcessingConfig.setSettingValue(RUtils.RSCRIPTS_FOLDER, scripts_paths)
-
-    provider.loadAlgorithms()
-
-    return provider
 
 
 @pytest.fixture(autouse=True)
