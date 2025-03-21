@@ -64,7 +64,7 @@ class Plugin:
         # else:
         #     pass
 
-        self.actions: list[typing.Any] = []
+        self.actions: dict[str, typing.Any] = {}
         self.menu = "Water Network Tools for Resilience"
         self.testing_wait_finished = False
 
@@ -95,6 +95,7 @@ except ModuleNotFoundError:
 
     def add_action(
         self,
+        key: str,
         icon_path: str,
         text: str,
         callback: typing.Callable,
@@ -155,7 +156,7 @@ except ModuleNotFoundError:
         if add_to_menu:
             iface.addPluginToMenu(self.menu, action)
 
-        self.actions.append(action)
+        self.actions[key] = action
 
         return action
 
@@ -167,6 +168,7 @@ except ModuleNotFoundError:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         self.add_action(
+            "template_layers",
             join_pixmap(WqIcon.NEW.q_pixmap, WqIcon.LOGO.q_pixmap),
             text="Create Template Layers",
             callback=self.create_template_layers,
@@ -174,6 +176,7 @@ except ModuleNotFoundError:
             add_to_toolbar=True,
         )
         self.add_action(
+            "load_inp",
             join_pixmap(WqIcon.OPEN.q_pixmap, WqIcon.LOGO.q_pixmap),
             text="Load from .inp file",
             callback=self.load_inp_file,
@@ -181,6 +184,7 @@ except ModuleNotFoundError:
             add_to_toolbar=True,
         )
         self.add_action(
+            "run_simulation",
             join_pixmap(WqIcon.RUN.q_pixmap, WqIcon.LOGO.q_pixmap),
             text="Run Simulation",
             callback=self.run_simulation,
@@ -188,6 +192,7 @@ except ModuleNotFoundError:
             add_to_toolbar=True,
         )
         self.add_action(
+            "settings",
             join_pixmap(
                 QIcon(":images/themes/default/propertyicons/settings.svg").pixmap(128, 128), WqIcon.LOGO.q_pixmap
             ),
@@ -197,7 +202,12 @@ except ModuleNotFoundError:
             add_to_toolbar=True,
         )
         self.add_action(
-            "", text="Load Example", callback=self.load_example, parent=iface.mainWindow(), add_to_toolbar=False
+            "load_example",
+            "",
+            text="Load Example",
+            callback=self.load_example,
+            parent=iface.mainWindow(),
+            add_to_toolbar=False,
         )
 
         self.initProcessing()
@@ -234,7 +244,7 @@ except ModuleNotFoundError:
 
     def unload(self) -> None:
         """Removes the plugin menu item and icon from QGIS GUI."""
-        for action in self.actions:
+        for action in self.actions.values():
             iface.removePluginMenu(self.menu, action)
             iface.removeToolBarIcon(action)
         # if self.examplebutton:

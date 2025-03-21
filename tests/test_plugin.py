@@ -56,18 +56,18 @@ def test_plugin_class(get_plugin_class):
 
 
 def test_create_template_layers(patched_plugin, qgis_new_project):
-    patched_plugin.create_template_layers()
+    patched_plugin.actions["template_layers"].trigger()
     assert len(QgsProject.instance().mapLayers()) == 6
 
 
 def test_load_inp_file(patched_plugin, patch_file_crs_dialog, qgis_new_project):
-    patched_plugin.load_inp_file()
+    patched_plugin.actions["load_inp"].trigger()
 
     assert len(QgsProject.instance().mapLayers()) == 6
 
 
 def test_load_example(patched_plugin, qgis_new_project):
-    patched_plugin.load_example()
+    patched_plugin.actions["load_example"].trigger()
 
     assert len(QgsProject.instance().mapLayers()) == 7
 
@@ -86,7 +86,7 @@ def test_processing_provider_name(processing_provider):
     assert processing_provider.name() == "WNTR"
 
 
-@pytest.mark.parametrize("algorithm", ["importinp", "run"])
+@pytest.mark.parametrize("algorithm", ["importinp", "run", "templatelayers"])
 def test_processing_alg_loaded(processing_provider, algorithm):
     assert processing_provider.algorithm(algorithm)
 
