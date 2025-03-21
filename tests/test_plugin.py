@@ -1,7 +1,6 @@
 import pytest
 import qgis.utils
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsTask
-from qgis.PyQt.QtWidgets import QAction
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 
 import wntrqgis
 

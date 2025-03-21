@@ -2,12 +2,12 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingFeedback, QgsProject, QgsVectorLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingFeedback
 
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
-from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm
+from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm  # noqa: F401
 
 
 # the examples are store in the plugin folder as they are used in the plugin

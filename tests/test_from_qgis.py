@@ -7,7 +7,9 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, Qgs
 import wntrqgis
 
 
-def layer(layer_type: str, fields: list[tuple[str, type]] = [], crs: str | None = None) -> QgsVectorLayer:
+def layer(layer_type: str, fields: list[tuple[str, type]] | None = None, crs: str | None = None) -> QgsVectorLayer:
+    if not fields:
+        fields = []
     field_string = "&".join([f"field={name}:{type_to_string(the_type)}" for name, the_type in fields])
     crs_string = f"&crs={crs}" if crs else ""
     return QgsVectorLayer(f"{layer_type}?{field_string}{crs_string}", "", "memory")
@@ -26,7 +28,9 @@ def type_to_string(the_type: type) -> str:
     raise ValueError(msg)
 
 
-def add_point(layer: QgsVectorLayer, point: tuple[float, float], fields: list = []):
+def add_point(layer: QgsVectorLayer, point: tuple[float, float], fields: list | None = None):
+    if not fields:
+        fields = []
     feature = QgsFeature()
     feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(*point)))
     feature.setAttributes(fields)
@@ -34,7 +38,9 @@ def add_point(layer: QgsVectorLayer, point: tuple[float, float], fields: list = 
     layer.updateExtents()
 
 
-def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: list = []):
+def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: list | None = None):
+    if not fields:
+        fields = []
     feature = QgsFeature()
     feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(x, y) for x, y in points]))
     feature.setAttributes(fields)

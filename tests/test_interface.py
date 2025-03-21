@@ -1,15 +1,12 @@
 import pytest
 import wntr
 from qgis.core import (
-    QgsFeature,
-    QgsField,
     QgsGeometry,
     QgsPoint,
     QgsPointXY,
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QVariant
 
 import wntrqgis.elements
 from wntrqgis.interface import (
@@ -18,12 +15,9 @@ from wntrqgis.interface import (
     Writer,
     _Converter,
     _Curves,
-    _get_field_groups,
     _Patterns,
     _SpatialIndex,
     check_network,
-    from_qgis,
-    to_qgis,
 )
 
 
