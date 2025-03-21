@@ -5,22 +5,22 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 import wntrqgis
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def load_plugin():
     return qgis.utils.loadPlugin("wntrqgis")
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def start_plugin(load_plugin):
     return qgis.utils.startPlugin("wntrqgis")
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def processing_provider(qgis_app, start_plugin):
     return qgis_app.processingRegistry().providerById("wntr")
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def get_plugin_class(start_plugin):
     return qgis.utils.plugins["wntrqgis"]
 
