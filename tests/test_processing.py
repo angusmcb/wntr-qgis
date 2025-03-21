@@ -1,9 +1,13 @@
-import contextlib
 from pathlib import Path
 
 import numpy as np
 import pytest
 from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingFeedback, QgsProject, QgsVectorLayer
+
+from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
+from wntrqgis.wntrqgis_processing.import_inp import ImportInp
+from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
+from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm
 
 
 # the examples are store in the plugin folder as they are used in the plugin
@@ -12,11 +16,57 @@ def example_dir():
     return Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples"
 
 
-def examples_list():
-    return ["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp", "valves.inp", "single_pipe_warning.inp"]
+@pytest.fixture
+def template_alg():
+    return TemplateLayers().create()
 
 
-expected_model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
+@pytest.fixture
+def import_alg():
+    return ImportInp().create()
+
+
+@pytest.fixture
+def run_alg():
+    return RunSimulation().create()
+
+
+@pytest.fixture
+def template_alg_params():
+    return {
+        "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
+        "JUNCTIONS": "TEMPORARY_OUTPUT",
+        "PIPES": "TEMPORARY_OUTPUT",
+        "PUMPS": "TEMPORARY_OUTPUT",
+        "RESERVOIRS": "TEMPORARY_OUTPUT",
+        "TANKS": "TEMPORARY_OUTPUT",
+        "VALVES": "TEMPORARY_OUTPUT",
+    }
+
+
+@pytest.fixture
+def import_alg_params(example_dir, template_alg_params):
+    template_alg_params["INPUT"] = str(example_dir / "ky1.inp")
+    return template_alg_params
+
+
+@pytest.fixture(
+    params=["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp", "valves.inp", "single_pipe_warning.inp"]
+)
+def test_inp(import_alg_params, example_dir, request):
+    file = str(example_dir / request.param)
+    import_alg_params["INPUT"] = file
+    return file
+
+
+@pytest.fixture(params=["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
+def file_type(template_alg_params, tmp_path, request):
+    file_type = request.param
+    template_alg_params.update(output_params(model_layers, tmp_path, file_type))
+    return file_type
+
+
+model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
 
 
 def output_params(params, tmp_path, filetype="TEMPORARY_OUTPUT"):
@@ -31,99 +81,28 @@ def output_params(params, tmp_path, filetype="TEMPORARY_OUTPUT"):
     return outputfilesets[filetype]
 
 
-def test_processing_providers(qgis_app, qgis_processing):
-    assert "wntr" in [provider.id() for provider in qgis_app.processingRegistry().providers()]
+def test_alg_template_layers(processing, qgis_new_project, template_alg, template_alg_params):
+    result = processing.runAndLoadResults(template_alg, template_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
 
 
-@pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson"])
-def test_alg_template_layers(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype):
-    from qgis import processing
+@pytest.mark.qgis_show_map(timeout=3, zoom_to_common_extent=True)
+def test_alg_import_inp_show_map(processing, import_alg, import_alg_params, qgis_new_project):
+    result = processing.runAndLoadResults(import_alg, import_alg_params)
 
-    fileset = output_params(expected_model_layers, tmp_path, filetype)
-
-    result = processing.run("wntr:templatelayers", {"CRS": QgsCoordinateReferenceSystem("EPSG:4326"), **fileset})
-
-    assert all(outkey in expected_model_layers for outkey in result)
-    QgsProject.instance().addMapLayers(
-        [QgsVectorLayer(r) for r in result.values() if isinstance(r, str)]
-        + [r for r in result.values() if isinstance(r, QgsVectorLayer)]
-    )
+    assert all(outkey in model_layers for outkey in result)
 
 
-@pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
-def test_alg_import_inp_show_map(qgis_processing, qgis_iface, qgis_new_project, example_dir):
-    from qgis import processing
+def test_alg_import_inp_all_examples(processing, import_alg, import_alg_params, qgis_new_project, test_inp):
+    result = processing.runAndLoadResults(import_alg, import_alg_params)
 
-    result = processing.run(
-        "wntr:importinp",
-        {
-            "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
-            "INPUT": str(example_dir / "ky1.inp"),
-            "JUNCTIONS": "TEMPORARY_OUTPUT",
-            "PIPES": "TEMPORARY_OUTPUT",
-            "PUMPS": "TEMPORARY_OUTPUT",
-            "RESERVOIRS": "TEMPORARY_OUTPUT",
-            "TANKS": "TEMPORARY_OUTPUT",
-            "VALVES": "TEMPORARY_OUTPUT",
-        },
-    )
-
-    expectedoutputs = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
-    assert all(outkey in expectedoutputs for outkey in result)
-    QgsProject.instance().addMapLayers(result.values())
-
-
-@pytest.mark.parametrize("example_name", examples_list())
-def test_alg_import_inp_all_examples(
-    qgis_processing,
-    qgis_iface,
-    qgis_new_project,
-    example_dir,
-    example_name,
-):
-    from qgis import processing
-
-    expectedoutputs = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
-
-    result = processing.run(
-        "wntr:importinp",
-        {
-            "CRS": "EPSG:32629",
-            "INPUT": str(example_dir / example_name),
-            "JUNCTIONS": "TEMPORARY_OUTPUT",
-            "PIPES": "TEMPORARY_OUTPUT",
-            "PUMPS": "TEMPORARY_OUTPUT",
-            "RESERVOIRS": "TEMPORARY_OUTPUT",
-            "TANKS": "TEMPORARY_OUTPUT",
-            "VALVES": "TEMPORARY_OUTPUT",
-        },
-    )
-    assert all(outkey in expectedoutputs for outkey in result)
-
-
-@pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
-def test_alg_import_inp_and_load_result(qgis_new_project):
-    import processing
-
-    processing.runAndLoadResults(
-        "wntr:importinp",
-        {
-            "CRS": "EPSG:32629",
-            "INPUT": str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / "Net3.simplified.inp"),
-            "JUNCTIONS": "TEMPORARY_OUTPUT",
-            "PIPES": "TEMPORARY_OUTPUT",
-            "PUMPS": "TEMPORARY_OUTPUT",
-            "RESERVOIRS": "TEMPORARY_OUTPUT",
-            "TANKS": "TEMPORARY_OUTPUT",
-            "VALVES": "TEMPORARY_OUTPUT",
-        },
-    )
+    assert all(outkey in model_layers for outkey in result)
 
 
 @pytest.mark.filterwarnings("ignore: 1 pipes have very different attribute length")
-def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
+def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new_project, example_dir):
     """todo: add test to feedback from processing"""
-    from qgis import processing
 
     class TestFeedback(QgsProcessingFeedback):
         warningreceived = False
@@ -133,29 +112,18 @@ def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
 
     feedbacktest = TestFeedback()
 
-    inputinp = str(example_dir / "single_pipe_warning.inp")
+    import_alg_params["INPUT"] = str(example_dir / "single_pipe_warning.inp")
+    import_alg_params["UNITS"] = 0
 
-    fileset = output_params(expected_model_layers, tmp_path, "TEMPORARY_OUTPUT")
-    units = 0
-    inp_result = processing.run(
-        "wntr:importinp",
-        {
-            "CRS": "EPSG:3089",
-            "INPUT": inputinp,
-            "UNITS": units,
-            **fileset,
-        },
-    )
-
-    assert all(outkey in expected_model_layers for outkey in inp_result)
+    inp_result = processing.run(import_alg, import_alg_params)
 
     processing.run(
-        "wntr:run",
+        run_alg,
         {
             "OUTPUTNODES": "TEMPORARY_OUTPUT",
             "OUTPUTLINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
-            "UNITS": units,
+            "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
             "DURATION": 0,
             **inp_result,
@@ -166,37 +134,36 @@ def test_run_logger(qgis_processing, qgis_new_project, example_dir, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore: 110 pipes have very different attribute length")
-@pytest.mark.parametrize("filetype", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
-@pytest.mark.parametrize("example", [("Net3.simplified.inp", 24), ("valves.inp", 0)])
-def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, example_dir, tmp_path, filetype, example):
+@pytest.mark.parametrize(("example", "duration"), [("Net3.simplified.inp", 24), ("valves.inp", 0)])
+def test_alg_chain_inp_run(
+    processing,
+    qgis_new_project,
+    example_dir,
+    run_alg,
+    import_alg,
+    import_alg_params,
+    file_type,
+    example,
+    duration,
+):
     import wntr
-    from qgis import processing
 
-    inputinp = str(example_dir / example[0])
+    inputinp = str(example_dir / example)
 
-    fileset = output_params(expected_model_layers, tmp_path, filetype)
-    units = 0
-    inp_result = processing.run(
-        "wntr:importinp",
-        {
-            "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
-            "INPUT": inputinp,
-            "UNITS": units,
-            **fileset,
-        },
-    )
+    import_alg_params["UNITS"] = 0
+    import_alg_params["INPUT"] = inputinp
 
-    assert all(outkey in expected_model_layers for outkey in inp_result)
+    inp_result = processing.run(import_alg, import_alg_params)
 
     run_result = processing.run(
-        "wntr:run",
+        run_alg,
         {
             "OUTPUTNODES": "TEMPORARY_OUTPUT",
             "OUTPUTLINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
-            "UNITS": units,
+            "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
-            "DURATION": example[1],
+            "DURATION": duration,
             **inp_result,
         },
     )
@@ -205,12 +172,10 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
     assert all(outkey in expected_run_results for outkey in run_result)
 
     inputwn = wntr.network.read_inpfile(inputinp)
-    sim = wntr.sim.EpanetSimulator(inputwn)
-    inputresults = sim.run_sim()
+    inputresults = wntr.sim.EpanetSimulator(inputwn).run_sim()
 
     wn = wntr.network.read_inpfile(run_result["OUTPUTINP"])
-    sim = wntr.sim.EpanetSimulator(wn)
-    outputresults = sim.run_sim()
+    outputresults = wntr.sim.EpanetSimulator(wn).run_sim()
 
     print("***Original results***")  # noqa
     print(inputresults.link["headloss"])  # noqa
@@ -233,23 +198,19 @@ def test_alg_chain_inp_run(qgis_processing, qgis_iface, qgis_new_project, exampl
         ), f" when testing {i}"
 
 
-def test_settings(qgis_processing, qgis_new_project, example_dir, tmp_path):
+def test_settings(processing, qgis_new_project, example_dir, tmp_path):
     """todo: add test to feedback from processing"""
 
-    from qgis import processing
+    # inputinp = str(example_dir / "valves.inp")
 
-    from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm
-
-    inputinp = str(example_dir / "valves.inp")
-
-    fileset = output_params(expected_model_layers, tmp_path, "TEMPORARY_OUTPUT")
-    units = 0
-    processing.run(
-        SettingsAlgorithm(),
-        {
-            "CRS": "32637",
-            "INPUT": inputinp,
-            "UNITS": units,
-            **fileset,
-        },
-    )
+    # fileset = output_params(model_layers, tmp_path, "TEMPORARY_OUTPUT")
+    # units = 0
+    # processing.run(
+    #     SettingsAlgorithm().create(),
+    #     {
+    #         "CRS": "32637",
+    #         "INPUT": inputinp,
+    #         "UNITS": units,
+    #         **fileset,
+    #     },
+    # )

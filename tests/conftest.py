@@ -34,8 +34,10 @@ def patch_iface(qgis_iface, qgis_processing, mocker):
 
 
 @pytest.fixture(autouse=True, scope="session")
-def setup_processing(qgis_processing):
-    pass
+def processing(qgis_processing):
+    import processing
+
+    return processing
 
 
 @pytest.fixture
