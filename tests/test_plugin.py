@@ -75,9 +75,15 @@ def test_load_example(patched_plugin, qgis_new_project):
 def test_processing_provider(processing_provider):
     from qgis.core import QgsProcessingProvider
 
-    assert processing_provider
-
     assert isinstance(processing_provider, QgsProcessingProvider)
+
+
+def test_processing_provider_icon(processing_provider):
+    assert processing_provider.icon()
+
+
+def test_processing_provider_name(processing_provider):
+    assert processing_provider.name() == "WNTR"
 
 
 @pytest.mark.parametrize("algorithm", ["importinp", "run"])
