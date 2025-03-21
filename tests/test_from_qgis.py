@@ -53,13 +53,13 @@ def simple_layers():
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
-def test_simple_layers(qgis_new_project, simple_layers):
+def test_simple_layers(simple_layers):
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
     assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert "J1" in wn.junction_name_list
 
 
-def test_broken_layername(qgis_new_project, simple_layers):
+def test_broken_layername(simple_layers):
     simple_layers["wrongname"] = simple_layers["JUNCTIONS"]
 
     with pytest.raises(ValueError, match="'wrongname' is not a valid layer type."):
@@ -245,7 +245,7 @@ def test_bad_units(simple_layers):
         wntrqgis.from_qgis(simple_layers, units="Non-existant", headloss="H-W")
 
 
-def test_length_measurement_4326(qgis_new_project, simple_layers):
+def test_length_measurement_4326(simple_layers):
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
     assert isinstance(wn, wntr.network.WaterNetworkModel)
@@ -261,7 +261,7 @@ def test_length_measurement_4326(qgis_new_project, simple_layers):
 #     assert pipe.length == 556597.4539663679
 
 
-def test_length_measurement_utm(qgis_new_project, simple_layers):
+def test_length_measurement_utm(simple_layers):
     for layer in simple_layers.values():
         layer.setCrs(QgsCoordinateReferenceSystem("EPSG:32600"))
 
