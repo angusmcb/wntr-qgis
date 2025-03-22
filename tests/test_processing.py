@@ -70,15 +70,19 @@ model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
 
 
 def output_params(params, tmp_path, filetype="TEMPORARY_OUTPUT"):
-    outputfilesets = {
-        "TEMPORARY_OUTPUT": {lyr: "TEMPORARY_OUTPUT" for lyr in params},
-        "gpkg": {
+    if filetype == "TEMPORARY_OUTPUT":
+        return {lyr: "TEMPORARY_OUTPUT" for lyr in params}
+    if filetype == "gpkg":
+        return {
             lyr: "ogr:dbname='" + str(tmp_path / "outputs.gpkg") + "' table=\"" + lyr + '" (geom)' for lyr in params
-        },
-        "shp": {lyr: str(tmp_path / (lyr + ".shp")) for lyr in params},
-        "geojson": {lyr: str(tmp_path / (lyr + ".geojson")) for lyr in params},
-    }
-    return outputfilesets[filetype]
+        }
+    if filetype == "shp":
+        return {lyr: str(tmp_path / (lyr + ".shp")) for lyr in params}
+    if filetype == "geojson":
+        return {lyr: str(tmp_path / (lyr + ".geojson")) for lyr in params}
+
+    msg = "Unknown file type"
+    raise ValueError(msg)
 
 
 def test_alg_template_layers(processing, qgis_new_project, template_alg, template_alg_params):
