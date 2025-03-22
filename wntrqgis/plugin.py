@@ -51,6 +51,8 @@ class _InstallStatus(enum.Enum):
 
 
 class Plugin:
+    TESTING = False
+
     def __init__(self) -> None:
         # setup_logger("wntrqgis")
 
@@ -66,7 +68,6 @@ class Plugin:
 
         self.actions: dict[str, typing.Any] = {}
         self.menu = "Water Network Tools for Resilience"
-        self.testing_wait_finished = False
 
         s = QgsSettings()
         oldversion = s.value(WNTR_SETTING_VERSION, None)
@@ -288,7 +289,7 @@ except ModuleNotFoundError:
         task.executed.connect(task_finished)
 
         QgsApplication.taskManager().addTask(task)
-        if self.testing_wait_finished:
+        if self.TESTING:
             assert task.waitForFinished()  # noqa: S101
 
     def create_template_layers(self) -> None:

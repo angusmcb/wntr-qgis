@@ -1,6 +1,6 @@
 import pytest
 import qgis.utils
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingProvider, QgsProject
 
 import wntrqgis
 
@@ -16,7 +16,7 @@ def start_plugin(load_plugin):
 
 
 @pytest.fixture(scope="module")
-def processing_provider(qgis_app, start_plugin):
+def processing_provider(qgis_app, start_plugin, scope="module"):
     return qgis_app.processingRegistry().providerById("wntr")
 
 
@@ -27,7 +27,7 @@ def get_plugin_class(start_plugin):
 
 @pytest.fixture
 def patched_plugin(get_plugin_class, mocker):
-    mocker.patch.object(get_plugin_class, "testing_wait_finished", True)
+    mocker.patch.object(get_plugin_class, "TESTING", True)
     return get_plugin_class
 
 
@@ -71,9 +71,15 @@ def test_load_example(patched_plugin, qgis_new_project):
     assert len(QgsProject.instance().mapLayers()) == 7
 
 
-def test_processing_provider(processing_provider):
-    from qgis.core import QgsProcessingProvider
+def test_run(patched_plugin, qgis_new_project):
+    patched_plugin.actions["load_example"].trigger()
 
+    patched_plugin.actions["run_simulation"].trigger()
+
+    assert len(QgsProject.instance().mapLayers()) == 9
+
+
+def test_processing_provider(processing_provider):
     assert isinstance(processing_provider, QgsProcessingProvider)
 
 
@@ -83,6 +89,10 @@ def test_processing_provider_icon(processing_provider):
 
 def test_processing_provider_name(processing_provider):
     assert processing_provider.name() == "WNTR"
+
+
+def test_processing_provider_id(processing_provider):
+    assert processing_provider.id() == "wntr"
 
 
 @pytest.mark.parametrize("algorithm", ["importinp", "run", "templatelayers"])
