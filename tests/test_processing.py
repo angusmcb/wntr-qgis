@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingException, QgsProcessingFeedback
+from qgis.core import QgsProcessingException, QgsProcessingFeedback, QgsProject
 
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
@@ -34,7 +34,7 @@ def run_alg():
 @pytest.fixture
 def template_alg_params():
     return {
-        "CRS": QgsCoordinateReferenceSystem("EPSG:32629"),
+        "CRS": "EPSG:32629",
         "JUNCTIONS": "TEMPORARY_OUTPUT",
         "PIPES": "TEMPORARY_OUTPUT",
         "PUMPS": "TEMPORARY_OUTPUT",
@@ -66,6 +66,13 @@ def file_type(template_alg_params, tmp_path, request):
     return file_type
 
 
+@pytest.fixture(params=["EPSG:4326", "EPSG:32629", "EPSG:3857", None])
+def test_crs(request, template_alg_params):
+    crs = request.param
+    template_alg_params["CRS"] = crs
+    return crs
+
+
 model_layers = ["JUNCTIONS", "PUMPS", "PIPES", "RESERVOIRS", "TANKS", "VALVES"]
 
 
@@ -91,11 +98,38 @@ def test_alg_template_layers(processing, qgis_new_project, template_alg, templat
     assert all(outkey in model_layers for outkey in result)
 
 
-@pytest.mark.qgis_show_map(timeout=3, zoom_to_common_extent=True)
-def test_alg_import_inp_show_map(processing, import_alg, import_alg_params, qgis_new_project):
-    result = processing.runAndLoadResults(import_alg, import_alg_params)
+def test_alg_template_layers_water_quality(processing, qgis_new_project, template_alg, template_alg_params):
+    template_alg_params["WATER_QUALITY_ANALYSIS"] = True
+
+    result = processing.run(template_alg, template_alg_params)
 
     assert all(outkey in model_layers for outkey in result)
+
+    fields = [field.name() for field in result["TANKS"].fields()]
+    assert "initial_quality" in fields
+
+
+def test_alg_template_layers_pressure_dependent_demand(processing, qgis_new_project, template_alg, template_alg_params):
+    template_alg_params["PRESSURE_DEPENDENT_DEMAND"] = True
+
+    result = processing.run(template_alg, template_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
+
+    fields = [field.name() for field in result["JUNCTIONS"].fields()]
+    assert "required_pressure" in fields
+    assert "minimum_pressure" in fields
+
+
+def test_alg_template_layers_energy(processing, qgis_new_project, template_alg, template_alg_params):
+    template_alg_params["ENERGY"] = True
+
+    result = processing.run(template_alg, template_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
+
+    fields = [field.name() for field in result["PUMPS"].fields()]
+    assert "energy_price" in fields
 
 
 def test_alg_import_inp_all_examples(processing, import_alg, import_alg_params, qgis_new_project, test_inp):
@@ -239,3 +273,23 @@ def test_settings(processing, qgis_new_project, example_dir, tmp_path):
     #         **fileset,
     #     },
     # )
+
+
+def test_alg_template_layers_with_different_crs(processing, template_alg, template_alg_params, test_crs):
+    result = processing.run(template_alg, template_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
+    if test_crs:
+        assert result["JUNCTIONS"].crs().authid() == test_crs
+    else:
+        assert result["JUNCTIONS"].crs() == QgsProject.instance().crs()
+
+
+def test_alg_import_inp_with_different_crs(processing, import_alg, import_alg_params, test_crs):
+    result = processing.run(import_alg, import_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
+    if test_crs:
+        assert result["JUNCTIONS"].crs().authid() == test_crs
+    else:
+        assert result["JUNCTIONS"].crs() == QgsProject.instance().crs()
