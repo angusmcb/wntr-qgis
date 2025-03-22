@@ -51,14 +51,16 @@ def test_create_template_layers(patched_plugin, qgis_new_project):
 
 
 def patch_dialogs(mocker, file, crs):
+    import wntrqgis.plugin
+
     mocker.patch("wntrqgis.plugin.QFileDialog", autospec=True).getOpenFileName.return_value = (file, "")
 
-    mocker.patch.object(wntrqgis.plugin.QgsProjectionSelectionDialog, "exec").return_value = bool(crs)
-    mocker.patch.object(
-        wntrqgis.plugin.QgsProjectionSelectionDialog, "crs"
-    ).return_value = QgsCoordinateReferenceSystem(crs)
+    qpsd = mocker.patch("wntrqgis.plugin.QgsProjectionSelectionDialog", autospec=True)
+    qpsd.return_value.exec.return_value = bool(crs)
+    qpsd.return_value.crs.return_value = QgsCoordinateReferenceSystem(crs)
 
 
+@pytest.mark.qgis_show_map(timeout=3, zoom_to_common_extent=True)
 def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
     patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
 
