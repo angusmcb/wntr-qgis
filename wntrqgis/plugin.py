@@ -264,7 +264,8 @@ except ModuleNotFoundError:
             nonlocal feedback
             nonlocal algorithm
             if not successful:
-                iface.messageBar().pushMessage("Error", feedback.errors[0], level=Qgis.Critical, duration=5)
+                iface.messageBar().pushMessage("Error", feedback.errors[0], level=Qgis.Critical, duration=0)
+
                 QgsMessageLog.logMessage(
                     "Task finished unsucessfully\n" + feedback.htmlLog(), MESSAGE_CATEGORY, Qgis.Warning
                 )

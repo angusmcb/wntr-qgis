@@ -38,6 +38,16 @@ def processing(qgis_processing):
 
 
 @pytest.fixture
+def test_inp_dir():
+    return Path(__file__).parent / "test_inps"
+
+
+@pytest.fixture
+def bad_inp(test_inp_dir):
+    return str(test_inp_dir / "bad_syntax.inp")
+
+
+@pytest.fixture
 def get_example():
     def _(file_name: str):
         return str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / file_name)

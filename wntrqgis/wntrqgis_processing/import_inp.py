@@ -118,32 +118,29 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         except FileNotFoundError as e:
             msg = f".inp file does not exist ({input_file})"
             raise QgsProcessingException(msg) from e
+        except wntr.epanet.exceptions.EpanetException as e:
+            msg = f"error reading .inp file: {e}"
+            raise QgsProcessingException(msg) from e
+
         self._describe_model(wn)
 
-        # Hadle which units to ouptut in
         if parameters.get(self.UNITS) is not None:
             unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
-            try:
-                wq_flow_unit = list(FlowUnit)[unit_enum_int]
-            except ValueError as e:
-                msg = self.tr("Could not find flow unit specified")
-                raise QgsProcessingException(msg) from e
+            flow_unit = list(FlowUnit)[unit_enum_int]
         else:
-            wq_flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
-        feedback.pushInfo("Will output with the following units: " + str(wq_flow_unit.value))
+            flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
+        feedback.pushInfo("Will output with the following units: " + str(flow_unit.value))
 
-        wq_headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
+        headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
 
         project_settings = ProjectSettings(context.project())
-        project_settings.set(SettingKey.FLOW_UNITS, wq_flow_unit)
-        project_settings.set(SettingKey.HEADLOSS_FORMULA, wq_headloss_formula)
+        project_settings.set(SettingKey.FLOW_UNITS, flow_unit)
+        project_settings.set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
         project_settings.set(SettingKey.SIMULATION_DURATION, wn.options.time.duration / 3600)
 
         self._update_progress(Progression.CREATING_OUTPUTS)
 
-        network_writer = Writer(
-            wn, units=wq_flow_unit.name
-        )  # TODO: FlowUnits should be string that doesn't need 'name'
+        network_writer = Writer(wn, units=flow_unit.name)  # TODO: FlowUnits should be string that doesn't need 'name'
 
         # this is just to give a little user output
         # extra_analysis_type_names = [

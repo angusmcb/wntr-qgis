@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingFeedback
+from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingException, QgsProcessingFeedback
 
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
@@ -102,6 +102,27 @@ def test_alg_import_inp_all_examples(processing, import_alg, import_alg_params, 
     result = processing.runAndLoadResults(import_alg, import_alg_params)
 
     assert all(outkey in model_layers for outkey in result)
+
+
+def test_alg_import_inp_bad_inp(processing, import_alg, import_alg_params, qgis_new_project, bad_inp):
+    import_alg_params["INPUT"] = bad_inp
+
+    with pytest.raises(QgsProcessingException, match="error reading .inp file:"):
+        processing.runAndLoadResults(import_alg, import_alg_params)
+
+
+def test_alg_import_inp_no_file(processing, import_alg, import_alg_params, qgis_new_project, bad_inp):
+    import_alg_params["INPUT"] = "doesnt_exist.inp"
+
+    with pytest.raises(QgsProcessingException, match="inp file does not exist"):
+        processing.runAndLoadResults(import_alg, import_alg_params)
+
+
+def test_alg_import_inp_bad_units(processing, import_alg, import_alg_params, qgis_new_project, bad_inp):
+    import_alg_params["UNITS"] = 19
+
+    with pytest.raises(QgsProcessingException, match="Incorrect parameter value for UNITS"):
+        processing.runAndLoadResults(import_alg, import_alg_params)
 
 
 @pytest.mark.filterwarnings("ignore: 1 pipes have very different attribute length")

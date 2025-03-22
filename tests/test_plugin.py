@@ -1,6 +1,6 @@
 import pytest
 import qgis.utils
-from qgis.core import QgsCoordinateReferenceSystem, QgsProcessingProvider, QgsProject
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsProcessingProvider, QgsProject
 
 import wntrqgis
 
@@ -31,15 +31,6 @@ def patched_plugin(get_plugin_class, mocker):
     return get_plugin_class
 
 
-@pytest.fixture(params=wntrqgis.examples.values())
-def patch_file_crs_dialog(mocker, request):
-    open_dialog = mocker.patch("wntrqgis.plugin.QFileDialog", autospec=True)
-    open_dialog.getOpenFileName.return_value = (request.param, "")
-
-    projection_dialog = mocker.patch("wntrqgis.plugin.QgsProjectionSelectionDialog", autospec=True)
-    projection_dialog.exec.return_value = QgsCoordinateReferenceSystem("EPSG:4326")
-
-
 def test_load_plugin(load_plugin):
     assert load_plugin
 
@@ -59,10 +50,51 @@ def test_create_template_layers(patched_plugin, qgis_new_project):
     assert len(QgsProject.instance().mapLayers()) == 6
 
 
-def test_load_inp_file(patched_plugin, patch_file_crs_dialog, qgis_new_project):
+def patch_dialogs(mocker, file, crs):
+    mocker.patch("wntrqgis.plugin.QFileDialog", autospec=True).getOpenFileName.return_value = (file, "")
+
+    mocker.patch.object(wntrqgis.plugin.QgsProjectionSelectionDialog, "exec").return_value = bool(crs)
+    mocker.patch.object(
+        wntrqgis.plugin.QgsProjectionSelectionDialog, "crs"
+    ).return_value = QgsCoordinateReferenceSystem(crs)
+
+
+def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
+    patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
+
     patched_plugin.actions["load_inp"].trigger()
 
     assert len(QgsProject.instance().mapLayers()) == 6
+
+    assert qgis_iface.messageBar().get_messages(Qgis.Success)[-1].startswith("Success:Loaded .inp file")
+
+
+def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis_new_project):
+    patch_dialogs(mocker, bad_inp, "EPSG:4326")
+
+    patched_plugin.actions["load_inp"].trigger()
+
+    assert (
+        qgis_iface.messageBar()
+        .get_messages(Qgis.Critical)[-1]
+        .startswith("Error:error reading .inp file: (Error 201) syntax error")
+    )
+
+
+def test_load_inp_file_no_file_selected(patched_plugin, mocker, qgis_new_project):
+    patch_dialogs(mocker, "", "EPSG:4326")
+
+    patched_plugin.actions["load_inp"].trigger()
+
+    assert len(QgsProject.instance().mapLayers()) == 0
+
+
+def test_load_inp_file_no_crs_selected(patched_plugin, mocker, qgis_new_project):
+    patch_dialogs(mocker, wntrqgis.examples["KY10"], "")
+
+    patched_plugin.actions["load_inp"].trigger()
+
+    assert len(QgsProject.instance().mapLayers()) == 0
 
 
 def test_load_example(patched_plugin, qgis_new_project):
