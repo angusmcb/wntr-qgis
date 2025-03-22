@@ -51,8 +51,6 @@ def test_create_template_layers(patched_plugin, qgis_new_project):
 
 
 def patch_dialogs(mocker, file, crs):
-    import wntrqgis.plugin
-
     mocker.patch("wntrqgis.plugin.QFileDialog", autospec=True).getOpenFileName.return_value = (file, "")
 
     qpsd = mocker.patch("wntrqgis.plugin.QgsProjectionSelectionDialog", autospec=True)
