@@ -24,8 +24,8 @@ from qgis.gui import QgsProjectionSelectionDialog
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
 from qgis.PyQt.QtCore import QSettings
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QWidget
+from qgis.PyQt.QtGui import QIcon, QPixmap
+from qgis.PyQt.QtWidgets import QAction, QActionGroup, QFileDialog, QMenu, QPushButton, QToolButton, QWidget
 from qgis.utils import iface
 
 import wntrqgis
@@ -103,7 +103,7 @@ except ModuleNotFoundError:
         *,
         enabled_flag: bool = True,
         add_to_menu: bool = True,
-        add_to_toolbar: bool = True,
+        add_to_toolbar: bool = False,
         status_tip: str | None = None,
         whats_this: str | None = None,
         parent: QWidget | None = None,
@@ -171,11 +171,31 @@ except ModuleNotFoundError:
         self.add_action(
             "template_layers",
             join_pixmap(WqIcon.NEW.q_pixmap, WqIcon.LOGO.q_pixmap),
-            text="Create Template Layers",
+            text="Create Template Memory Layers",
             callback=self.create_template_layers,
             parent=iface.mainWindow(),
-            add_to_toolbar=True,
         )
+
+        self.add_action(
+            "create_template_geopackage",
+            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), WqIcon.LOGO.q_pixmap),
+            text="Create Template Geopackage",
+            callback=self.create_template_geopackage,
+            parent=iface.mainWindow(),
+        )
+
+        self.template_layers_menu = QMenu(iface.mainWindow())
+        self.template_layers_menu.addAction(self.actions["template_layers"])
+        self.template_layers_menu.addAction(self.actions["create_template_geopackage"])
+
+        self.template_layers_button = QToolButton()
+
+        self.template_layers_button.setMenu(self.template_layers_menu)
+        self.template_layers_button.setDefaultAction(self.actions["template_layers"])
+        self.template_layers_button.setPopupMode(QToolButton.InstantPopup)
+
+        self.actions["template_layers_menu_widget"] = iface.addToolBarWidget(self.template_layers_button)
+
         self.add_action(
             "load_inp",
             join_pixmap(WqIcon.OPEN.q_pixmap, WqIcon.LOGO.q_pixmap),
@@ -190,7 +210,6 @@ except ModuleNotFoundError:
             text="Run Simulation",
             callback=self.run_simulation,
             parent=iface.mainWindow(),
-            add_to_toolbar=True,
         )
         self.add_action(
             "settings",
@@ -200,8 +219,34 @@ except ModuleNotFoundError:
             text="Settings",
             callback=self.open_settings,
             parent=iface.mainWindow(),
-            add_to_toolbar=True,
         )
+
+        self.run_menu = QMenu(iface.mainWindow())
+        self.run_menu.addAction(self.actions["run_simulation"])
+        self.run_menu.addAction(self.actions["settings"])
+
+        headloss_formula_menu = QMenu("Headloss Formula", iface.mainWindow())
+        headloss_formula_group = QActionGroup(headloss_formula_menu)
+
+        self.headloss_formula_actions = {}
+
+        for hlf in HeadlossFormula:
+            self.headloss_formula_actions[hlf] = QAction(hlf.friendly_name, headloss_formula_menu, checkable=True)
+            self.headloss_formula_actions[hlf].setData(hlf)
+            headloss_formula_menu.addAction(self.headloss_formula_actions[hlf])
+            headloss_formula_group.addAction(self.headloss_formula_actions[hlf])
+        headloss_formula_group.setExclusive(True)
+        headloss_formula_menu.aboutToShow.connect(self.update_headloss_formula_menu)
+
+        self.run_menu.addMenu(headloss_formula_menu)
+
+        self.run_button = QToolButton()
+        self.run_button.setMenu(self.run_menu)
+        self.run_button.setDefaultAction(self.actions["run_simulation"])
+        self.run_button.setPopupMode(QToolButton.MenuButtonPopup)
+
+        self.actions["run_menu_widget"] = iface.addToolBarWidget(self.run_button)
+
         self.add_action(
             "load_example",
             "",
@@ -235,6 +280,11 @@ except ModuleNotFoundError:
 
         # wntr is slow to load so start warming it up now !
         # threading.Thread(target=WqDependencyManagement.import_wntr).start()
+
+    def update_headloss_formula_menu(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        current_hlf = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
+        self.headloss_formula_actions[current_hlf].setChecked(True)
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
@@ -374,10 +424,27 @@ except ModuleNotFoundError:
             success_message=success_message,
         )
 
+    def create_template_geopackage(self):
+        geopackage_path, _ = QFileDialog.getSaveFileName(
+            iface.mainWindow(), "Save Geopackage", QSettings().value("UI/lastProjectDir"), "Geopackage (*.gpkg)"
+        )
+        if not geopackage_path:
+            return
+
+        params = {"CRS": None, **self._empty_model_layer_dict(geopackage_path)}
+        success_message = "Geopackage of Template Layers Created"
+
+        self.run_alg_async("wntr:templatelayers", params, success_message=success_message)
+
+    def _geopackage_processing_output(self, path, name):
+        return QgsProcessingOutputLayerDefinition(f"ogr:dbname='{path}' table='{name}' (geom)", QgsProject.instance())
+
     def _temporary_processing_output(self):
         return QgsProcessingOutputLayerDefinition("TEMPORARY_OUTPUT", QgsProject.instance())
 
-    def _empty_model_layer_dict(self):
+    def _empty_model_layer_dict(self, path=None):
+        if path:
+            return {layer.value: self._geopackage_processing_output(path, layer.value.lower()) for layer in ModelLayer}
         return {layer.value: self._temporary_processing_output() for layer in ModelLayer}
 
     def finish_loading_example_ky10(self):

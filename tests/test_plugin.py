@@ -1,6 +1,13 @@
 import pytest
 import qgis.utils
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsProcessingProvider, QgsProject
+from qgis.core import (
+    Qgis,
+    QgsCoordinateReferenceSystem,
+    QgsDataSourceUri,
+    QgsProcessingProvider,
+    QgsProject,
+    QgsVectorLayer,
+)
 
 import wntrqgis
 
@@ -48,6 +55,35 @@ def test_plugin_class(get_plugin_class):
 def test_create_template_layers(patched_plugin, qgis_new_project):
     patched_plugin.actions["template_layers"].trigger()
     assert len(QgsProject.instance().mapLayers()) == 6
+
+
+def list_layers_in_geopackage(geopackage_path):
+    layers = QgsVectorLayer(geopackage_path, "geopackage_layers", "ogr")
+
+    if not layers.isValid():
+        print("Failed to open GeoPackage")
+        return []
+
+    layer_names = []
+    for layer in layers.dataProvider().subLayers():
+        layer_name = layer.split("!!::!!")[1]
+        layer_names.append(layer_name)
+
+    return layer_names
+
+
+def test_create_template_geopackage(patched_plugin, mocker, tmp_path):
+    geopackage_path = str(tmp_path / "template.gpkg")
+    mocker.patch("wntrqgis.plugin.QFileDialog.getSaveFileName", return_value=(geopackage_path, ""))
+
+    patched_plugin.actions["create_template_geopackage"].trigger()
+
+    assert (tmp_path / "template.gpkg").exists()
+
+    layers = ["junctions", "pipes", "pumps", "reservoirs", "tanks", "valves"]
+    layers_in_geopackage = list_layers_in_geopackage(str(tmp_path / "template.gpkg"))
+    for layer in layers:
+        assert layer in layers_in_geopackage
 
 
 def patch_dialogs(mocker, file, crs):
