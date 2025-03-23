@@ -66,7 +66,7 @@ def file_type(template_alg_params, tmp_path, request):
     return file_type
 
 
-@pytest.fixture(params=["EPSG:4326", "EPSG:32629", "EPSG:3857", None])
+@pytest.fixture(params=["EPSG:4326", "EPSG:32629", "EPSG:3857"])
 def test_crs(request, template_alg_params):
     crs = request.param
     template_alg_params["CRS"] = crs
@@ -285,11 +285,26 @@ def test_alg_template_layers_with_different_crs(processing, template_alg, templa
         assert result["JUNCTIONS"].crs() == QgsProject.instance().crs()
 
 
+def test_alg_template_layers_with_no_crs(processing, template_alg, template_alg_params):
+    del template_alg_params["CRS"]
+
+    result = processing.run(template_alg, template_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
+
+    assert result["JUNCTIONS"].crs() == QgsProject.instance().crs()
+
+
 def test_alg_import_inp_with_different_crs(processing, import_alg, import_alg_params, test_crs):
     result = processing.run(import_alg, import_alg_params)
 
     assert all(outkey in model_layers for outkey in result)
-    if test_crs:
-        assert result["JUNCTIONS"].crs().authid() == test_crs
-    else:
-        assert result["JUNCTIONS"].crs() == QgsProject.instance().crs()
+
+    assert result["JUNCTIONS"].crs().authid() == test_crs
+
+
+def test_alg_import_inp_with_no_crs(processing, import_alg, import_alg_params):
+    del import_alg_params["CRS"]
+
+    with pytest.raises(QgsProcessingException, match="Incorrect parameter value for CRS"):
+        processing.run(import_alg, import_alg_params)

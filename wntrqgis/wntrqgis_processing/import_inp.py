@@ -72,9 +72,10 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
                 extension="inp",
             )
         )
-        self.addParameter(
-            QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"), "ProjectCrs")
-        )
+
+        param = QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"))
+        param.setGuiDefaultValueOverride("ProjectCrs")
+        self.addParameter(param)
 
         self.addParameter(
             QgsProcessingParameterEnum(
