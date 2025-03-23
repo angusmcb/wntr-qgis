@@ -28,6 +28,7 @@ from wntrqgis.dependency_management import WqDependencyManagement
 def patch_iface(qgis_app, qgis_iface):
     qgis_iface.statusBarIface = Mock()
     qgis_iface.layerTreeView = Mock()
+    qgis_iface.addToolBarWidget = Mock()
 
 
 @pytest.fixture(autouse=True, scope="session")
