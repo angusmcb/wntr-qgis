@@ -3,13 +3,14 @@ import qgis.utils
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
-    QgsDataSourceUri,
     QgsProcessingProvider,
     QgsProject,
     QgsVectorLayer,
 )
 
 import wntrqgis
+from wntrqgis.elements import FlowUnit, HeadlossFormula
+from wntrqgis.settings import ProjectSettings, SettingKey
 
 
 @pytest.fixture(scope="module")
@@ -60,9 +61,7 @@ def test_create_template_layers(patched_plugin, qgis_new_project):
 def list_layers_in_geopackage(geopackage_path):
     layers = QgsVectorLayer(geopackage_path, "geopackage_layers", "ogr")
 
-    if not layers.isValid():
-        print("Failed to open GeoPackage")
-        return []
+    assert layers.isValid()
 
     layer_names = []
     for layer in layers.dataProvider().subLayers():
@@ -173,3 +172,24 @@ def test_algorithm_properties(processing_provider):
         assert alg.displayName() is not None
         assert alg.shortHelpString() is not None
         assert alg.icon() is not None
+
+
+@pytest.mark.parametrize("hlf", list(HeadlossFormula))
+def test_set_headloss_formula(patched_plugin, hlf):
+    patched_plugin.headloss_formula_actions[hlf].trigger()
+
+    assert ProjectSettings().get(SettingKey.HEADLOSS_FORMULA) == hlf
+
+
+@pytest.mark.parametrize("unit", list(FlowUnit))
+def test_set_units(patched_plugin, unit):
+    patched_plugin.units_actions[unit].trigger()
+
+    assert ProjectSettings().get(SettingKey.FLOW_UNITS) == unit
+
+
+@pytest.mark.parametrize("duration", [0, 5, 10, 20])
+def test_set_duration(patched_plugin, duration):
+    patched_plugin.duration_actions[duration].trigger()
+
+    assert ProjectSettings().get(SettingKey.SIMULATION_DURATION) == duration

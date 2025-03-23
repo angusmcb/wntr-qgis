@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import math
 import typing
 
 from qgis.core import (
@@ -93,6 +94,9 @@ except ModuleNotFoundError:
 """,
                 ]
             )
+
+        self.duration_menu = None
+        self.duration_actions = {}
 
     def add_action(
         self,
@@ -233,12 +237,51 @@ except ModuleNotFoundError:
         for hlf in HeadlossFormula:
             self.headloss_formula_actions[hlf] = QAction(hlf.friendly_name, headloss_formula_menu, checkable=True)
             self.headloss_formula_actions[hlf].setData(hlf)
+            self.headloss_formula_actions[hlf].triggered.connect(lambda _, param=hlf: self.set_headloss_formula(param))
             headloss_formula_menu.addAction(self.headloss_formula_actions[hlf])
             headloss_formula_group.addAction(self.headloss_formula_actions[hlf])
         headloss_formula_group.setExclusive(True)
         headloss_formula_menu.aboutToShow.connect(self.update_headloss_formula_menu)
 
         self.run_menu.addMenu(headloss_formula_menu)
+
+        units_menu = QMenu("Units", iface.mainWindow())
+        units_group = QActionGroup(units_menu)
+
+        self.units_actions = {}
+
+        for unit in FlowUnit:
+            self.units_actions[unit] = QAction(unit.value, units_menu, checkable=True)
+            self.units_actions[unit].setData(unit)
+            self.units_actions[unit].triggered.connect(lambda _, param=unit: self.set_units(param))
+            units_menu.addAction(self.units_actions[unit])
+            units_group.addAction(self.units_actions[unit])
+        units_group.setExclusive(True)
+        units_menu.aboutToShow.connect(self.update_units_menu)
+
+        self.run_menu.addMenu(units_menu)
+
+        self.duration_menu = QMenu("Duration (hours)", iface.mainWindow())
+        self.duration_group = QActionGroup(self.duration_menu)
+
+        self.duration_actions = {}
+
+        self.duration_actions[0] = QAction("Single period simulation", self.duration_menu, checkable=True)
+        self.duration_actions[0].setData(0)
+        self.duration_actions[0].triggered.connect(lambda: self.set_duration(0))
+        self.duration_menu.addAction(self.duration_actions[0])
+        self.duration_group.addAction(self.duration_actions[0])
+
+        for hours in range(1, 25):
+            self.duration_actions[hours] = QAction(f"{hours} hours", self.duration_menu, checkable=True)
+            self.duration_actions[hours].setData(hours)
+            self.duration_actions[hours].triggered.connect(lambda _, param=hours: self.set_duration(param))
+            self.duration_menu.addAction(self.duration_actions[hours])
+            self.duration_group.addAction(self.duration_actions[hours])
+        self.duration_group.setExclusive(True)
+        self.duration_menu.aboutToShow.connect(self.update_duration_menu)
+
+        self.run_menu.addMenu(self.duration_menu)
 
         self.run_button = QToolButton()
         self.run_button.setMenu(self.run_menu)
@@ -285,6 +328,35 @@ except ModuleNotFoundError:
         project_settings = ProjectSettings(QgsProject.instance())
         current_hlf = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
         self.headloss_formula_actions[current_hlf].setChecked(True)
+
+    def set_headloss_formula(self, headloss_formula):
+        ProjectSettings().set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
+
+    def update_units_menu(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        current_unit = project_settings.get(SettingKey.FLOW_UNITS, FlowUnit.LPS)
+        self.units_actions[current_unit].setChecked(True)
+
+    def set_units(self, unit):
+        ProjectSettings().set(SettingKey.FLOW_UNITS, unit)
+
+    def update_duration_menu(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        current_duration = math.floor(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
+        if current_duration not in self.duration_actions:
+            self.duration_actions[current_duration] = QAction(
+                f"{current_duration} hours", self.duration_menu, checkable=True
+            )
+            self.duration_actions[current_duration].setData(current_duration)
+            self.duration_actions[current_duration].triggered.connect(
+                lambda _, param=current_duration: self.set_duration(param)
+            )
+            self.duration_menu.addAction(self.duration_actions[current_duration])
+            self.duration_group.addAction(self.duration_actions[current_duration])
+        self.duration_actions[current_duration].setChecked(True)
+
+    def set_duration(self, duration):
+        ProjectSettings().set(SettingKey.SIMULATION_DURATION, duration)
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
