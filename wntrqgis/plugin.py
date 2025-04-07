@@ -19,6 +19,7 @@ from qgis.core import (
     QgsRasterLayer,
     QgsRectangle,
     QgsSettings,
+    QgsTask,
 )
 from qgis.gui import QgsProjectionSelectionDialog
 
@@ -235,6 +236,8 @@ except ModuleNotFoundError:
 
         # wntr is slow to load so start warming it up now !
         # threading.Thread(target=WqDependencyManagement.import_wntr).start()
+        self._load_wntr_task = QgsTask.fromFunction("import wntr", import_wntr)
+        QgsApplication.taskManager().addTask(self._load_wntr_task)
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
@@ -419,3 +422,9 @@ class WqProcessingFeedback(QgsProcessingFeedback):
         if not error:
             return
         self.errors.append(error)
+
+
+def import_wntr(task: QgsTask):  # noqa: ARG001
+    """Pre-import wntr to speed up loading"""
+    with contextlib.suppress(ImportError):
+        import wntr  # noqa: F401
