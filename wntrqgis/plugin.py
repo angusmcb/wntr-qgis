@@ -21,7 +21,7 @@ from qgis.core import (
     QgsRectangle,
     QgsSettings,
 )
-from qgis.gui import QgsProjectionSelectionDialog
+from qgis.gui import QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
 from qgis.PyQt.QtCore import QSettings
@@ -94,9 +94,6 @@ except ModuleNotFoundError:
 """,
                 ]
             )
-
-        self.duration_menu = None
-        self.duration_actions = {}
 
     def add_action(
         self,
@@ -324,6 +321,30 @@ except ModuleNotFoundError:
         # wntr is slow to load so start warming it up now !
         # threading.Thread(target=WqDependencyManagement.import_wntr).start()
 
+        self.indicators: list[tuple] = []
+        QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
+
+    def add_layer_indicators(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        model_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+
+        for layer, indicator in self.indicators:
+            with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
+                iface.layerTreeView().removeIndicator(layer, indicator)
+        self.indicators = []
+
+        root = QgsProject.instance().layerTreeRoot()
+        for layer in root.findLayers():
+            if layer.layerId() in model_layers.values():
+                layer_type = list(model_layers.keys())[list(model_layers.values()).index(layer.layerId())]
+                if layer_type not in ModelLayer:
+                    continue
+                indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
+                indicator.setIcon(WqIcon.LOGO.q_icon)
+                indicator.setToolTip("Model Layer")
+                iface.layerTreeView().addIndicator(layer, indicator)
+                self.indicators.append((layer, indicator))
+
     def update_headloss_formula_menu(self):
         project_settings = ProjectSettings(QgsProject.instance())
         current_hlf = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
@@ -373,6 +394,12 @@ except ModuleNotFoundError:
         # if self.examplebutton:
         #    self.examplebutton.disconnect()
         # teardown_logger("wntrqgis")
+
+        for layer, indicator in self.indicators:
+            with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
+                iface.layerTreeView().removeIndicator(layer, indicator)
+        QgsProject.instance().customVariablesChanged.disconnect(self.add_layer_indicators)
+
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def run_alg_async(self, algorithm_name, parameters, on_finish=None, success_message: str | None = None):
@@ -417,7 +444,7 @@ except ModuleNotFoundError:
 
     def create_template_layers(self) -> None:
         parameters = {"CRS": QgsProject.instance().crs(), **self._empty_model_layer_dict()}
-        self.run_alg_async("wntr:templatelayers", parameters, success_message="Template Layers Created")
+        self.run_alg_async("wntr:templatelayers", parameters)
 
     def load_inp_file(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
@@ -506,7 +533,7 @@ except ModuleNotFoundError:
         params = {"CRS": None, **self._empty_model_layer_dict(geopackage_path)}
         success_message = "Geopackage of Template Layers Created"
 
-        self.run_alg_async("wntr:templatelayers", params, success_message=success_message)
+        self.run_alg_async("wntr:templatelayers", params)
 
     def _geopackage_processing_output(self, path, name):
         return QgsProcessingOutputLayerDefinition(f"ogr:dbname='{path}' table='{name}' (geom)", QgsProject.instance())
