@@ -325,26 +325,30 @@ except ModuleNotFoundError:
         QgsApplication.taskManager().addTask(self._load_wntr_task)
 
         self.indicators: list[tuple] = []
+        self.add_layer_indicators()
         QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
 
     def add_layer_indicators(self):
         project_settings = ProjectSettings(QgsProject.instance())
         model_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
 
+        model_layers = {layer: value for layer, value in model_layers.items() if layer in ModelLayer}
+
         for layer, indicator in self.indicators:
             with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
                 iface.layerTreeView().removeIndicator(layer, indicator)
+
         self.indicators = []
 
         root = QgsProject.instance().layerTreeRoot()
         for layer in root.findLayers():
             if layer.layerId() in model_layers.values():
                 layer_type = list(model_layers.keys())[list(model_layers.values()).index(layer.layerId())]
-                if layer_type not in ModelLayer:
-                    continue
+
                 indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
                 indicator.setIcon(WqIcon.LOGO.q_icon)
-                indicator.setToolTip("Model Layer")
+                layer_type_name = layer_type.title()
+                indicator.setToolTip(f"{layer_type_name} Layer")
                 iface.layerTreeView().addIndicator(layer, indicator)
                 self.indicators.append((layer, indicator))
 
