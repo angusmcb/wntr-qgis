@@ -327,30 +327,47 @@ except ModuleNotFoundError:
         self.indicators: list[tuple] = []
         self.add_layer_indicators()
         QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
+        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.add_layer_indicators)
 
     def add_layer_indicators(self):
         project_settings = ProjectSettings(QgsProject.instance())
         model_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
 
         model_layers = {layer: value for layer, value in model_layers.items() if layer in ModelLayer}
+        inverse_model_layers = {value: layer for layer, value in model_layers.items()}
 
-        for layer, indicator in self.indicators:
-            with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
-                iface.layerTreeView().removeIndicator(layer, indicator)
+        old_indicators = self.indicators
 
         self.indicators = []
 
+        for layer_id, layer, indicator, layer_type in old_indicators:
+            if model_layers.get(layer_type) != layer_id:
+                with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
+                    iface.layerTreeView().removeIndicator(layer, indicator)
+            else:
+                self.indicators.append((layer_id, layer, indicator, layer_type))
+
         root = QgsProject.instance().layerTreeRoot()
         for layer in root.findLayers():
-            if layer.layerId() in model_layers.values():
-                layer_type = list(model_layers.keys())[list(model_layers.values()).index(layer.layerId())]
+            layer_id = layer.layerId()
 
-                indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
-                indicator.setIcon(WqIcon.LOGO.q_icon)
-                layer_type_name = layer_type.title()
-                indicator.setToolTip(f"{layer_type_name} Layer")
-                iface.layerTreeView().addIndicator(layer, indicator)
-                self.indicators.append((layer, indicator))
+            if layer_id not in model_layers.values():
+                continue
+
+            existing_indicators = iface.layerTreeView().indicators(layer)
+
+            if existing_indicators and any(
+                existing_indicator in existing_indicators for _, _, existing_indicator, _ in self.indicators
+            ):
+                continue
+
+            indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
+            indicator.setIcon(WqIcon.LOGO.q_icon)
+            layer_type_name = inverse_model_layers[layer_id].title()
+            indicator.setToolTip(f"{layer_type_name} Layer")
+            iface.layerTreeView().addIndicator(layer, indicator)
+
+            self.indicators.append((layer_id, layer, indicator, inverse_model_layers[layer_id]))
 
     def update_headloss_formula_menu(self):
         project_settings = ProjectSettings(QgsProject.instance())
@@ -402,10 +419,11 @@ except ModuleNotFoundError:
         #    self.examplebutton.disconnect()
         # teardown_logger("wntrqgis")
 
-        for layer, indicator in self.indicators:
+        for _, layer, indicator, _ in self.indicators:
             with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
                 iface.layerTreeView().removeIndicator(layer, indicator)
         QgsProject.instance().customVariablesChanged.disconnect(self.add_layer_indicators)
+        QgsProject.instance().layerTreeRoot().addedChildren.disconnect(self.add_layer_indicators)
 
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
