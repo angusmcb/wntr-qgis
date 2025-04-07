@@ -538,7 +538,6 @@ except ModuleNotFoundError:
             return
 
         params = {"CRS": None, **self._empty_model_layer_dict(geopackage_path)}
-        success_message = "Geopackage of Template Layers Created"
 
         self.run_alg_async("wntr:templatelayers", params)
 
