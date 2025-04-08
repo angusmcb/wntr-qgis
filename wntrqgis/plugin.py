@@ -22,7 +22,7 @@ from qgis.core import (
     QgsSettings,
     QgsTask,
 )
-from qgis.gui import QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
+from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
 from qgis.PyQt.QtCore import QSettings
@@ -44,6 +44,8 @@ from wntrqgis.wntrqgis_processing.provider import Provider
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
+
+iface = typing.cast(QgisInterface, iface)
 
 
 class _InstallStatus(enum.Enum):
@@ -332,7 +334,7 @@ except ModuleNotFoundError:
         project_settings = ProjectSettings(QgsProject.instance())
         model_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
 
-        model_layers = {layer: value for layer, value in model_layers.items() if layer in ModelLayer}
+        model_layers = {layer: value for layer, value in model_layers.items() if layer in ModelLayer.__members__}
         inverse_model_layers = {value: layer for layer, value in model_layers.items()}
 
         old_indicators = self.indicators
