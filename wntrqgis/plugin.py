@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import math
 import typing
 
 from qgis.core import (
@@ -21,12 +22,12 @@ from qgis.core import (
     QgsSettings,
     QgsTask,
 )
-from qgis.gui import QgsProjectionSelectionDialog
+from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
 
-# from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
+# from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
 from qgis.PyQt.QtCore import QSettings
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QPushButton, QWidget
+from qgis.PyQt.QtGui import QIcon, QPixmap
+from qgis.PyQt.QtWidgets import QAction, QActionGroup, QFileDialog, QMenu, QPushButton, QToolButton, QWidget
 from qgis.utils import iface
 
 import wntrqgis
@@ -43,6 +44,8 @@ from wntrqgis.wntrqgis_processing.provider import Provider
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
+
+iface = typing.cast(QgisInterface, iface)
 
 
 class _InstallStatus(enum.Enum):
@@ -104,7 +107,7 @@ except ModuleNotFoundError:
         *,
         enabled_flag: bool = True,
         add_to_menu: bool = True,
-        add_to_toolbar: bool = True,
+        add_to_toolbar: bool = False,
         status_tip: str | None = None,
         whats_this: str | None = None,
         parent: QWidget | None = None,
@@ -172,11 +175,31 @@ except ModuleNotFoundError:
         self.add_action(
             "template_layers",
             join_pixmap(WqIcon.NEW.q_pixmap, WqIcon.LOGO.q_pixmap),
-            text="Create Template Layers",
+            text="Create Template Memory Layers",
             callback=self.create_template_layers,
             parent=iface.mainWindow(),
-            add_to_toolbar=True,
         )
+
+        self.add_action(
+            "create_template_geopackage",
+            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), WqIcon.LOGO.q_pixmap),
+            text="Create Template Geopackage",
+            callback=self.create_template_geopackage,
+            parent=iface.mainWindow(),
+        )
+
+        self.template_layers_menu = QMenu(iface.mainWindow())
+        self.template_layers_menu.addAction(self.actions["template_layers"])
+        self.template_layers_menu.addAction(self.actions["create_template_geopackage"])
+
+        self.template_layers_button = QToolButton()
+
+        self.template_layers_button.setMenu(self.template_layers_menu)
+        self.template_layers_button.setDefaultAction(self.actions["template_layers"])
+        self.template_layers_button.setPopupMode(QToolButton.InstantPopup)
+
+        self.actions["template_layers_menu_widget"] = iface.addToolBarWidget(self.template_layers_button)
+
         self.add_action(
             "load_inp",
             join_pixmap(WqIcon.OPEN.q_pixmap, WqIcon.LOGO.q_pixmap),
@@ -191,18 +214,81 @@ except ModuleNotFoundError:
             text="Run Simulation",
             callback=self.run_simulation,
             parent=iface.mainWindow(),
-            add_to_toolbar=True,
         )
         self.add_action(
             "settings",
-            join_pixmap(
-                QIcon(":images/themes/default/propertyicons/settings.svg").pixmap(128, 128), WqIcon.LOGO.q_pixmap
-            ),
-            text="Settings",
+            "",
+            text="Change layers...",
             callback=self.open_settings,
             parent=iface.mainWindow(),
-            add_to_toolbar=True,
+            add_to_menu=False,
         )
+
+        self.run_menu = QMenu(iface.mainWindow())
+        self.run_menu.addAction(self.actions["run_simulation"])
+        self.run_menu.addAction(self.actions["settings"])
+
+        headloss_formula_menu = QMenu("Headloss Formula", iface.mainWindow())
+        headloss_formula_group = QActionGroup(headloss_formula_menu)
+
+        self.headloss_formula_actions = {}
+
+        for hlf in HeadlossFormula:
+            self.headloss_formula_actions[hlf] = QAction(hlf.friendly_name, headloss_formula_menu, checkable=True)
+            self.headloss_formula_actions[hlf].setData(hlf)
+            self.headloss_formula_actions[hlf].triggered.connect(lambda _, param=hlf: self.set_headloss_formula(param))
+            headloss_formula_menu.addAction(self.headloss_formula_actions[hlf])
+            headloss_formula_group.addAction(self.headloss_formula_actions[hlf])
+        headloss_formula_group.setExclusive(True)
+        headloss_formula_menu.aboutToShow.connect(self.update_headloss_formula_menu)
+
+        self.run_menu.addMenu(headloss_formula_menu)
+
+        units_menu = QMenu("Units", iface.mainWindow())
+        units_group = QActionGroup(units_menu)
+
+        self.units_actions = {}
+
+        for unit in FlowUnit:
+            self.units_actions[unit] = QAction(unit.value, units_menu, checkable=True)
+            self.units_actions[unit].setData(unit)
+            self.units_actions[unit].triggered.connect(lambda _, param=unit: self.set_units(param))
+            units_menu.addAction(self.units_actions[unit])
+            units_group.addAction(self.units_actions[unit])
+        units_group.setExclusive(True)
+        units_menu.aboutToShow.connect(self.update_units_menu)
+
+        self.run_menu.addMenu(units_menu)
+
+        self.duration_menu = QMenu("Duration (hours)", iface.mainWindow())
+        self.duration_group = QActionGroup(self.duration_menu)
+
+        self.duration_actions = {}
+
+        self.duration_actions[0] = QAction("Single period simulation", self.duration_menu, checkable=True)
+        self.duration_actions[0].setData(0)
+        self.duration_actions[0].triggered.connect(lambda: self.set_duration(0))
+        self.duration_menu.addAction(self.duration_actions[0])
+        self.duration_group.addAction(self.duration_actions[0])
+
+        for hours in range(1, 25):
+            self.duration_actions[hours] = QAction(f"{hours} hours", self.duration_menu, checkable=True)
+            self.duration_actions[hours].setData(hours)
+            self.duration_actions[hours].triggered.connect(lambda _, param=hours: self.set_duration(param))
+            self.duration_menu.addAction(self.duration_actions[hours])
+            self.duration_group.addAction(self.duration_actions[hours])
+        self.duration_group.setExclusive(True)
+        self.duration_menu.aboutToShow.connect(self.update_duration_menu)
+
+        self.run_menu.addMenu(self.duration_menu)
+
+        self.run_button = QToolButton()
+        self.run_button.setMenu(self.run_menu)
+        self.run_button.setDefaultAction(self.actions["run_simulation"])
+        self.run_button.setPopupMode(QToolButton.MenuButtonPopup)
+
+        self.actions["run_menu_widget"] = iface.addToolBarWidget(self.run_button)
+
         self.add_action(
             "load_example",
             "",
@@ -211,8 +297,6 @@ except ModuleNotFoundError:
             parent=iface.mainWindow(),
             add_to_toolbar=False,
         )
-
-        self.initProcessing()
 
         self.widget = None
         if self._install_status is _InstallStatus.FRESH_INSTALL:
@@ -235,9 +319,89 @@ except ModuleNotFoundError:
             iface.messageBar().pushWidget(self.widget, Qgis.Success)
 
         # wntr is slow to load so start warming it up now !
-        # threading.Thread(target=WqDependencyManagement.import_wntr).start()
         self._load_wntr_task = QgsTask.fromFunction("import wntr", import_wntr)
         QgsApplication.taskManager().addTask(self._load_wntr_task)
+
+        self.indicators: list[tuple] = []
+        self.add_layer_indicators()
+        QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
+        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.add_layer_indicators)
+
+        self.initProcessing()
+
+    def add_layer_indicators(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        model_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+
+        model_layers = {layer: value for layer, value in model_layers.items() if layer in ModelLayer.__members__}
+        inverse_model_layers = {value: layer for layer, value in model_layers.items()}
+
+        old_indicators = self.indicators
+
+        self.indicators = []
+
+        for layer_id, layer, indicator, layer_type in old_indicators:
+            if model_layers.get(layer_type) != layer_id:
+                with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
+                    iface.layerTreeView().removeIndicator(layer, indicator)
+            else:
+                self.indicators.append((layer_id, layer, indicator, layer_type))
+
+        root = QgsProject.instance().layerTreeRoot()
+        for layer in root.findLayers():
+            layer_id = layer.layerId()
+
+            if layer_id not in model_layers.values():
+                continue
+
+            existing_indicators = iface.layerTreeView().indicators(layer)
+
+            if existing_indicators and any(
+                existing_indicator in existing_indicators for _, _, existing_indicator, _ in self.indicators
+            ):
+                continue
+
+            indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
+            indicator.setIcon(WqIcon.LOGO.q_icon)
+            layer_type_name = inverse_model_layers[layer_id].title()
+            indicator.setToolTip(f"{layer_type_name} Layer")
+            iface.layerTreeView().addIndicator(layer, indicator)
+
+            self.indicators.append((layer_id, layer, indicator, inverse_model_layers[layer_id]))
+
+    def update_headloss_formula_menu(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        current_hlf = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
+        self.headloss_formula_actions[current_hlf].setChecked(True)
+
+    def set_headloss_formula(self, headloss_formula):
+        ProjectSettings().set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
+
+    def update_units_menu(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        current_unit = project_settings.get(SettingKey.FLOW_UNITS, FlowUnit.LPS)
+        self.units_actions[current_unit].setChecked(True)
+
+    def set_units(self, unit):
+        ProjectSettings().set(SettingKey.FLOW_UNITS, unit)
+
+    def update_duration_menu(self):
+        project_settings = ProjectSettings(QgsProject.instance())
+        current_duration = math.floor(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
+        if current_duration not in self.duration_actions:
+            self.duration_actions[current_duration] = QAction(
+                f"{current_duration} hours", self.duration_menu, checkable=True
+            )
+            self.duration_actions[current_duration].setData(current_duration)
+            self.duration_actions[current_duration].triggered.connect(
+                lambda _, param=current_duration: self.set_duration(param)
+            )
+            self.duration_menu.addAction(self.duration_actions[current_duration])
+            self.duration_group.addAction(self.duration_actions[current_duration])
+        self.duration_actions[current_duration].setChecked(True)
+
+    def set_duration(self, duration):
+        ProjectSettings().set(SettingKey.SIMULATION_DURATION, duration)
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
@@ -254,6 +418,13 @@ except ModuleNotFoundError:
         # if self.examplebutton:
         #    self.examplebutton.disconnect()
         # teardown_logger("wntrqgis")
+
+        for _, layer, indicator, _ in self.indicators:
+            with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
+                iface.layerTreeView().removeIndicator(layer, indicator)
+        QgsProject.instance().customVariablesChanged.disconnect(self.add_layer_indicators)
+        QgsProject.instance().layerTreeRoot().addedChildren.disconnect(self.add_layer_indicators)
+
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def run_alg_async(self, algorithm_name, parameters, on_finish=None, success_message: str | None = None):
@@ -298,7 +469,7 @@ except ModuleNotFoundError:
 
     def create_template_layers(self) -> None:
         parameters = {"CRS": QgsProject.instance().crs(), **self._empty_model_layer_dict()}
-        self.run_alg_async("wntr:templatelayers", parameters, success_message="Template Layers Created")
+        self.run_alg_async("wntr:templatelayers", parameters)
 
     def load_inp_file(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
@@ -347,7 +518,7 @@ except ModuleNotFoundError:
     def open_settings(self) -> None:
         import processing
 
-        processing.execAlgorithmDialog("wntr:settings")
+        processing.execAlgorithmDialog("wntr:run")
 
     def run_simulation(self) -> None:
         project_settings = ProjectSettings(QgsProject.instance())
@@ -377,10 +548,26 @@ except ModuleNotFoundError:
             success_message=success_message,
         )
 
+    def create_template_geopackage(self):
+        geopackage_path, _ = QFileDialog.getSaveFileName(
+            iface.mainWindow(), "Save Geopackage", QSettings().value("UI/lastProjectDir"), "Geopackage (*.gpkg)"
+        )
+        if not geopackage_path:
+            return
+
+        params = {"CRS": None, **self._empty_model_layer_dict(geopackage_path)}
+
+        self.run_alg_async("wntr:templatelayers", params)
+
+    def _geopackage_processing_output(self, path, name):
+        return QgsProcessingOutputLayerDefinition(f"ogr:dbname='{path}' table='{name}' (geom)", QgsProject.instance())
+
     def _temporary_processing_output(self):
         return QgsProcessingOutputLayerDefinition("TEMPORARY_OUTPUT", QgsProject.instance())
 
-    def _empty_model_layer_dict(self):
+    def _empty_model_layer_dict(self, path=None):
+        if path:
+            return {layer.value: self._geopackage_processing_output(path, layer.value.lower()) for layer in ModelLayer}
         return {layer.value: self._temporary_processing_output() for layer in ModelLayer}
 
     def finish_loading_example_ky10(self):

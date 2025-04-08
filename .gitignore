@@ -1,6 +1,6 @@
 wntr-qgis/i18n
 venv/
-.venv/
+.venv*
 start_ide.bat
 .vscode
 */.pytest_cache

@@ -48,7 +48,9 @@ class ProjectSettings:
 
     SETTING_PREFIX = "wntr_"
 
-    def __init__(self, project: QgsProject):
+    def __init__(self, project: QgsProject | None = None):
+        if not project:
+            project = QgsProject.instance()
         self._project = project
 
     def _setting_name(self, setting):
@@ -59,15 +61,17 @@ class ProjectSettings:
         """Get a value from project settings, with optional default value"""
         setting_name = self._setting_name(setting)
         saved_value = QgsExpressionContextUtils.projectScope(self._project).variable(setting_name)
-        if not saved_value:
+        if saved_value is None:
             return default
         return setting.expected_type(saved_value)
 
     def set(self, setting: SettingKey, value: Any):
         """Save a value to project settings"""
         setting_name = self._setting_name(setting)
-        if not issubclass(type(value), setting.expected_type):
-            msg = f"{setting} expects to save types {type(setting.expected_type)} but got {type(value)}"
+        # if not issubclass(type(value), setting.expected_type):
+        expected_type = setting.expected_type if setting.expected_type is not float else (int, float)
+        if not isinstance(value, expected_type):
+            msg = f"{setting} expects to save types {setting.expected_type} but got {type(value)}"
             raise TypeError(msg)
 
         if isinstance(value, Enum):

@@ -1,8 +1,16 @@
 import pytest
 import qgis.utils
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsProcessingProvider, QgsProject
+from qgis.core import (
+    Qgis,
+    QgsCoordinateReferenceSystem,
+    QgsProcessingProvider,
+    QgsProject,
+    QgsVectorLayer,
+)
 
 import wntrqgis
+from wntrqgis.elements import FlowUnit, HeadlossFormula
+from wntrqgis.settings import ProjectSettings, SettingKey
 
 
 @pytest.fixture(scope="module")
@@ -48,6 +56,33 @@ def test_plugin_class(get_plugin_class):
 def test_create_template_layers(patched_plugin, qgis_new_project):
     patched_plugin.actions["template_layers"].trigger()
     assert len(QgsProject.instance().mapLayers()) == 6
+
+
+def list_layers_in_geopackage(geopackage_path):
+    layers = QgsVectorLayer(geopackage_path, "geopackage_layers", "ogr")
+
+    assert layers.isValid()
+
+    layer_names = []
+    for layer in layers.dataProvider().subLayers():
+        layer_name = layer.split("!!::!!")[1]
+        layer_names.append(layer_name)
+
+    return layer_names
+
+
+def test_create_template_geopackage(patched_plugin, mocker, tmp_path):
+    geopackage_path = str(tmp_path / "template.gpkg")
+    mocker.patch("wntrqgis.plugin.QFileDialog.getSaveFileName", return_value=(geopackage_path, ""))
+
+    patched_plugin.actions["create_template_geopackage"].trigger()
+
+    assert (tmp_path / "template.gpkg").exists()
+
+    layers = ["junctions", "pipes", "pumps", "reservoirs", "tanks", "valves"]
+    layers_in_geopackage = list_layers_in_geopackage(str(tmp_path / "template.gpkg"))
+    for layer in layers:
+        assert layer in layers_in_geopackage
 
 
 def patch_dialogs(mocker, file, crs):
@@ -137,3 +172,24 @@ def test_algorithm_properties(processing_provider):
         assert alg.displayName() is not None
         assert alg.shortHelpString() is not None
         assert alg.icon() is not None
+
+
+@pytest.mark.parametrize("hlf", list(HeadlossFormula))
+def test_set_headloss_formula(patched_plugin, hlf):
+    patched_plugin.headloss_formula_actions[hlf].trigger()
+
+    assert ProjectSettings().get(SettingKey.HEADLOSS_FORMULA) == hlf
+
+
+@pytest.mark.parametrize("unit", list(FlowUnit))
+def test_set_units(patched_plugin, unit):
+    patched_plugin.units_actions[unit].trigger()
+
+    assert ProjectSettings().get(SettingKey.FLOW_UNITS) == unit
+
+
+@pytest.mark.parametrize("duration", [0, 5, 10, 20])
+def test_set_duration(patched_plugin, duration):
+    patched_plugin.duration_actions[duration].trigger()
+
+    assert ProjectSettings().get(SettingKey.SIMULATION_DURATION) == duration
