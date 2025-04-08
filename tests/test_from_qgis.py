@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 import wntr
-from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
+from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
 import wntrqgis
 
@@ -50,7 +50,7 @@ def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: l
 
 @pytest.fixture
 def simple_layers():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("length", float)])
+    junction_layer = layer("point", [("name", str), ("base_demand", float)])
     add_point(junction_layer, (1, 1), ["J1", 1])
     tank_layer = layer("point", [("name", str)])
     add_point(tank_layer, (4, 5), ["T1"])
@@ -251,23 +251,6 @@ def test_bad_units(simple_layers):
         wntrqgis.from_qgis(simple_layers, units="Non-existant", headloss="H-W")
 
 
-@pytest.mark.skip
-def test_length_measurement_4326(simple_layers):
-    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
-
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
-    pipe = wn.get_link("P1")
-    assert pipe.length == 556597.4539663679
-
-
-# def test_length_measurement_4326_ellipsoidal(qgis_new_project, simple_layers):
-#     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W", crs="EPSG:7030")
-
-#     assert isinstance(wn, wntr.network.WaterNetworkModel)
-#     pipe = wn.get_link("P1")
-#     assert pipe.length == 556597.4539663679
-
-
 def test_length_measurement_utm(simple_layers):
     for layer in simple_layers.values():
         layer.setCrs(QgsCoordinateReferenceSystem("EPSG:32600"))
@@ -314,12 +297,12 @@ def test_custom_attributes():
 
 @pytest.fixture
 def layers_that_snap():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("length", float)])
-    add_point(junction_layer, (1, 1), ["J1", 1])
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (0, 0), ["J1"])
     tank_layer = layer("point", [("name", str)])
-    add_point(tank_layer, (1000, 1000), ["T1"])
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (950, 1050)], ["P1", 100])
+    add_point(tank_layer, (3000, 4000), ["T1"])
+    pipe_layer = layer("linestring", [("name", str)])
+    add_line(pipe_layer, [(1, 1), (2800, 3800)], ["P1"])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
@@ -332,9 +315,56 @@ def test_snap_nodes(layers_that_snap):
     assert wn.get_link("P1").end_node_name == "T1"
 
 
+@pytest.fixture
+def mixed_crs_layers():
+    junction_layer = layer("point", [("name", str)], "EPSG:4326")
+    add_point(junction_layer, (-83, 38), ["J1"])
+    tank_layer = layer("point", [("name", str)], "EPSG:32616")
+    add_point(tank_layer, (844219, 4230929), ["T1"])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float)], "EPSG:3089")
+    add_line(pipe_layer, [(5713511, 3899366), (5691228, 3957214)], ["P1", 100])
+    return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+
+def test_snap_nodes_mixed_crs(mixed_crs_layers):
+    wn = wntrqgis.from_qgis(mixed_crs_layers, "LPS", "H-W")
+
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert "P1" in wn.pipe_name_list
+    assert wn.get_link("P1").start_node_name == "J1"
+    assert wn.get_link("P1").end_node_name == "T1"
+
+
+@pytest.mark.parametrize("crs", ["EPSG:32616", "EPSG:3089"])
+def test_snap_nodes_mixed_crs_with_crs_specified(mixed_crs_layers, crs):
+    wn = wntrqgis.from_qgis(mixed_crs_layers, "LPS", "H-W", crs=crs)
+    assert wn.get_link("P1").length == pytest.approx(18900, 0.01)
+
+
+def test_snap_nodes_mixed_crs_length(mixed_crs_layers):
+    wn = wntrqgis.from_qgis(mixed_crs_layers, "LPS", "H-W")
+    assert wn.get_link("P1").length == pytest.approx(19569, 0.01)
+
+
+def test_snap_nodes_mixed_crs_simple():
+    junction_layer = layer("point", [("name", str)], "EPSG:4326")
+    add_point(junction_layer, (-83, 38), ["J1"])
+    tank_layer = layer("point", [("name", str)], "EPSG:4326")
+    add_point(tank_layer, (-84, 39), ["T1"])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float)], "EPSG:3857")
+    add_line(pipe_layer, [(-9239517, 4579425), (-9350837, 4721671)], ["P1", 100])
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert "P1" in wn.pipe_name_list
+    assert wn.get_link("P1").start_node_name == "J1"
+    assert wn.get_link("P1").end_node_name == "T1"
+
+
 def test_snap_length(layers_that_snap):
     wn = wntrqgis.from_qgis(layers_that_snap, "LPS", "H-W")
-    assert wn.get_link("P1").length == pytest.approx(((950 - 1) ** 2 + (1050 - 1) ** 2) ** 0.5, 0.1)
+    assert wn.get_link("P1").length == 5000
 
 
 def test_too_far_to_snap():
@@ -348,3 +378,111 @@ def test_too_far_to_snap():
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="nearest node to snap to is too far"):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+
+def test_measure_no_crs(simple_layers):
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert wn.get_link("P1").length == 5.0
+
+
+def test_measure_utm(simple_layers):
+    # 32636 is a utm crs
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W", crs="EPSG:32636")
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert wn.get_link("P1").length == 5.0
+
+
+def test_measure_feet(simple_layers):
+    # 3089 is a feet crs
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W", crs="EPSG:3089")
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert wn.get_link("P1").length == pytest.approx(5.0 / 3.2808, 0.01)
+
+
+def test_prioritise_length_attribute():
+    junction_layer = layer("point", [("name", str), ("base_demand", float)])
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    add_point(junction_layer, (4, 5), ["J2"])
+    pipe_layer = layer("linestring", [("name", str), ("length", float)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P2", 100])
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+
+    warn_message = r"1 pipes have very different attribute length vs measured length. First five are: P2 \(5m vs 100m\)"
+    with pytest.warns(UserWarning, match=warn_message):
+        wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert wn.get_link("P1").length == 5
+    assert wn.get_link("P2").length == 100
+
+
+@pytest.mark.parametrize(
+    ("bool_attr", "expected_result", "field_type"),
+    [
+        (1, True, int),
+        (0, False, int),
+        (True, True, bool),
+        (False, False, bool),
+        ("True", True, str),
+        ("False", False, str),
+        ("1", True, str),
+        ("0", False, str),
+        (1.0, True, float),
+        (0.0, False, float),
+        ("1.0", True, str),
+        ("0.0", False, str),
+        (NULL, False, float),
+    ],
+)
+def test_boolean_attributes(bool_attr, expected_result, field_type):
+    if bool_attr in ["True", "False"]:
+        pytest.skip("String True/False Boolean attributes are not supported in WNTR yet")
+
+    junction_layer = layer("point", [("name", str), ("base_demand", float)])
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    tank_layer = layer("point", [("name", str), ("overflow", field_type)])
+    add_point(tank_layer, (4, 5), ["T1", bool_attr])
+    pipe_layer = layer("linestring", [("name", str), ("check_valve", field_type)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", bool_attr])
+
+    layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
+
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+    assert wn.get_link("P1").check_valve is expected_result
+    assert wn.get_node("T1").overflow is expected_result
+
+
+@pytest.mark.parametrize(
+    ("float_attr", "expected_result", "field_type"),
+    [
+        (1, 1.0, int),
+        (0, 0.0, int),
+        ("1", 1.0, str),
+        ("0", 0.0, str),
+        (1.1, 1.1, float),
+        (0.0, 0.0, float),
+        ("1.1", 1.1, str),
+        ("0.0", 0.0, str),
+    ],
+)
+def test_float_attributes(float_attr, expected_result, field_type):
+    if float_attr in ["True", "False"]:
+        pytest.skip("String True/False Boolean attributes are not supported in WNTR yet")
+
+    junction_layer = layer("point", [("name", str), ("elevation", field_type)])
+    add_point(junction_layer, (1, 1), ["J1", float_attr])
+    tank_layer = layer("point", [("name", str), ("diameter", field_type)])
+    add_point(tank_layer, (4, 5), ["T1", float_attr])
+    pipe_layer = layer("linestring", [("name", str), ("length", field_type), ("diameter", field_type)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr, float_attr])
+
+    layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
+
+    wn = wntrqgis.from_qgis(layers, "lps", "H-W")
+    assert wn.get_node("J1").elevation == expected_result
+    assert wn.get_link("P1").length == expected_result
+    assert wn.get_node("T1").diameter == expected_result
+    assert wn.get_link("P1").diameter == expected_result / 1000
