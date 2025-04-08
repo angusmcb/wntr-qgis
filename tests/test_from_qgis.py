@@ -275,3 +275,37 @@ def test_length_measurement_utm(simple_layers):
     assert isinstance(wn, wntr.network.WaterNetworkModel)
     pipe = wn.get_link("P1")
     assert pipe.length == 5.0
+
+
+def test_custom_attributes():
+    # Create layers directly
+    junction_layer = layer(
+        "point",
+        [
+            ("name", str),
+            ("base_demand", float),
+            ("custom_str", str),
+            ("custom_int", int),
+            ("custom_float", float),
+            ("custom_bool", bool),
+        ],
+    )
+    add_point(junction_layer, (1, 1), ["J1", 1, "xx", 2, 2.5, True])
+    add_point(junction_layer, (2, 2), ["J2", 2, "yy", 1000000000, 7.2, False])
+
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (2, 2)], ["P1", 100])
+
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+    assert wn.get_node("J1").custom_str == "xx"
+    assert wn.get_node("J1").custom_int == 2
+    assert wn.get_node("J1").custom_float == 2.5
+    assert wn.get_node("J1").custom_bool is True
+
+    assert wn.get_node("J2").custom_str == "yy"
+    assert wn.get_node("J2").custom_int == 1000000000
+    assert wn.get_node("J2").custom_float == 7.2
+    assert wn.get_node("J2").custom_bool is False

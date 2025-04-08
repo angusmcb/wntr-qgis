@@ -73,16 +73,6 @@ def test_flegere_calculated_length(flegere_layers, unit):
     clean_layers(flegere_layers)
 
 
-def test_flegere_extra_attribute(flegere_gdfs):
-    flegere_gdfs["junctions"]["extra_value"] = "extra value"
-    flegere_gdfs["pipes"]["extra_number"] = 55
-    flegere_layers = to_layers(flegere_gdfs)
-    wn = wq.from_qgis(flegere_layers, "lps", "H-W")
-    assert wn.get_node("1").extra_value == "extra value"
-    assert wn.get_link("1").extra_number == 55
-    clean_layers(flegere_layers)
-
-
 def test_flegere_load_results(flegere_layers):
     wn = wq.from_qgis(flegere_layers, "lps", "H-W")
 
