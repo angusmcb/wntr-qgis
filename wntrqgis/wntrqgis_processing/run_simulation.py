@@ -129,11 +129,11 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             QgsProcessingParameterFeatureSink(ResultLayer.LINKS.value, self.tr("Simulation Results - Links"))
         )
 
-        param = QgsProcessingParameterFileDestination(
-            self.OUTPUTINP, "Output .inp file", optional=True, createByDefault=False
+        self.addParameter(
+            QgsProcessingParameterFileDestination(
+                self.OUTPUTINP, "Output .inp file", optional=True, createByDefault=False
+            )
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(param)
 
     def processAlgorithm(  # noqa N802
         self,
