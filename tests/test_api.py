@@ -43,17 +43,6 @@ def test_flegere(qgis_new_project, flegere_gdfs):
     clean_layers(flegere_layers)
 
 
-@pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
-def test_flegere_snap(qgis_new_project, flegere_layers):
-    QgsProject.instance().addMapLayers(flegere_layers.values())
-
-    wn = wq.from_qgis(flegere_layers, "LPS", "H-W")
-
-    wq.to_qgis(wn)
-
-    wntrqgis.interface.check_network(wn)
-
-
 @pytest.mark.parametrize(
     ("unit", "expected_length"), [("LPS", 100), ("LPS", 100.0), ("GPM", 328.0839895013123), ("LPM", "100")]
 )

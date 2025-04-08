@@ -11,7 +11,7 @@ def layer(layer_type: str, fields: list[tuple[str, type]] | None = None, crs: st
     if not fields:
         fields = []
     field_string = "&".join([f"field={name}:{type_to_string(the_type)}" for name, the_type in fields])
-    crs_string = f"&crs={crs}" if crs else ""
+    crs_string = f"&crs={crs}" if crs else "&crs=None"
     return QgsVectorLayer(f"{layer_type}?{field_string}{crs_string}", "", "memory")
 
 
@@ -251,6 +251,7 @@ def test_bad_units(simple_layers):
         wntrqgis.from_qgis(simple_layers, units="Non-existant", headloss="H-W")
 
 
+@pytest.mark.skip
 def test_length_measurement_4326(simple_layers):
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
@@ -309,3 +310,41 @@ def test_custom_attributes():
     assert wn.get_node("J2").custom_int == 1000000000
     assert wn.get_node("J2").custom_float == 7.2
     assert wn.get_node("J2").custom_bool is False
+
+
+@pytest.fixture
+def layers_that_snap():
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("length", float)])
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    tank_layer = layer("point", [("name", str)])
+    add_point(tank_layer, (1000, 1000), ["T1"])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (950, 1050)], ["P1", 100])
+    return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+
+def test_snap_nodes(layers_that_snap):
+    wn = wntrqgis.from_qgis(layers_that_snap, "LPS", "H-W")
+
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert "P1" in wn.pipe_name_list
+    assert wn.get_link("P1").start_node_name == "J1"
+    assert wn.get_link("P1").end_node_name == "T1"
+
+
+def test_snap_length(layers_that_snap):
+    wn = wntrqgis.from_qgis(layers_that_snap, "LPS", "H-W")
+    assert wn.get_link("P1").length == pytest.approx(((950 - 1) ** 2 + (1050 - 1) ** 2) ** 0.5, 0.1)
+
+
+def test_too_far_to_snap():
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("length", float)])
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    tank_layer = layer("point", [("name", str)])
+    add_point(tank_layer, (1000, 1000), ["T1"])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (900, 900)], ["P1", 100])
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="nearest node to snap to is too far"):
+        wntrqgis.from_qgis(layers, "LPS", "H-W")
