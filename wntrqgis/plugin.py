@@ -24,7 +24,7 @@ from qgis.core import (
 )
 from qgis.gui import QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
 
-# from qgis.processing import execAlgorithmDialog for qgis 3.40 onwarrds
+# from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
 from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import QAction, QActionGroup, QFileDialog, QMenu, QPushButton, QToolButton, QWidget
@@ -320,7 +320,6 @@ except ModuleNotFoundError:
             iface.messageBar().pushWidget(self.widget, Qgis.Success)
 
         # wntr is slow to load so start warming it up now !
-        # threading.Thread(target=WqDependencyManagement.import_wntr).start()
         self._load_wntr_task = QgsTask.fromFunction("import wntr", import_wntr)
         QgsApplication.taskManager().addTask(self._load_wntr_task)
 
