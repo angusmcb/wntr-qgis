@@ -217,12 +217,11 @@ except ModuleNotFoundError:
         )
         self.add_action(
             "settings",
-            join_pixmap(
-                QIcon(":images/themes/default/propertyicons/settings.svg").pixmap(128, 128), WqIcon.LOGO.q_pixmap
-            ),
-            text="Settings",
+            "",
+            text="Change layers...",
             callback=self.open_settings,
             parent=iface.mainWindow(),
+            add_to_menu=False,
         )
 
         self.run_menu = QMenu(iface.mainWindow())
@@ -299,8 +298,6 @@ except ModuleNotFoundError:
             add_to_toolbar=False,
         )
 
-        self.initProcessing()
-
         self.widget = None
         if self._install_status is _InstallStatus.FRESH_INSTALL:
             with contextlib.suppress(AttributeError):
@@ -329,6 +326,8 @@ except ModuleNotFoundError:
         self.add_layer_indicators()
         QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
         QgsProject.instance().layerTreeRoot().addedChildren.connect(self.add_layer_indicators)
+
+        self.initProcessing()
 
     def add_layer_indicators(self):
         project_settings = ProjectSettings(QgsProject.instance())
@@ -519,7 +518,7 @@ except ModuleNotFoundError:
     def open_settings(self) -> None:
         import processing
 
-        processing.execAlgorithmDialog("wntr:settings")
+        processing.execAlgorithmDialog("wntr:run")
 
     def run_simulation(self) -> None:
         project_settings = ProjectSettings(QgsProject.instance())
