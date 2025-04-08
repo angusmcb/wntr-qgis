@@ -402,7 +402,6 @@ except ModuleNotFoundError:
 
     def set_duration(self, duration):
         ProjectSettings().set(SettingKey.SIMULATION_DURATION, duration)
-        
 
     def load_example_from_messagebar(self):
         self.widget.dismiss()
