@@ -205,18 +205,7 @@ class ModelLayer(_AbstractLayer):
                 ModelField.HEADLOSS_CURVE,
             ],
         }
-        field_list = field_dict[self]
-        if field_group:
-            return [field for field in field_list if field.field_group & field_group]
-        return field_list
-
-    def qgs_fields(self, analysis_type: FieldGroup) -> QgsFields:
-        """QgsFields object of fields associated with each layer"""
-        qgs_fields = QgsFields()
-        field_list = self.wq_fields(analysis_type)
-        for field in field_list:
-            qgs_fields.append(field.qgs_field)
-        return qgs_fields
+        return field_dict[self]
 
 
 class ResultLayer(_AbstractLayer):
@@ -264,34 +253,14 @@ class _AbstractField(Enum):
         """The field group(s) the field is part of"""
         return self._field_group
 
-    @property
-    def _qgs_wkb_type(self):
-        return self._get_qgs_field_type(self.python_type)
-
-    def _get_qgs_field_type(self, python_type):
-        use_qmetatype = Qgis.versionInt() >= QGIS_VERSION_QMETATYPE
-
-        if issubclass(python_type, str):
-            return QMetaType.QString if use_qmetatype else QVariant.String
-        if issubclass(python_type, float):
-            return QMetaType.Double if use_qmetatype else QVariant.Double
-        if issubclass(python_type, bool):
-            return QMetaType.Bool if use_qmetatype else QVariant.Bool
-        if issubclass(python_type, int):
-            return QMetaType.Int if use_qmetatype else QVariant.Int
-        if issubclass(python_type, list):
-            return QMetaType.QVariantList if use_qmetatype else QVariant.List
-
-        raise KeyError
-
 
 class ModelField(_AbstractField):
     """All recognised fields that could be in a model layer
 
     >>> for field in ModelField:
-    ...     assert (
-    ...         field.name.lower() == field.value.lower()
-    ...     ), f"{field.name} != {field.value}"
+    ...     assert field.name.lower() == field.value.lower(), (
+    ...         f"{field.name} != {field.value}"
+    ...     )
     """
 
     NAME = "name", str, FieldGroup.BASE
@@ -335,10 +304,6 @@ class ModelField(_AbstractField):
     EFFICIENCY = "efficiency", str, FieldGroup.ENERGY
     ENERGY_PATTERN = "energy_pattern", float, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
-
-    @property
-    def qgs_field(self):
-        return QgsField(self.name.lower(), self._qgs_wkb_type)
 
 
 class ResultField(_AbstractField):
