@@ -506,6 +506,21 @@ def test_float_attributes(float_attr, expected_result, field_type):
     assert wn.get_link("P1").diameter == expected_result / 1000
 
 
+def test_float_error():
+    junction_layer = layer("point")
+    add_point(junction_layer, (1, 1))
+    add_point(junction_layer, (4, 5))
+    pipe_layer = layer("linestring", [("name", str), ("diameter", str)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", "not_a_float"])
+
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+
+    with pytest.raises(
+        wntrqgis.interface.NetworkModelError, match='Problem in column diameter: Unable to parse string "not_a_float"'
+    ):
+        wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+
 def test_demand_pattern():
     junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", str)])
     add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2.5 -3"])
@@ -825,3 +840,32 @@ def test_efficiency_curve():
     wn = wntrqgis.from_qgis(pattern_layers, "CFS", "H-W")
 
     assert wn.get_link("P1").efficiencey.multipliers == "1"
+
+
+def test_null_geometry_point():
+    junction_layer = layer("point")
+    junction_layer.dataProvider().addFeature(QgsFeature())
+    add_point(junction_layer, (1, 1))
+    tank_layer = layer("point")
+    tank_layer.dataProvider().addFeature(QgsFeature())
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in nodes, 2 feature\(s\) have no geometry"):
+        wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+
+def test_null_geometry_link():
+    junction_layer = layer("point")
+    add_point(junction_layer, (1, 1))
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    tank_layer = layer("point", [("name", str)])
+    add_point(tank_layer, (4, 5), ["T1"])
+    pipe_layer = layer("linestring")
+    pipe_layer.dataProvider().addFeature(QgsFeature())
+
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in links, 1 feature\(s\) have no geometry"):
+        wntrqgis.from_qgis(layers, "LPS", "H-W")
