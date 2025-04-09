@@ -518,7 +518,7 @@ def test_demand_pattern():
 
     wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
-    assert wn.get_node("J1").demand_pattern == "2"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5, -3]
 
 
@@ -586,9 +586,9 @@ def test_lots_of_patterns():
     pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
     wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
-    assert wn.get_node("J1").demand_pattern == "2"
-    assert wn.get_node("J2").demand_pattern == "2"
-    assert wn.get_node("J3").demand_pattern == "3"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
+    assert wn.get_node("J2").demand_timeseries_list[0].pattern_name == "2"
+    assert wn.get_node("J3").demand_timeseries_list[0].pattern_name == "3"
     assert wn.get_node("R1").head_pattern_name == "4"
     assert wn.get_node("R2").head_pattern_name is None
     assert wn.get_link("P1").speed_pattern_name == "5"
