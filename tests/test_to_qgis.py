@@ -40,9 +40,9 @@ def check_values(layer, field_name, expected_values):
     assert layer.fields().indexFromName(field_name) != -1, f"Field '{field_name}' does not exist in the layer."
 
     actual_values = [feature[field_name] for feature in layer.getFeatures()]
-    assert actual_values == expected_values, (
-        f"Field values {actual_values} do not match expected values {expected_values}."
-    )
+
+    error_message = f"Field '{field_name}' values do not match. Expected: {expected_values}, Actual: {actual_values}"
+    assert actual_values == expected_values, error_message
 
 
 def test_basic_wn(qgis_new_project, wn):
