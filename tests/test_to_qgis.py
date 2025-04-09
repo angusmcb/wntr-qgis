@@ -1,6 +1,6 @@
 import pytest
 import wntr
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
+from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
 import wntrqgis
 
@@ -81,6 +81,34 @@ def test_eps_results(qgis_new_project, wn, eps, results):
     assert len(QgsProject.instance().mapLayers()) == 2
     check_values(layers["NODES"], "demand", [[10.0, 10.0], [20.0, 20.0], [-30.0, -30.0]])
     check_values(layers["LINKS"], "flowrate", [[-10.0, -10.0], [-30.0, -30.0]])
+
+
+def test_custom_attr_str(wn):
+    wn.nodes["J1"].custom_str = "Custom String"
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["JUNCTIONS"], "custom_str", ["Custom String", NULL])
+
+
+def test_custom_attr_int(wn):
+    wn.nodes["J2"].custom_int = 42
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["JUNCTIONS"], "custom_int", [NULL, 42])
+
+
+def test_custom_attr_float(wn):
+    wn.nodes["J1"].custom_float = 3.14
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["JUNCTIONS"], "custom_float", [3.14, NULL])
+
+
+def test_custom_attr_bool(wn):
+    wn.links["P1"].custom_bool = True
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["PIPES"], "custom_bool", [True, NULL])
 
 
 def test_valid_crs_string(wn):
