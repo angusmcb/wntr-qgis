@@ -676,6 +676,8 @@ class _Patterns:
             return None
         try:
             pattern_map = {pattern: self.add(pattern) for pattern in pattern_series.unique()}
+        except TypeError:
+            return pattern_series.apply(self.add)  # for lists
         except ValueError as e:
             raise PatternError(e, layer_name, pattern_name) from None
         return pattern_series.map(pattern_map)
@@ -706,7 +708,10 @@ class _Curves:
             return None
 
         name = str(self._next_curve_name)
-        curve_points: list = ast.literal_eval(curve_string)
+        try:
+            curve_points: list = ast.literal_eval(curve_string)
+        except SyntaxError as e:
+            raise CurveError(e, curve_type) from None
         curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
         self._next_curve_name += 1
@@ -752,7 +757,7 @@ class _Curves:
         elif curve_type is _Curves.Type.HEADLOSS:
             for point in points:
                 x = conversion_function(point[0], HydParam.Flow)
-                y = conversion_function(point[1], HydParam.HeadLoss)
+                y = conversion_function(point[1], HydParam.HydraulicHead)
                 converted_points.append((x, y))
         else:
             raise KeyError("Curve type not specified")  # noqa: EM101, TRY003 # pragma: no cover
