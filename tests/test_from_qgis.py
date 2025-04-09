@@ -618,7 +618,7 @@ def test_float_list_pattern():
 
     wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
-    assert wn.get_node("J1").demand_pattern == "2"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5]
 
 
@@ -634,7 +634,7 @@ def test_str_list_pattern():
 
     wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
-    assert wn.get_node("J1").demand_pattern == "2"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5]
 
 
@@ -650,7 +650,7 @@ def test_int_list_pattern():
 
     wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
-    assert wn.get_node("J1").demand_pattern == "2"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [1, 0, -1, 100]
 
 
@@ -668,8 +668,8 @@ def test_double_list_pattern():
 
     wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
-    assert wn.get_node("J1").demand_pattern == "2"
-    assert wn.get_node("J2").demand_pattern == "2"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
+    assert wn.get_node("J2").demand_timeseries_list[0].pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [1, 0, -1, 100]
 
 
