@@ -26,7 +26,7 @@ class WqDependencyManagement:
         if not cls._dependencies_available:
             missing_deps = cls._check_dependencies()
             if len(missing_deps):
-                msg = f"Missing necessary python packages {*missing_deps,}. Please see help for how to fix this"
+                msg = f"Missing necessary python packages {(*missing_deps,)}. Please see help for how to fix this"
                 raise ModuleNotFoundError(msg)
 
             cls._dependencies_available = True
@@ -48,9 +48,7 @@ class WqDependencyManagement:
     @staticmethod
     def _check_dependencies():
         return [
-            package
-            for package in ["pandas", "geopandas", "numpy", "scipy", "networkx", "matplotlib"]
-            if find_spec(package) is None
+            package for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib"] if find_spec(package) is None
         ]
 
     @staticmethod
