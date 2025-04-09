@@ -128,6 +128,48 @@ def test_no_pipes(all_layers):
     assert isinstance(wn, wntr.network.WaterNetworkModel)
 
 
+def test_no_links():
+    all_layers = {"JUNCTIONS": layer("point", [("name", str)]), "PIPES": layer("linestring", [("name", str)])}
+    add_point(all_layers["JUNCTIONS"], (1, 1), ["J1"])
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="No links provided"):
+        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+
+
+def test_no_nodes():
+    all_layers = {"JUNCTIONS": layer("point"), "PIPES": layer("linestring", [("name", str)])}
+    add_line(all_layers["PIPES"], [(1, 1)], ["P1"])
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="No nodes provided"):
+        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+
+
+def test_wntr_error():
+    all_layers = {
+        "JUNCTIONS": layer("point", [("name", str)]),
+        "PUMPS": layer("linestring", [("name", str), ("pump_type", str)]),
+    }
+    add_point(all_layers["JUNCTIONS"], (1, 1), ["J1"])
+    add_point(all_layers["JUNCTIONS"], (2, 2), ["J2"])
+    add_line(all_layers["PUMPS"], [(1, 1), (2, 2)], ["P1", "NOT_A_PUMP_TYPE"])
+
+    with pytest.raises(wntrqgis.interface.WntrError, match="error from WNTR. pump_parameter must be a float or string"):
+        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+
+
+@pytest.mark.skip("Can't find out how to make an infinite line")
+def test_infinite_pipe():
+    junction_layer = layer("point", [("name", str)], "EPSG:4326")
+    add_point(junction_layer, (1, 1), ["J1"])
+    add_point(junction_layer, (400, 400), ["J2"])
+    pipe_layer = layer("linestring", [("name", str)], "EPSG:4326")
+    add_line(pipe_layer, [(1, 1), (400, 400)], ["P1"])
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="Infinite length is not allowed"):
+        wntrqgis.from_qgis(layers, "LPS", "H-W", crs="EPSG:3089")
+
+
 @pytest.mark.parametrize("headloss", ["H-W", "D-W", "C-M"])
 def test_from_qgis_headloss(simple_layers, headloss):
     wn = wntrqgis.from_qgis(simple_layers, "LPS", headloss=headloss)
