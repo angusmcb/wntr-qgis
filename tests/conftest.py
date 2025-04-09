@@ -17,9 +17,7 @@ fixtures:
 from pathlib import Path
 from unittest.mock import Mock
 
-import geopandas as gpd
 import pytest
-from qgis.core import QgsVectorLayer
 
 from wntrqgis.dependency_management import WqDependencyManagement
 
@@ -59,28 +57,6 @@ def get_example():
 
 def test_model_layer(file_name):
     return str(Path(__file__).parent / "test_models" / file_name)
-
-
-@pytest.fixture
-def flegere_layers():
-    junctions = QgsVectorLayer(test_model_layer("la-praz-junction.geojson"), "", "ogr")
-    reservoirs = QgsVectorLayer(test_model_layer("flegere-reservoir.geojson"), "", "ogr")
-    pipes = QgsVectorLayer(test_model_layer("flegere-lift.geojson"), "", "ogr")
-    tank = QgsVectorLayer(test_model_layer("flegere-tank.geojson"), "", "ogr")
-
-    return {"junctions": junctions, "reservoirs": reservoirs, "pipes": pipes, "tanks": tank}
-
-
-@pytest.fixture
-def flegere_gdfs():
-    files = {
-        "junctions": "la-praz-junction.geojson",
-        "reservoirs": "flegere-reservoir.geojson",
-        "pipes": "flegere-lift.geojson",
-        "tanks": "flegere-tank.geojson",
-    }
-
-    return {k: gpd.read_file(test_model_layer(v)) for k, v in files.items()}
 
 
 WqDependencyManagement.ensure_wntr()
