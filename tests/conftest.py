@@ -58,7 +58,3 @@ def get_example():
         return str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / file_name)
 
     return _
-
-
-def test_model_layer(file_name):
-    return str(Path(__file__).parent / "test_models" / file_name)
