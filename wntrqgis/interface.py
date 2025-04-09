@@ -1042,7 +1042,7 @@ class _FromGis:
         return link_df.drop(columns="geometry")
 
     def _process_pipe_length(self, pipe_df: pd.DataFrame) -> pd.Series:
-        calculated_lengths: pd.Series = pipe_df.loc[:, "geometry"].map(self._get_length)
+        calculated_lengths: pd.Series = pipe_df.loc[:, "geometry"].map(self._get_length).astype("float")
         attribute_lengths = pipe_df.loc[:, "length"]
 
         has_attr_length = attribute_lengths.notna()
@@ -1160,6 +1160,9 @@ class _FromGis:
 
         if "speed_pattern" in link_df:
             link_df["speed_pattern_name"] = self.patterns.add_all(link_df.get("speed_pattern"), "pumps", "speed")
+
+        if "energy_pattern" in link_df:
+            link_df["energy_pattern"] = self.patterns.add_all(link_df.get("energy_pattern"), "pumps", "energy")
 
         return link_df.drop(
             columns=["headloss_curve", "pump_curve", "speed_pattern"],
@@ -1285,9 +1288,7 @@ class CurveError(NetworkModelError, ValueError):
         elif curve_type is _Curves.Type.VOLUME:
             curve_name = "tank volume"
 
-        super().__init__(
-            f"problem reading {curve_name} curve ({exception})" "Curves hould be of the form [(1,2), (3,4)]"
-        )
+        super().__init__(f"problem reading {curve_name} curve ({exception})Curves hould be of the form [(1,2), (3,4)]")
 
 
 class WntrError(NetworkModelError):

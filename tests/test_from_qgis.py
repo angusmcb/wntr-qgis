@@ -59,20 +59,8 @@ def simple_layers():
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
-def test_simple_layers(simple_layers):
-    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
-    assert "J1" in wn.junction_name_list
-
-
-def test_broken_layername(simple_layers):
-    simple_layers["wrongname"] = simple_layers["JUNCTIONS"]
-
-    with pytest.raises(ValueError, match="'wrongname' is not a valid layer type."):
-        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
-
-
-def test_minimum_attributes():
+@pytest.fixture
+def all_layers():
     junction_layer = layer("Point", [])
     add_point(junction_layer, (1, 1))
     add_point(junction_layer, (2, 2))
@@ -92,7 +80,7 @@ def test_minimum_attributes():
     valve_layer = layer("LineString", [("valve_type", str)])
     add_line(valve_layer, [(1, 1), (2, 2)], ["PRV"])
 
-    layers = {
+    return {
         "JUNCTIONS": junction_layer,
         "TANKS": tank_layer,
         "RESERVOIRS": reservoir_layer,
@@ -101,7 +89,22 @@ def test_minimum_attributes():
         "VALVES": valve_layer,
     }
 
-    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+def test_simple_layers(simple_layers):
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
+    assert "J1" in wn.junction_name_list
+
+
+def test_broken_layername(simple_layers):
+    simple_layers["wrongname"] = simple_layers["JUNCTIONS"]
+
+    with pytest.raises(ValueError, match="'wrongname' is not a valid layer type."):
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
+
+
+def test_minimum_attributes(all_layers):
+    wn = wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
     assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert "1" in wn.junction_name_list
@@ -111,6 +114,14 @@ def test_minimum_attributes():
     assert "1" in wn.pipe_name_list
     assert "2" in wn.pump_name_list
     assert "3" in wn.valve_name_list
+
+
+def test_no_pipes(all_layers):
+    del all_layers["PIPES"]
+
+    wn = wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+
+    assert isinstance(wn, wntr.network.WaterNetworkModel)
 
 
 @pytest.mark.parametrize("headloss", ["H-W", "D-W", "C-M"])
@@ -472,10 +483,11 @@ def test_float_attributes(float_attr, expected_result, field_type):
     if float_attr in ["True", "False"]:
         pytest.skip("String True/False Boolean attributes are not supported in WNTR yet")
 
-    junction_layer = layer("point", [("name", str), ("elevation", field_type)])
-    add_point(junction_layer, (1, 1), ["J1", float_attr])
-    tank_layer = layer("point", [("name", str), ("diameter", field_type)])
-    add_point(tank_layer, (4, 5), ["T1", float_attr])
+    junction_layer = layer("point", [("name", str), ("elevation", field_type), ("pressure_exponent", field_type)])
+    add_point(junction_layer, (1, 1), ["J1", float_attr, float_attr])
+    # additionally check that 'elevation' can accept mixed types
+    tank_layer = layer("point", [("name", str), ("diameter", field_type), ("elevation", float)])
+    add_point(tank_layer, (4, 5), ["T1", float_attr, 865.0])
     pipe_layer = layer("linestring", [("name", str), ("length", field_type), ("diameter", field_type)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr, float_attr])
 
@@ -483,6 +495,96 @@ def test_float_attributes(float_attr, expected_result, field_type):
 
     wn = wntrqgis.from_qgis(layers, "lps", "H-W")
     assert wn.get_node("J1").elevation == expected_result
-    assert wn.get_link("P1").length == expected_result
+    assert wn.get_node("J1").pressure_exponent == expected_result
     assert wn.get_node("T1").diameter == expected_result
+    assert wn.get_node("T1").elevation == 865.0
+    assert wn.get_link("P1").length == expected_result
     assert wn.get_link("P1").diameter == expected_result / 1000
+
+
+def test_demand_pattern():
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", str)])
+    add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2.5"])
+    reservoir_layer = layer("point", [("name", str)])
+    add_point(reservoir_layer, (4, 5), ["R1"])
+
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
+    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+    assert wn.get_node("J1").demand_pattern == "2"
+    assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5]
+
+
+def test_head_pattern():
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    reservoir_layer = layer("point", [("name", str), ("head_pattern", str)])
+    add_point(reservoir_layer, (4, 5), ["R1", "2 0 200.5"])
+
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
+    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+    assert wn.get_node("R1").head_pattern_name == "2"
+    assert list(wn.patterns["2"].multipliers) == [2, 0, 200.5]
+
+
+@pytest.mark.skip(reason="Energy pattern bug in wntr")
+def test_energy_pattern():
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    reservoir_layer = layer("point", [("name", str)])
+    add_point(reservoir_layer, (4, 5), ["R1"])
+
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("energy_pattern", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "5 4 3 2 1 1"])
+    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+    assert wn.get_link("P1").energy_pattern == "2"
+    assert list(wn.patterns["2"].multipliers) == [5, 4, 3, 2, 1, 1, 1]
+
+
+def test_speed_pattern():
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    reservoir_layer = layer("point", [("name", str)])
+    add_point(reservoir_layer, (4, 5), ["R1"])
+
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("speed_pattern", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "5 4 3 2 1 1"])
+    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+    assert wn.get_link("P1").speed_pattern_name == "2"
+    assert list(wn.patterns["2"].multipliers) == [5.0, 4.0, 3.0, 2.0, 1.0, 1.0]
+
+
+def test_lots_of_patterns():
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", str)])
+    add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2.5"])
+    add_point(junction_layer, (2, 2), ["J2", 1, "1 0 2.5"])
+    add_point(junction_layer, (3, 3), ["J3", 1, "1 0 3.0"])
+
+    reservoir_layer = layer("point", [("name", str), ("head_pattern", str)])
+    add_point(reservoir_layer, (4, 5), ["R1", "2 0 200.5"])
+    add_point(reservoir_layer, (5, 6), ["R2"])
+
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("speed_pattern", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "5 4 3 2 1 1"])
+    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+    assert wn.get_node("J1").demand_pattern == "2"
+    assert wn.get_node("J2").demand_pattern == "2"
+    assert wn.get_node("J3").demand_pattern == "3"
+    assert wn.get_node("R1").head_pattern_name == "4"
+    assert wn.get_node("R2").head_pattern_name is None
+    assert wn.get_link("P1").speed_pattern_name == "5"
