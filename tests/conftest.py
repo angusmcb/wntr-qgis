@@ -19,8 +19,6 @@ from unittest.mock import Mock
 
 import pytest
 
-from wntrqgis.dependency_management import WqDependencyManagement
-
 
 @pytest.fixture(autouse=True, scope="session")
 def patch_iface(qgis_app, qgis_iface):
@@ -35,6 +33,13 @@ def processing(qgis_processing):
     import processing
 
     return processing
+
+
+@pytest.fixture(autouse=True, scope="session")
+def check_wntr():
+    from wntrqgis.dependency_management import WqDependencyManagement
+
+    WqDependencyManagement.ensure_wntr()
 
 
 @pytest.fixture
@@ -57,6 +62,3 @@ def get_example():
 
 def test_model_layer(file_name):
     return str(Path(__file__).parent / "test_models" / file_name)
-
-
-WqDependencyManagement.ensure_wntr()
