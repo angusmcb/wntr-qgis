@@ -113,7 +113,7 @@ def generate_attributes_table(_):
     for layer in ModelLayer:
         table = pd.DataFrame(
             [
-                (field.value, field_type_str(field, layer), field_value(field, layer), field_analysis_type(field))
+                (field.value, field_type_str(field), field_value(field, layer), field_analysis_type(field))
                 for field in layer.wq_fields()
             ],
             columns=["Attribute", "QGIS Field Type", "Value(s)", "Used for"],
@@ -121,20 +121,14 @@ def generate_attributes_table(_):
         table.to_csv(output_dir / (layer.name.lower() + ".csv"), index=False)
 
 
-def field_type_str(field, layer):
-    from wntrqgis.elements import CurveType, InitialStatus, ModelLayer, PatternType
+def field_type_str(field):
+    from wntrqgis.elements import PatternType
 
     python_type = field.python_type
-    # if issubclass(python_type, Enum):
-    #     if python_type is InitialStatus and layer is ModelLayer.PIPES:
-    #         enum_list = [InitialStatus.Open, InitialStatus.Closed]
-    #     else:
-    #         enum_list = python_type.__members__
-    #     return ", ".join(enum_list)
+
     if issubclass(python_type, PatternType):
         return "Text (string) *or* Decimal list"
-    # if issubclass(python_type, CurveType):
-    #     return "Text (string)"
+
     if issubclass(python_type, str):
         return "Text (string)"
     if python_type is float:
@@ -144,7 +138,7 @@ def field_type_str(field, layer):
     return python_type.__name__
 
 
-def field_value(field, layer):
+def field_value(field, layer) -> str:
     from wntrqgis.elements import CurveType, InitialStatus, ModelLayer, PatternType
 
     python_type = field.python_type
@@ -160,6 +154,8 @@ def field_value(field, layer):
         return "Curve"
     if field.name in ["NAME", "LENGTH"]:
         return "Will calculate if blank"
+
+    return ""
 
 
 def field_analysis_type(field):

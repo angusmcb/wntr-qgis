@@ -68,11 +68,11 @@ class FieldGroup(Flag):
 
 
 class PatternType(str):
-    pass
+    __slots__ = ()
 
 
 class CurveType(str):
-    pass
+    __slots__ = ()
 
 
 class ElementFamily(Enum):
@@ -297,9 +297,9 @@ class ModelField(_AbstractField):
     """All recognised fields that could be in a model layer
 
     >>> for field in ModelField:
-    ...     assert field.name.lower() == field.value.lower(), (
-    ...         f"{field.name} != {field.value}"
-    ...     )
+    ...     assert (
+    ...         field.name.lower() == field.value.lower()
+    ...     ), f"{field.name} != {field.value}"
     """
 
     NAME = "name", str, FieldGroup.BASE
