@@ -67,6 +67,14 @@ class FieldGroup(Flag):
     REQUIRED = auto()
 
 
+class PatternType(str):
+    __slots__ = ()
+
+
+class CurveType(str):
+    __slots__ = ()
+
+
 class ElementFamily(Enum):
     """Enum for node and link types"""
 
@@ -297,7 +305,7 @@ class ModelField(_AbstractField):
     NAME = "name", str, FieldGroup.BASE
     ELEVATION = "elevation", float, FieldGroup.BASE
     BASE_DEMAND = "base_demand", float, FieldGroup.BASE
-    DEMAND_PATTERN = "demand_pattern", str, FieldGroup.BASE
+    DEMAND_PATTERN = "demand_pattern", PatternType, FieldGroup.BASE
     EMITTER_COEFFICIENT = "emitter_coefficient", float, FieldGroup.BASE
     INIT_LEVEL = "init_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_LEVEL = "min_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
@@ -305,22 +313,22 @@ class ModelField(_AbstractField):
     VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
     DIAMETER = "diameter", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_VOL = "min_vol", float, FieldGroup.BASE
-    VOL_CURVE = "vol_curve", str, FieldGroup.BASE
+    VOL_CURVE = "vol_curve", CurveType, FieldGroup.BASE
     OVERFLOW = "overflow", bool, FieldGroup.BASE
     BASE_HEAD = "base_head", float, FieldGroup.BASE
-    HEAD_PATTERN = "head_pattern", str, FieldGroup.BASE
+    HEAD_PATTERN = "head_pattern", PatternType, FieldGroup.BASE
     LENGTH = "length", float, FieldGroup.BASE
     ROUGHNESS = "roughness", float, FieldGroup.BASE | FieldGroup.REQUIRED
     MINOR_LOSS = "minor_loss", float, FieldGroup.BASE
     CHECK_VALVE = "check_valve", bool, FieldGroup.BASE
     PUMP_TYPE = "pump_type", PumpTypes, FieldGroup.BASE | FieldGroup.REQUIRED
-    PUMP_CURVE = "pump_curve", str, FieldGroup.BASE
+    PUMP_CURVE = "pump_curve", CurveType, FieldGroup.BASE
     POWER = "power", float, FieldGroup.BASE
     BASE_SPEED = "base_speed", float, FieldGroup.BASE
-    SPEED_PATTERN = "speed_pattern", str, FieldGroup.BASE
+    SPEED_PATTERN = "speed_pattern", PatternType, FieldGroup.BASE
     INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
     INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
-    HEADLOSS_CURVE = "headloss_curve", str, FieldGroup.BASE
+    HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
 
     INITIAL_QUALITY = "initial_quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS
@@ -332,8 +340,8 @@ class ModelField(_AbstractField):
     REQUIRED_PRESSURE = "required_pressure", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
     PRESSURE_EXPONENT = "pressure_exponent", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
-    EFFICIENCY = "efficiency", str, FieldGroup.ENERGY
-    ENERGY_PATTERN = "energy_pattern", float, FieldGroup.ENERGY
+    EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
+    ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
 
     @property

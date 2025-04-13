@@ -8,6 +8,10 @@
 
 import os
 import sys
+from enum import Enum
+from pathlib import Path
+
+import pandas as pd
 
 project = "Water Network Tools for Resiliance - QGIS Integration"
 project_copyright = "2024, Angus McBride"
@@ -99,3 +103,71 @@ sys.path.insert(0, os.path.abspath(".."))
 autodoc_type_aliases = {"Iterable": "Iterable", "ArrayLike": "ArrayLike"}
 # add_module_names = False
 autodoc_member_order = "bysource"
+
+
+def generate_attributes_table(_):
+    from wntrqgis.elements import ModelLayer
+
+    output_dir = Path(__file__).parent / "user_guide" / "autogen-includes"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for layer in ModelLayer:
+        table = pd.DataFrame(
+            [
+                (field.value, field_type_str(field), field_value(field, layer), field_analysis_type(field))
+                for field in layer.wq_fields()
+            ],
+            columns=["Attribute", "QGIS Field Type", "Value(s)", "Used for"],
+        )
+        table.to_csv(output_dir / (layer.name.lower() + ".csv"), index=False)
+
+
+def field_type_str(field):
+    from wntrqgis.elements import PatternType
+
+    python_type = field.python_type
+
+    if issubclass(python_type, PatternType):
+        return "Text (string) *or* Decimal list"
+
+    if issubclass(python_type, str):
+        return "Text (string)"
+    if python_type is float:
+        return "Decimal (double)"
+    if python_type is bool:
+        return "Boolean"
+    return python_type.__name__
+
+
+def field_value(field, layer) -> str:
+    from wntrqgis.elements import CurveType, InitialStatus, ModelLayer, PatternType
+
+    python_type = field.python_type
+    if issubclass(python_type, Enum):
+        if python_type is InitialStatus and layer is ModelLayer.PIPES:
+            enum_list = [InitialStatus.Open, InitialStatus.Closed]
+        else:
+            enum_list = python_type.__members__
+        return ", ".join(enum_list)
+    if issubclass(python_type, PatternType):
+        return "Pattern"
+    if issubclass(python_type, CurveType):
+        return "Curve"
+    if field.name in ["NAME", "LENGTH"]:
+        return "Will calculate if blank"
+
+    return ""
+
+
+def field_analysis_type(field):
+    from wntrqgis.elements import FieldGroup
+
+    analysis_types_of_interest = [
+        FieldGroup.PRESSURE_DEPENDENT_DEMAND,
+        FieldGroup.ENERGY,
+        FieldGroup.WATER_QUALITY_ANALYSIS,
+    ]
+    return ", ".join([g.name.title().replace("_", " ") for g in analysis_types_of_interest if g in field.field_group])
+
+
+def setup(app):
+    app.connect("builder-inited", generate_attributes_table)

@@ -17,119 +17,53 @@ You can use the 'new' button on the toolbar to create a set of layers with defau
 
 Alternatively, for more control, you can use the 'Create Template Layers' processing tool.
 
-You can also use any existing layers.
+It is also possible to use any layer - you do not have to use the layers created by the plugin.
 
 
 Attributes
 -----------
-Attributes are based on the attributes within WNTR, with some adaptations:
+Attributes are based on the attributes within WNTR.
 
-* All layers can optionally use the attribute 'name' to give a name to each item, which will be visible on the output layer. This must be a string. If no name is given, it will be automatically generated.
-* All patterns and curves are input to each element, rather than as a reference to a pattern within WNTR.
-* All geographical (coordinates, vertices) and network-related (start_node_name and end_node_name) attributes are calculated automatically based on the geometry of the features.
+All attributes are optional, and unless otherwise stated will use WNTR default values if not defined.
 
-All attributes are optional, except those marked *Required*
+**Name** All layers can optionally use the attribute `name` to give a name to each item, which will be visible on the output layer. This must be a string. If no name is given, it will be automatically generated.
 
-.. table:: Possible Junction Layer Attributes
+**Patterns** All patterns are string fields. This can be left blank. Otherwise, it should be input as a series of numbers seperated by spaces:
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | base_demand         | *Required*                   |
-    +---------------------+------------------------------+
-    | elevation           | 0                            |
-    +---------------------+------------------------------+
-    | demand_pattern      | No pattern - constant demand |
-    +---------------------+------------------------------+
-    | emitter_coefficient | None                         |
-    +---------------------+------------------------------+
-    | initial_quality     | 0                            |
-    +---------------------+------------------------------+
+``1  1.2 1.3 0.8``
 
-.. table:: Possible Reservoir Layer Attributes
+Patterns will also accept a field of type list, where each item in the list is a number.
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | base_head           | 0                            |
-    +---------------------+------------------------------+
-    | head_pattern        | No pattern - constant head   |
-    +---------------------+------------------------------+
-    | initial_quality     | 0                            |
-    +---------------------+------------------------------+
+**Curves** Curves should be inputted with the following form:
 
-.. table:: Possible Tank Layer Attributes
+``[ (0, 10), (2, 5), (3.3, 7)]``
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | elevation           | 0                            |
-    +---------------------+------------------------------+
-    | init_level          | *Required*                   |
-    +---------------------+------------------------------+
-    | min_level           | 0                            |
-    +---------------------+------------------------------+
-    | max_level           | *Required*                   |
-    +---------------------+------------------------------+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | min_vol             | 0                            |
-    +---------------------+------------------------------+
-    | vol_curve           | No curve- cylindrical tank   |
-    +---------------------+------------------------------+
-    | overflow            | False                        |
-    +---------------------+------------------------------+
-    | inital_quality      | 0                            |
-    +---------------------+------------------------------+
-    | mixing_fraction     | None                         |
-    +---------------------+------------------------------+
-    | mixing_model        | None                         |
-    +---------------------+------------------------------+
-    | bulk_coeff          | None                         |
-    +---------------------+------------------------------+
+**Geographical attributes** All geographical (`coordinates`, `vertices`) and network-related (`start_node_name` and `end_node_name`) WNTR attributes are not used. This is because they are calculated automatically based on the geometry of the features.
 
-.. table:: Possible Pipe Layer Attributes
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | roughness           | *Required*                   |
-    +---------------------+------------------------------+
-    | minor_loss          | 0                            |
-    +---------------------+------------------------------+
-    | initial_status      | Open                         |
-    +---------------------+------------------------------+
-    | check_valve         | False                        |
-    +---------------------+------------------------------+
-    | bulk_coeff          | None                         |
-    +---------------------+------------------------------+
-    | wall_coeff          | None                         |
-    +---------------------+------------------------------+
 
-.. table:: Possible Pump Layer Attributes
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | pump_type           | POWER                        |
-    | pump_curve          | None                         |
-    | power               |                              |
-    | base_speed          | 1                            |
-    | speed_pattern       | None                         |
-    | initial_status      | Open                         |
-    | Initial_setting     | None                         |
-    +---------------------+------------------------------+
 
-.. table:: Possible Valve Layer Attributes
+.. csv-table:: Possible Junction Attributes
+    :file: autogen-includes/junctions.csv
+    :header-rows: 1
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | diameter            | *Required*                   |
-    | valve_type          | 'PRV'                        |
-    | minor_loss          | 0                            |
-    | initial_status      | Active                       |
-    | Initial_setting     |                              |
-    +---------------------+------------------------------+
+.. csv-table:: Possible Reservoir Attributes
+    :file: autogen-includes/reservoirs.csv
+    :header-rows: 1
+
+.. csv-table:: Possible Tank Attributes
+    :file: autogen-includes/tanks.csv
+    :header-rows: 1
+
+.. csv-table:: Possible Pipes Attributes
+    :file: autogen-includes/pipes.csv
+    :header-rows: 1
+
+.. csv-table:: Possible Pumps Attributes
+    :file: autogen-includes/pumps.csv
+    :header-rows: 1
+
+.. csv-table:: Possible Valve Attributes
+    :file: autogen-includes/valves.csv
+    :header-rows: 1
