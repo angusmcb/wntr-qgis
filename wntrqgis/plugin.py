@@ -319,7 +319,7 @@ except ModuleNotFoundError:
             iface.messageBar().pushWidget(self.widget, Qgis.Success)
 
         # wntr is slow to load so start warming it up now !
-        self._load_wntr_task = QgsTask.fromFunction("import wntr", import_wntr)
+        self._load_wntr_task = QgsTask.fromFunction("Set up wntr-qgis", import_wntr)
         QgsApplication.taskManager().addTask(self._load_wntr_task)
 
         self.indicators: list[tuple] = []
