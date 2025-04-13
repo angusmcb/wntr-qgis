@@ -22,272 +22,48 @@ It is also possible to use any layer - you do not have to use the layers created
 
 Attributes
 -----------
-Attributes are based on the attributes within WNTR, with some adaptations:
+Attributes are based on the attributes within WNTR.
 
-* All layers can optionally use the attribute 'name' to give a name to each item, which will be visible on the output layer. This must be a string. If no name is given, it will be automatically generated.
-* All patterns and curves are input to each element, rather than as a reference to a pattern within WNTR.
-* All geographical (coordinates, vertices) and network-related (start_node_name and end_node_name) attributes are calculated automatically based on the geometry of the features.
+All attributes are optional, and unless otherwise stated will use WNTR default values if not defined.
 
-All attributes are optional, except those marked *Required*
+**Name** All layers can optionally use the attribute `name` to give a name to each item, which will be visible on the output layer. This must be a string. If no name is given, it will be automatically generated.
 
+**Patterns** All patterns are string fields. This can be left blank. Otherwise, it should be input as a series of numbers seperated by spaces:
 
-.. AUTO-GENERATED-ATTRIBUTES-TABLE-START
+``1  1.2 1.3 0.8``
 
-.. table:: Possible Junctions Layer Attributes
+Patterns will also accept a field of type list, where each item in the list is a number.
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | name                | None                         |
-    +---------------------+------------------------------+
-    | elevation           | None                         |
-    +---------------------+------------------------------+
-    | base_demand         | None                         |
-    +---------------------+------------------------------+
-    | demand_pattern      | None                         |
-    +---------------------+------------------------------+
-    | emitter_coefficient | None                         |
-    +---------------------+------------------------------+
-    | initial_quality     | None                         |
-    +---------------------+------------------------------+
-    | minimum_pressure    | None                         |
-    +---------------------+------------------------------+
-    | required_pressure   | None                         |
-    +---------------------+------------------------------+
-    | pressure_exponent   | None                         |
-    +---------------------+------------------------------+
+**Curves** Curves should be inputted with the following form:
+
+``[ (0, 10), (2, 5), (3.3, 7)]``
+
+**Geographical attributes** All geographical (`coordinates`, `vertices`) and network-related (`start_node_name` and `end_node_name`) WNTR attributes are not used. This is because they are calculated automatically based on the geometry of the features.
 
 
 
-.. table:: Possible Reservoirs Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | name                | None                         |
-    +---------------------+------------------------------+
-    | base_head           | None                         |
-    +---------------------+------------------------------+
-    | head_pattern        | None                         |
-    +---------------------+------------------------------+
-    | initial_quality     | None                         |
-    +---------------------+------------------------------+
 
 
+.. csv-table:: Possible Junction Attributes
+    :file: autogen-includes/junctions.csv
+    :header-rows: 1
 
-.. table:: Possible Tanks Layer Attributes
+.. csv-table:: Possible Reservoir Attributes
+    :file: autogen-includes/reservoirs.csv
+    :header-rows: 1
 
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | name                | None                         |
-    +---------------------+------------------------------+
-    | elevation           | None                         |
-    +---------------------+------------------------------+
-    | init_level          | *Required*                   |
-    +---------------------+------------------------------+
-    | min_level           | *Required*                   |
-    +---------------------+------------------------------+
-    | max_level           | *Required*                   |
-    +---------------------+------------------------------+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | min_vol             | None                         |
-    +---------------------+------------------------------+
-    | vol_curve           | None                         |
-    +---------------------+------------------------------+
-    | overflow            | None                         |
-    +---------------------+------------------------------+
-    | initial_quality     | None                         |
-    +---------------------+------------------------------+
-    | mixing_fraction     | None                         |
-    +---------------------+------------------------------+
-    | mixing_model        | None                         |
-    +---------------------+------------------------------+
-    | bulk_coeff          | None                         |
-    +---------------------+------------------------------+
+.. csv-table:: Possible Tank Attributes
+    :file: autogen-includes/tanks.csv
+    :header-rows: 1
 
+.. csv-table:: Possible Pipes Attributes
+    :file: autogen-includes/pipes.csv
+    :header-rows: 1
 
+.. csv-table:: Possible Pumps Attributes
+    :file: autogen-includes/pumps.csv
+    :header-rows: 1
 
-.. table:: Possible Pipes Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | name                | None                         |
-    +---------------------+------------------------------+
-    | length              | None                         |
-    +---------------------+------------------------------+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | roughness           | *Required*                   |
-    +---------------------+------------------------------+
-    | minor_loss          | None                         |
-    +---------------------+------------------------------+
-    | initial_status      | None                         |
-    +---------------------+------------------------------+
-    | check_valve         | None                         |
-    +---------------------+------------------------------+
-    | bulk_coeff          | None                         |
-    +---------------------+------------------------------+
-    | wall_coeff          | None                         |
-    +---------------------+------------------------------+
-
-
-
-.. table:: Possible Pumps Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | name                | None                         |
-    +---------------------+------------------------------+
-    | pump_type           | *Required*                   |
-    +---------------------+------------------------------+
-    | pump_curve          | None                         |
-    +---------------------+------------------------------+
-    | power               | None                         |
-    +---------------------+------------------------------+
-    | base_speed          | None                         |
-    +---------------------+------------------------------+
-    | speed_pattern       | None                         |
-    +---------------------+------------------------------+
-    | initial_status      | None                         |
-    +---------------------+------------------------------+
-    | initial_setting     | None                         |
-    +---------------------+------------------------------+
-    | efficiency          | None                         |
-    +---------------------+------------------------------+
-    | energy_pattern      | None                         |
-    +---------------------+------------------------------+
-    | energy_price        | None                         |
-    +---------------------+------------------------------+
-
-
-
-.. table:: Possible Valves Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | name                | None                         |
-    +---------------------+------------------------------+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | valve_type          | *Required*                   |
-    +---------------------+------------------------------+
-    | minor_loss          | None                         |
-    +---------------------+------------------------------+
-    | initial_status      | None                         |
-    +---------------------+------------------------------+
-    | initial_setting     | None                         |
-    +---------------------+------------------------------+
-    | headloss_curve      | None                         |
-    +---------------------+------------------------------+
-
-.. AUTO-GENERATED-ATTRIBUTES-TABLE-END
-
-
-.. table:: Possible Junction Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | base_demand         | *Required*                   |
-    +---------------------+------------------------------+
-    | elevation           | 0                            |
-    +---------------------+------------------------------+
-    | demand_pattern      | No pattern - constant demand |
-    +---------------------+------------------------------+
-    | emitter_coefficient | None                         |
-    +---------------------+------------------------------+
-    | initial_quality     | 0                            |
-    +---------------------+------------------------------+
-
-.. table:: Possible Reservoir Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | base_head           | 0                            |
-    +---------------------+------------------------------+
-    | head_pattern        | No pattern - constant head   |
-    +---------------------+------------------------------+
-    | initial_quality     | 0                            |
-    +---------------------+------------------------------+
-
-.. table:: Possible Tank Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | elevation           | 0                            |
-    +---------------------+------------------------------+
-    | init_level          | *Required*                   |
-    +---------------------+------------------------------+
-    | min_level           | 0                            |
-    +---------------------+------------------------------+
-    | max_level           | *Required*                   |
-    +---------------------+------------------------------+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | min_vol             | 0                            |
-    +---------------------+------------------------------+
-    | vol_curve           | No curve- cylindrical tank   |
-    +---------------------+------------------------------+
-    | overflow            | False                        |
-    +---------------------+------------------------------+
-    | inital_quality      | 0                            |
-    +---------------------+------------------------------+
-    | mixing_fraction     | None                         |
-    +---------------------+------------------------------+
-    | mixing_model        | None                         |
-    +---------------------+------------------------------+
-    | bulk_coeff          | None                         |
-    +---------------------+------------------------------+
-
-.. table:: Possible Pipe Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | diameter            | *Required*                   |
-    +---------------------+------------------------------+
-    | roughness           | *Required*                   |
-    +---------------------+------------------------------+
-    | minor_loss          | 0                            |
-    +---------------------+------------------------------+
-    | initial_status      | Open                         |
-    +---------------------+------------------------------+
-    | check_valve         | False                        |
-    +---------------------+------------------------------+
-    | bulk_coeff          | None                         |
-    +---------------------+------------------------------+
-    | wall_coeff          | None                         |
-    +---------------------+------------------------------+
-
-.. table:: Possible Pump Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | pump_type           | POWER                        |
-    | pump_curve          | None                         |
-    | power               |                              |
-    | base_speed          | 1                            |
-    | speed_pattern       | None                         |
-    | initial_status      | Open                         |
-    | Initial_setting     | None                         |
-    +---------------------+------------------------------+
-
-.. table:: Possible Valve Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-    | diameter            | *Required*                   |
-    | valve_type          | 'PRV'                        |
-    | minor_loss          | 0                            |
-    | initial_status      | Active                       |
-    | Initial_setting     |                              |
-    +---------------------+------------------------------+
+.. csv-table:: Possible Valve Attributes
+    :file: autogen-includes/valves.csv
+    :header-rows: 1

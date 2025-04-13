@@ -72,7 +72,7 @@ class _FieldStyles:
                 "ValueMap",
                 {"map": value_map},
             )
-        if python_type_class is str:
+        if issubclass(python_type_class, str):
             return QgsEditorWidgetSetup("TextEdit", {"IsMultiline": False, "UseHtml": False})
         raise KeyError  # pragma: no cover
 

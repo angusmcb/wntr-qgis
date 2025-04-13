@@ -7,8 +7,11 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import os
-import subprocess
 import sys
+from enum import Enum
+from pathlib import Path
+
+import pandas as pd
 
 project = "Water Network Tools for Resiliance - QGIS Integration"
 project_copyright = "2024, Angus McBride"
@@ -102,53 +105,73 @@ autodoc_type_aliases = {"Iterable": "Iterable", "ArrayLike": "ArrayLike"}
 autodoc_member_order = "bysource"
 
 
-# -- Custom code to generate attributes table ------------------------------
-def generate_attributes_table():
-    from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
+def generate_attributes_table(_):
+    from wntrqgis.elements import ModelLayer
 
-    table_template = """
-.. table:: Possible {layer_name} Layer Attributes
-
-    +---------------------+------------------------------+
-    | Attribute           | If not set                   |
-    +=====================+==============================+
-{rows}
-"""
-
-    row_template = (
-        "    | {attribute:<19} | {default:<28} |\n    +---------------------+------------------------------+\n"
-    )
-
-    tables = []
+    output_dir = Path(__file__).parent / "user_guide" / "autogen-includes"
+    output_dir.mkdir(parents=True, exist_ok=True)
     for layer in ModelLayer:
-        rows = []
-        for field in layer.wq_fields():
-            default = "*Required*" if FieldGroup.REQUIRED in field.field_group else "None"
-            rows.append(row_template.format(attribute=field.name.lower(), default=default))
-        table = table_template.format(layer_name=layer.name.capitalize(), rows="".join(rows))
-        tables.append(table)
+        table = pd.DataFrame(
+            [
+                (field.value, field_type_str(field, layer), field_value(field, layer), field_analysis_type(field))
+                for field in layer.wq_fields()
+            ],
+            columns=["Attribute", "QGIS Field Type", "Value(s)", "Used for"],
+        )
+        table.to_csv(output_dir / (layer.name.lower() + ".csv"), index=False)
 
-    return "\n".join(tables)
+
+def field_type_str(field, layer):
+    from wntrqgis.elements import CurveType, InitialStatus, ModelLayer, PatternType
+
+    python_type = field.python_type
+    # if issubclass(python_type, Enum):
+    #     if python_type is InitialStatus and layer is ModelLayer.PIPES:
+    #         enum_list = [InitialStatus.Open, InitialStatus.Closed]
+    #     else:
+    #         enum_list = python_type.__members__
+    #     return ", ".join(enum_list)
+    if issubclass(python_type, PatternType):
+        return "Text (string) *or* Decimal list"
+    # if issubclass(python_type, CurveType):
+    #     return "Text (string)"
+    if issubclass(python_type, str):
+        return "Text (string)"
+    if python_type is float:
+        return "Decimal (double)"
+    if python_type is bool:
+        return "Boolean"
+    return python_type.__name__
 
 
-def run_generate_attributes_table_script(app):
-    output_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "user_guide/creating_the_model.rst"))
-    with open(output_file) as file:
-        content = file.readlines()
+def field_value(field, layer):
+    from wntrqgis.elements import CurveType, InitialStatus, ModelLayer, PatternType
 
-    start_marker = ".. AUTO-GENERATED-ATTRIBUTES-TABLE-START\n"
-    end_marker = ".. AUTO-GENERATED-ATTRIBUTES-TABLE-END\n"
+    python_type = field.python_type
+    if issubclass(python_type, Enum):
+        if python_type is InitialStatus and layer is ModelLayer.PIPES:
+            enum_list = [InitialStatus.Open, InitialStatus.Closed]
+        else:
+            enum_list = python_type.__members__
+        return ", ".join(enum_list)
+    if issubclass(python_type, PatternType):
+        return "Pattern"
+    if issubclass(python_type, CurveType):
+        return "Curve"
+    if field.name in ["NAME", "LENGTH"]:
+        return "Will calculate if blank"
 
-    start_index = content.index(start_marker) + 1
-    end_index = content.index(end_marker)
 
-    generated_table = generate_attributes_table()
+def field_analysis_type(field):
+    from wntrqgis.elements import FieldGroup
 
-    new_content = content[:start_index] + [generated_table] + content[end_index:]
-
-    with open(output_file, "w") as file:
-        file.writelines(new_content)
+    analysis_types_of_interest = [
+        FieldGroup.PRESSURE_DEPENDENT_DEMAND,
+        FieldGroup.ENERGY,
+        FieldGroup.WATER_QUALITY_ANALYSIS,
+    ]
+    return ", ".join([g.name.title().replace("_", " ") for g in analysis_types_of_interest if g in field.field_group])
 
 
 def setup(app):
-    app.connect("builder-inited", run_generate_attributes_table_script)
+    app.connect("builder-inited", generate_attributes_table)
