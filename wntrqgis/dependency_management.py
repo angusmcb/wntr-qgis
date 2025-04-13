@@ -75,7 +75,7 @@ class WqDependencyManagement:
 
         subprocess.run(
             [
-                cls._python_command(),
+                "python" if os.name == "nt" else sys.executable,  # https://github.com/qgis/QGIS/issues/45646
                 "-m",
                 "pip",
                 "install",
@@ -83,7 +83,7 @@ class WqDependencyManagement:
                 "--force-reinstall",
                 "--target=" + cls.package_directory(),
                 "--no-deps",
-                "--find-links=" + cls.wheels_directory(),
+                # "--find-links=" + cls.wheels_directory(),
                 "wntr==1.3.2",
             ],
             check=False,
@@ -97,14 +97,3 @@ class WqDependencyManagement:
         packages_path = Path(__file__).parent / "packages" / (major + minor)
         packages_path.mkdir(parents=True, exist_ok=True)
         return str(packages_path.resolve())
-
-    @classmethod
-    def wheels_directory(cls):
-        wheels_path = Path(__file__).parent / "wheels"
-        return str(wheels_path.resolve())
-
-    @classmethod
-    def _python_command(cls):
-        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
-        # https://github.com/qgis/QGIS/issues/45646
-        return "python" if os.name == "nt" else sys.executable
