@@ -9,10 +9,7 @@ from __future__ import annotations
 
 from enum import Enum, Flag, auto
 
-from qgis.core import Qgis, QgsField, QgsFields, QgsProcessing, QgsWkbTypes
-from qgis.PyQt.QtCore import QMetaType, QVariant
-
-QGIS_VERSION_QMETATYPE = 33800
+from qgis.core import QgsProcessing, QgsWkbTypes
 
 
 class FlowUnit(Enum):
@@ -143,7 +140,7 @@ class ModelLayer(_AbstractLayer):
             else [QgsProcessing.TypeVectorLine]
         )
 
-    def wq_fields(self, field_group: FieldGroup | None = None) -> list[ModelField]:
+    def wq_fields(self) -> list[ModelField]:
         """Mapping of fields associated with each layer"""
 
         field_dict = {
@@ -266,9 +263,9 @@ class ModelField(_AbstractField):
     """All recognised fields that could be in a model layer
 
     >>> for field in ModelField:
-    ...     assert (
-    ...         field.name.lower() == field.value.lower()
-    ...     ), f"{field.name} != {field.value}"
+    ...     assert field.name.lower() == field.value.lower(), (
+    ...         f"{field.name} != {field.value}"
+    ...     )
     """
 
     NAME = "name", str, FieldGroup.BASE
