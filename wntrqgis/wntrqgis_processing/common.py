@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingContext,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from wntrqgis.dependency_management import WqDependencyManagement, WntrInstallError
+from wntrqgis.dependency_management import WntrInstaller, WntrInstallError
 from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import SettingKey, ProjectSettings
 from wntrqgis.style import style
@@ -114,7 +114,7 @@ class WntrQgisProcessingBase:
         except ImportError:
             self._update_progress(Progression.INSTALLING_WNTR)
             try:
-                wntr_version = WqDependencyManagement.ensure_wntr()
+                wntr_version = WntrInstaller.install_wntr()
             except WntrInstallError as e:
                 raise QgsProcessingException(e) from e
 

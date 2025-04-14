@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-class WqDependencyManagement:
+class WntrInstaller:
     _unpacking_wntr = False
 
     @classmethod
@@ -21,7 +21,7 @@ class WqDependencyManagement:
         return str(packages_path.resolve())
 
     @classmethod
-    def ensure_wntr(cls) -> str:
+    def install_wntr(cls) -> str:
         """Fetches and installs WNTR.
 
         Returns:
@@ -71,7 +71,7 @@ class WqDependencyManagement:
                 timeout=30,
                 **kwargs,
             )
-        except TimeoutError as e:
+        except TimeoutError:
             msg = "Took too long to fetch and install."
             raise WntrInstallError(msg) from None
         except FileNotFoundError:
@@ -85,10 +85,13 @@ class WqDependencyManagement:
 
             raise WntrInstallError(msg)
 
+        if "wntr" in sys.modules:
+            del sys.modules["wntr"]
+
         invalidate_caches()
 
         try:
-            import wntr
+            import wntr  # type: ignore
         except ImportError as e:
             raise WntrInstallError(e) from None
 
