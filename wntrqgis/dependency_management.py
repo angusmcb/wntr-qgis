@@ -10,86 +10,8 @@ from pathlib import Path
 from typing import Any
 
 
-class WqDependencyManagement:
-    _dependencies_available = False
-    _wntr__available_version: str | None = None
+class WntrInstaller:
     _unpacking_wntr = False
-
-    @classmethod
-    def import_wntr(cls):
-        if not cls._wntr__available_version:
-            cls._wntr__available_version = cls._check_wntr()
-
-        if cls._wntr__available_version:
-            return cls._wntr__available_version
-
-        if not cls._dependencies_available:
-            missing_deps = cls._check_dependencies()
-            if len(missing_deps):
-                msg = f"Missing necessary python packages {(*missing_deps,)}. Please see help for how to fix this"
-                raise ModuleNotFoundError(msg)
-
-            cls._dependencies_available = True
-
-        return None
-
-    @classmethod
-    def ensure_wntr(cls):
-        cls.import_wntr()
-
-        if not cls._wntr__available_version:
-            cls._unpack_wntr()
-            import wntr
-
-            cls._wntr__available_version = wntr.__version__
-
-        return cls._wntr__available_version
-
-    @staticmethod
-    def _check_dependencies():
-        return [
-            package for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib"] if find_spec(package) is None
-        ]
-
-    @staticmethod
-    def _check_wntr() -> str | None:
-        if find_spec("wntr") is None:
-            return None
-        try:
-            import wntr
-        except ImportError:
-            return None
-        return wntr.__version__
-
-    @classmethod
-    def _unpack_wntr(cls) -> None:
-        # Try not to let PIP install it twice at same time
-        if cls._unpacking_wntr:
-            msg = "Fetching wntr twice"
-            raise RuntimeError(msg)
-        cls._unpacking_wntr = True
-
-        kwargs: dict[str, Any] = {}
-        if os.name == "nt":
-            kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)  # type: ignore[attr-defined]
-
-        subprocess.run(
-            [
-                cls._python_command(),
-                "-m",
-                "pip",
-                "install",
-                "--upgrade",
-                "--force-reinstall",
-                "--target=" + cls.package_directory(),
-                "--no-deps",
-                "--find-links=" + cls.wheels_directory(),
-                "wntr==1.3.2",
-            ],
-            check=False,
-            **kwargs,
-        )
-        invalidate_caches()
 
     @classmethod
     def package_directory(cls):
@@ -99,12 +21,83 @@ class WqDependencyManagement:
         return str(packages_path.resolve())
 
     @classmethod
-    def wheels_directory(cls):
-        wheels_path = Path(__file__).parent / "wheels"
-        return str(wheels_path.resolve())
+    def install_wntr(cls) -> str:
+        """Fetches and installs WNTR.
 
-    @classmethod
-    def _python_command(cls):
-        # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
-        # https://github.com/qgis/QGIS/issues/45646
-        return "python" if os.name == "nt" else sys.executable
+        Returns:
+            str: The version of WNTR installed.
+
+        Raises:
+            WntrInstallError: If WNTR cannot be installed.
+        """
+
+        missing_deps = [
+            package for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib"] if find_spec(package) is None
+        ]
+
+        if len(missing_deps):
+            msg = f"Missing necessary python packages {(*missing_deps,)}. Please see help for how to fix this"
+            raise WntrInstallError(msg)
+
+        # Try not to let PIP install it twice at same time
+        if cls._unpacking_wntr:
+            msg = "Fetching WNTR is already in progress. Please wait."
+            raise WntrInstallError(msg)
+        cls._unpacking_wntr = True
+
+        kwargs: dict[str, Any] = {}
+        if os.name == "nt":
+            kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)  # type: ignore[attr-defined]
+
+        try:
+            process_result = subprocess.run(
+                [
+                    "python" if os.name == "nt" else sys.executable,  # https://github.com/qgis/QGIS/issues/45646
+                    "-m",
+                    "pip",
+                    "install",
+                    "--quiet",
+                    "--quiet",
+                    "--upgrade",
+                    "--force-reinstall",
+                    "--target=" + cls.package_directory(),
+                    "--no-deps",
+                    # "--find-links=" + cls.wheels_directory(),
+                    "wntr==1.3.2",
+                ],
+                check=False,
+                text=True,
+                capture_output=True,
+                timeout=30,
+                **kwargs,
+            )
+        except TimeoutError:
+            msg = "Took too long to fetch and install."
+            raise WntrInstallError(msg) from None
+        except FileNotFoundError:
+            msg = "Couldn't find Python"
+            raise WntrInstallError(msg) from None
+        finally:
+            cls._unpacking_wntr = False
+
+        if process_result.returncode != 0:
+            msg = f"Error output:\n\n{process_result.stderr}"
+
+            raise WntrInstallError(msg)
+
+        if "wntr" in sys.modules:
+            del sys.modules["wntr"]
+
+        invalidate_caches()
+
+        try:
+            import wntr  # type: ignore
+        except ImportError as e:
+            raise WntrInstallError(e) from None
+
+        return wntr.__version__
+
+
+class WntrInstallError(RuntimeError):
+    def __init__(self, exception):
+        super().__init__(f"Couldn't fetch and install WNTR. {exception}")

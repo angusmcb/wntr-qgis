@@ -1,6 +1,5 @@
 import pandas as pd
 import pytest
-import wntr
 from qgis.core import QgsVectorLayer
 
 import wntrqgis
@@ -8,6 +7,8 @@ import wntrqgis
 
 @pytest.mark.parametrize("example", wntrqgis.examples.values())
 def test_examples(example):
+    import wntr
+
     assert example.endswith(".inp")
     wn = wntr.network.WaterNetworkModel(example)
     assert wn
@@ -30,6 +31,8 @@ def test_to_qgis(example, qgis_new_project):
 
 @pytest.mark.parametrize("example", wntrqgis.examples.values())
 def test_to_qgis_results(example, qgis_new_project):
+    import wntr
+
     wn = wntr.network.WaterNetworkModel(example)
     sim = wntr.sim.EpanetSimulator(wn)
     results = sim.run_sim()

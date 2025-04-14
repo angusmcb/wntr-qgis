@@ -1,5 +1,4 @@
 import pytest
-import wntr
 from qgis.core import (
     QgsGeometry,
     QgsPoint,
@@ -23,6 +22,8 @@ from wntrqgis.interface import (
 
 @pytest.fixture
 def wn():
+    import wntr
+
     return wntr.network.WaterNetworkModel()
 
 
@@ -36,7 +37,9 @@ def qgs_layer():
     return QgsVectorLayer("Point", "test_layer", "memory")
 
 
-def test_converter_init(wn):
+def test_converter_init():
+    import wntr
+
     converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
     assert converter._flow_units == wntr.epanet.FlowUnits.LPS
     assert not converter._darcy_weisbach
@@ -73,6 +76,8 @@ def test_patterns_get(wn):
 
 
 def test_patterns_add_invalid():
+    import wntr
+
     patterns = _Patterns(wntr.network.WaterNetworkModel())
     assert patterns.add(None) is None
     assert patterns.add("") is None
@@ -228,10 +233,9 @@ def test_check_network_valid(wn):
         pytest.fail("check_network raised NetworkModelError unexpectedly!")
 
 
-def test_get_field_groups():
+def test_get_field_groups(wn):
     from wntrqgis.elements import FieldGroup
 
-    wn = wntr.network.WaterNetworkModel()
     assert wntrqgis.interface._get_field_groups(wn) == FieldGroup(0)
 
     wn.options.quality.parameter = "CHEMICAL"

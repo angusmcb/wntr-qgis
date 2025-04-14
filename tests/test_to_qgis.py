@@ -1,5 +1,4 @@
 import pytest
-import wntr
 from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
 import wntrqgis
@@ -7,6 +6,8 @@ import wntrqgis
 
 @pytest.fixture
 def wn():
+    import wntr
+
     wn = wntr.network.WaterNetworkModel()
     wn.add_junction("J1", base_demand=0.01, elevation=10, coordinates=(1, 1))
     wn.add_junction("J2", base_demand=0.02, elevation=20, coordinates=(2, 2))
@@ -23,6 +24,8 @@ def eps(wn):
 
 @pytest.fixture
 def results(wn):
+    import wntr
+
     sim = wntr.sim.EpanetSimulator(wn)
     return sim.run_sim()
 
@@ -55,6 +58,8 @@ def test_basic_wn(qgis_new_project, wn):
 
 
 def test_empty_wn(qgis_new_project):
+    import wntr
+
     wn = wntr.network.WaterNetworkModel()
     layers = wntrqgis.to_qgis(wn)
     assert isinstance(layers, dict)

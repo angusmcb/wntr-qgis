@@ -4,6 +4,7 @@ import contextlib
 import enum
 import math
 import typing
+from pathlib import Path
 
 from qgis.core import (
     Qgis,
@@ -32,6 +33,7 @@ from qgis.utils import iface
 
 import wntrqgis
 import wntrqgis.expressions
+from wntrqgis.dependency_management import WntrInstaller
 from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
@@ -298,36 +300,57 @@ except ModuleNotFoundError:
             add_to_toolbar=False,
         )
 
-        self.widget = None
-        if self._install_status is _InstallStatus.FRESH_INSTALL:
-            with contextlib.suppress(AttributeError):
-                self.widget = iface.messageBar().createMessage(
-                    "WNTR-QGIS installed",
-                    "Load an example to try me out",
-                )
-
-        elif self._install_status is _InstallStatus.UPGRADE:
-            self.widget = iface.messageBar().createMessage(
-                "WNTR-QGIS upgraded",
-                "Load an example to try me out",
-            )
-        if self.widget:
-            self.examplebutton = QPushButton(self.widget)
-            self.examplebutton.setText("Load Example")
-            self.examplebutton.pressed.connect(self.load_example_from_messagebar)
-            self.widget.layout().addWidget(self.examplebutton)
-            iface.messageBar().pushWidget(self.widget, Qgis.Success)
-
-        # wntr is slow to load so start warming it up now !
-        self._load_wntr_task = QgsTask.fromFunction("Set up wntr-qgis", import_wntr)
-        QgsApplication.taskManager().addTask(self._load_wntr_task)
-
         self.indicators: list[tuple] = []
         self.add_layer_indicators()
         QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
         QgsProject.instance().layerTreeRoot().addedChildren.connect(self.add_layer_indicators)
+        self.tm = QgsApplication.taskManager()
+        self.warm_up_wntr()
 
         self.initProcessing()
+
+    def warm_up_wntr(self):
+        """wntr is slow to load so start warming it up now !"""
+        self._load_wntr_task = QgsTask.fromFunction(
+            "Set up wntr-qgis", import_wntr, on_finished=self.install_wntr_if_none
+        )
+        QgsApplication.taskManager().addTask(self._load_wntr_task)
+        if self.TESTING:
+            assert self._load_wntr_task.waitForFinished()  # noqa: S101
+
+    def install_wntr_if_none(self, exception, value=None):  # noqa: ARG002
+        if exception:
+            self._install_wntr_task = QgsTask.fromFunction(
+                "Install WNTR", lambda _: WntrInstaller.install_wntr(), on_finished=self.show_welcome_message
+            )
+            QgsApplication.taskManager().addTask(self._install_wntr_task)
+            if self.TESTING:
+                assert self._install_wntr_task.waitForFinished()  # noqa: S101
+        else:
+            self.show_welcome_message(None, None)
+
+    # exception and value are required for on_finished to work
+    def show_welcome_message(self, exception, value=None):  # noqa: ARG002
+        if exception:
+            iface.messageBar().pushMessage(
+                "Failed to install WNTR. Please check your internet connection.",
+                level=Qgis.Critical,
+            )
+            return
+
+        if self._install_status in [_InstallStatus.FRESH_INSTALL, _InstallStatus.UPGRADE]:
+            word = "installed" if self._install_status == _InstallStatus.FRESH_INSTALL else "upgraded"
+
+            self.message_widget = iface.messageBar().createMessage(
+                f"WNTR-QGIS {word} successfully",
+                "Load an example to try me out",
+            )
+
+            example_button = QPushButton(self.message_widget)
+            example_button.setText("Load Example")
+            example_button.pressed.connect(self.load_example_from_messagebar)
+            self.message_widget.layout().addWidget(example_button)
+            iface.messageBar().pushWidget(self.message_widget, Qgis.Info)
 
     def add_layer_indicators(self):
         project_settings = ProjectSettings(QgsProject.instance())
@@ -404,7 +427,7 @@ except ModuleNotFoundError:
         ProjectSettings().set(SettingKey.SIMULATION_DURATION, duration)
 
     def load_example_from_messagebar(self):
-        self.widget.dismiss()
+        self.message_widget.dismiss()
         self.load_example()
 
     def onClosePlugin(self) -> None:  # noqa N802
@@ -613,5 +636,8 @@ class WqProcessingFeedback(QgsProcessingFeedback):
 
 def import_wntr(task: QgsTask):  # noqa: ARG001
     """Pre-import wntr to speed up loading"""
-    with contextlib.suppress(ImportError):
-        import wntr  # noqa: F401
+    import wntr  # type: ignore
+
+    if not Path(wntr.__file__).exists():
+        msg = "File missing - probably due to plugin upgrade"
+        raise ImportError(msg)

@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProcessingContext,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from wntrqgis.dependency_management import WqDependencyManagement
+from wntrqgis.dependency_management import WntrInstaller, WntrInstallError
 from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import SettingKey, ProjectSettings
 from wntrqgis.style import style
@@ -108,15 +108,17 @@ class WntrQgisProcessingBase:
         self._update_progress(Progression.CHECKING_DEPENDENCIES)
 
         try:
-            wntrversion = WqDependencyManagement.import_wntr()
-        except ImportError as e:
-            raise QgsProcessingException(e) from None
+            import wntr
 
-        if not wntrversion:
+            wntr_version = wntr.__version__
+        except ImportError:
             self._update_progress(Progression.INSTALLING_WNTR)
-            wntrversion = WqDependencyManagement.ensure_wntr()
+            try:
+                wntr_version = WntrInstaller.install_wntr()
+            except WntrInstallError as e:
+                raise QgsProcessingException(e) from e
 
-        self.feedback.pushDebugInfo("WNTR version: " + wntrversion)
+        self.feedback.pushDebugInfo("WNTR version: " + wntr_version)
 
     def _setup_postprocessing(
         self,

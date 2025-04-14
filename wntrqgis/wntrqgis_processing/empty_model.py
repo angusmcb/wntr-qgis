@@ -13,7 +13,8 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
 )
 
-from wntrqgis.elements import FieldGroup, ModelLayer
+from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
+from wntrqgis.interface import Writer
 from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
@@ -77,6 +78,10 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     ) -> dict:
         WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
 
+        self._ensure_wntr()
+
+        import wntr
+
         analysis_types_to_use = FieldGroup.BASE
         for analysis_type in FieldGroup:
             if self.parameterAsBoolean(parameters, analysis_type.name, context):
@@ -84,13 +89,17 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
+        wn = wntr.network.WaterNetworkModel()
+        network_writer = Writer(wn)
+        network_writer.fields = [field for field in ModelField if field.field_group & analysis_types_to_use]
+
         # for shapefile writing
         warnings.filterwarnings("ignore", "Field", RuntimeWarning)
         warnings.filterwarnings("ignore", "Normalized/laundered field name:", RuntimeWarning)
 
         outputs: dict[str, str] = {}
         for layer in ModelLayer:
-            fields = layer.qgs_fields(analysis_types_to_use)
+            fields = network_writer.get_qgsfields(layer)
             wkb_type = layer.qgs_wkb_type
             (_, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
 
