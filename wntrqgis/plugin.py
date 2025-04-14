@@ -315,6 +315,8 @@ except ModuleNotFoundError:
             "Set up wntr-qgis", import_wntr, on_finished=self.install_wntr_if_none
         )
         QgsApplication.taskManager().addTask(self._load_wntr_task)
+        if self.TESTING:
+            assert self._load_wntr_task.waitForFinished()  # noqa: S101
 
     def install_wntr_if_none(self, exception, value=None):  # noqa: ARG002
         if exception:
@@ -322,6 +324,8 @@ except ModuleNotFoundError:
                 "Install WNTR", lambda _: WntrInstaller.install_wntr(), on_finished=self.show_welcome_message
             )
             QgsApplication.taskManager().addTask(self._install_wntr_task)
+            if self.TESTING:
+                assert self._install_wntr_task.waitForFinished()  # noqa: S101
         else:
             self.show_welcome_message(None, None)
 
@@ -635,5 +639,5 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
     import wntr  # type: ignore
 
     if not Path(wntr.__file__).exists():
-        msg = "File missing"
+        msg = "File missing - probably due to plugin upgrade"
         raise ImportError(msg)
