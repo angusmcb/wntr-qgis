@@ -6,7 +6,6 @@ import logging
 import time
 from qgis.core import (
     QgsProcessingLayerPostProcessorInterface,
-    QgsVectorLayer,
     QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingContext,
@@ -20,35 +19,6 @@ from wntrqgis.style import style
 if TYPE_CHECKING:  # pragma: no cover
     import wntr
 LOGGER = logging.getLogger("wntrqgis")
-
-
-class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
-    instance = None
-    layertype = None
-    make_editable = None
-    style_theme = None
-
-    def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
-        if not isinstance(layer, QgsVectorLayer):
-            return
-
-        style(layer, self.layertype, self.style_theme)
-
-        project_settings = ProjectSettings(context.project())
-        wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
-        wntr_layers[self.layertype] = layer.id()
-        project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)
-
-        if self.make_editable:
-            layer.startEditing()
-
-    @staticmethod
-    def create(layertype: str, make_editable=False, style_theme=None) -> LayerPostProcessor:  # noqa FBT002
-        LayerPostProcessor.instance = LayerPostProcessor()
-        LayerPostProcessor.instance.layertype = layertype
-        LayerPostProcessor.instance.make_editable = make_editable
-        LayerPostProcessor.instance.style_theme = style_theme
-        return LayerPostProcessor.instance
 
 
 class Progression(IntEnum):
@@ -120,13 +90,7 @@ class WntrQgisProcessingBase:
 
         self.feedback.pushDebugInfo("WNTR version: " + wntr_version)
 
-    def _setup_postprocessing(
-        self,
-        outputs: dict[str, str],
-        group_name: str,
-        make_editable: bool,  # noqa: FBT001
-        style_theme: str | None = None,
-    ):
+    def _setup_postprocessing(self, outputs: dict[str, str], group_name: str, *args, **kwargs):
         output_order: list[str] = [
             ModelLayer.JUNCTIONS,
             ModelLayer.PIPES,
@@ -140,9 +104,30 @@ class WntrQgisProcessingBase:
 
         for layer_type, lyr_id in outputs.items():
             if self.context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor.create(layer_type, make_editable, style_theme)
+                self.post_processors[lyr_id] = LayerPostProcessor(layer_type, *args, **kwargs)
 
                 layer_details = self.context.layerToLoadOnCompletionDetails(lyr_id)
                 layer_details.setPostProcessor(self.post_processors[lyr_id])
                 layer_details.groupName = self.tr(group_name)
                 layer_details.layerSortKey = output_order.index(layer_type)
+
+
+class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+    def __init__(self, layer_type: str, make_editable=False, style_theme=None, is_model_layer=True):  # noqa: FBT002
+        super().__init__()
+        self.layer_type = layer_type
+        self.make_editable = make_editable
+        self.style_theme = style_theme
+        self.is_model_layer = is_model_layer
+
+    def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
+        style(layer, self.layer_type, self.style_theme)
+
+        if self.is_model_layer:
+            project_settings = ProjectSettings(context.project())
+            wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+            wntr_layers[self.layer_type] = layer.id()
+            project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)
+
+        if self.make_editable:
+            layer.startEditing()
