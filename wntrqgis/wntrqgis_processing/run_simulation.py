@@ -180,6 +180,13 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
+        layers_for_settings = {
+            lyr: input_layer.id()
+            for lyr in ModelLayer
+            if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
+        }
+        project_settings.set(SettingKey.MODEL_LAYERS, layers_for_settings)
+
         try:
             crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
         except AttributeError:
