@@ -1,11 +1,5 @@
 import pytest
-from qgis.core import (
-    QgsGeometry,
-    QgsPoint,
-    QgsPointXY,
-    QgsProject,
-    QgsVectorLayer,
-)
+from qgis.core import QgsFields, QgsGeometry, QgsPoint, QgsPointXY, QgsProject, QgsVectorLayer
 
 import wntrqgis.elements
 from wntrqgis.interface import (
@@ -105,7 +99,7 @@ def test_curves_add_invalid(wn):
 def test_writer_get_qgsfields(wn):
     writer = Writer(wn)
     fields = writer.get_qgsfields(wntrqgis.elements.ModelLayer.JUNCTIONS)
-    assert isinstance(fields, wntrqgis.elements.QgsFields)
+    assert isinstance(fields, QgsFields)
 
 
 def test_writer_write(wn, qgs_layer):
