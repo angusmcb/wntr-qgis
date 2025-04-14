@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-import wntr
 from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
 import wntrqgis
@@ -95,7 +94,10 @@ def all_layers():
 
 
 def test_simple_layers(simple_layers):
+    import wntr
+
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
+
     assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert "J1" in wn.junction_name_list
 
@@ -108,6 +110,8 @@ def test_broken_layername(simple_layers):
 
 
 def test_minimum_attributes(all_layers):
+    import wntr
+
     wn = wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
     assert isinstance(wn, wntr.network.WaterNetworkModel)
@@ -121,6 +125,8 @@ def test_minimum_attributes(all_layers):
 
 
 def test_no_pipes(all_layers):
+    import wntr
+
     del all_layers["PIPES"]
 
     wn = wntrqgis.from_qgis(all_layers, "LPS", "H-W")
@@ -173,14 +179,13 @@ def test_infinite_pipe():
 @pytest.mark.parametrize("headloss", ["H-W", "D-W", "C-M"])
 def test_from_qgis_headloss(simple_layers, headloss):
     wn = wntrqgis.from_qgis(simple_layers, "LPS", headloss=headloss)
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
+
     assert "J1" in wn.junction_name_list
     assert "T1" in wn.tank_name_list
     assert "P1" in wn.pipe_name_list
     assert wn.options.hydraulic.headloss == headloss
 
 
-@pytest.mark.skipif(wntr.__version__ == "1.2.0", reason="Problem with headloss conversion in older wntr versions")
 @pytest.mark.parametrize(
     ("headloss", "unit", "expected_roughness"),
     [
@@ -197,13 +202,17 @@ def test_from_qgis_headloss(simple_layers, headloss):
 )
 @pytest.mark.filterwarnings("ignore: QgsField constructor is deprecated")
 def test_roughness_conversion(simple_layers, headloss, unit, expected_roughness):
+    import wntr
+
+    if wntr.__version__ == "1.2.0" and headloss == "D-W":
+        pytest.skip("Problem with headloss conversion in older wntr versions")
+
     wn = wntrqgis.from_qgis(simple_layers, unit, headloss=headloss)
     assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert wn.get_link("P1").roughness == expected_roughness
 
 
 @pytest.mark.filterwarnings("ignore: QgsField constructor is deprecated")
-@pytest.mark.skipif(wntr.__version__ == "1.2.0", reason="Problem with headloss conversion in older wntr versions")
 @pytest.mark.filterwarnings("ignore:Changing the headloss formula")
 @pytest.mark.parametrize(
     ("headloss", "unit", "expected_roughness"),
@@ -221,6 +230,11 @@ def test_roughness_conversion(simple_layers, headloss, unit, expected_roughness)
 )
 @pytest.mark.filterwarnings("ignore: QgsField constructor is deprecated")
 def test_roughness_conversion_with_wn_options(simple_layers, headloss, unit, expected_roughness):
+    import wntr
+
+    if wntr.__version__ == "1.2.0" and headloss == "D-W":
+        pytest.skip("Problem with headloss conversion in older wntr versions")
+
     wn = wntr.network.WaterNetworkModel()
     wn.options.hydraulic.headloss = headloss
 
@@ -235,6 +249,8 @@ def test_from_qgis_invalid_headloss(simple_layers):
 
 
 def test_from_qgis_invalid_headloss_with_wn(simple_layers):
+    import wntr
+
     wn = wntr.network.WaterNetworkModel()
     with pytest.raises(
         ValueError,
@@ -284,7 +300,6 @@ def test_name_generation_with_conflicts():
 
     wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
 
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert len(wn.junction_name_list) == 3
     assert len(wn.pipe_name_list) == 2
     assert wn.node_name_list == ["2", "1", "3", "4", "5", "xx", "0", "6"]
@@ -313,7 +328,7 @@ def test_length_measurement_utm(simple_layers):
         layer.setCrs(QgsCoordinateReferenceSystem("EPSG:32600"))
 
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
+
     pipe = wn.get_link("P1")
     assert pipe.length == 5.0
 
@@ -366,7 +381,6 @@ def layers_that_snap():
 def test_snap_nodes(layers_that_snap):
     wn = wntrqgis.from_qgis(layers_that_snap, "LPS", "H-W")
 
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert "P1" in wn.pipe_name_list
     assert wn.get_link("P1").start_node_name == "J1"
     assert wn.get_link("P1").end_node_name == "T1"
@@ -386,7 +400,6 @@ def mixed_crs_layers():
 def test_snap_nodes_mixed_crs(mixed_crs_layers):
     wn = wntrqgis.from_qgis(mixed_crs_layers, "LPS", "H-W")
 
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert "P1" in wn.pipe_name_list
     assert wn.get_link("P1").start_node_name == "J1"
     assert wn.get_link("P1").end_node_name == "T1"
@@ -413,7 +426,6 @@ def test_snap_nodes_mixed_crs_simple():
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
     wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
 
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert "P1" in wn.pipe_name_list
     assert wn.get_link("P1").start_node_name == "J1"
     assert wn.get_link("P1").end_node_name == "T1"
@@ -439,21 +451,21 @@ def test_too_far_to_snap():
 
 def test_measure_no_crs(simple_layers):
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
+
     assert wn.get_link("P1").length == 5.0
 
 
 def test_measure_utm(simple_layers):
     # 32636 is a utm crs
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W", crs="EPSG:32636")
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
+
     assert wn.get_link("P1").length == 5.0
 
 
 def test_measure_feet(simple_layers):
     # 3089 is a feet crs
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W", crs="EPSG:3089")
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
+
     assert wn.get_link("P1").length == pytest.approx(5.0 / 3.2808, 0.01)
 
 
@@ -470,7 +482,6 @@ def test_prioritise_length_attribute():
     with pytest.warns(UserWarning, match=warn_message):
         wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
 
-    assert isinstance(wn, wntr.network.WaterNetworkModel)
     assert wn.get_link("P1").length == 5
     assert wn.get_link("P2").length == 100
 

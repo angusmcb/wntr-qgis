@@ -1,4 +1,4 @@
-__all__ = ["to_qgis", "from_qgis", "examples"]
+__all__ = ["examples", "from_qgis", "to_qgis"]
 
 import codecs
 import configparser
@@ -10,7 +10,7 @@ import wntrqgis.dependency_management
 from wntrqgis.interface import from_qgis, to_qgis
 from wntrqgis.resource_manager import examples
 
-_packages_path = wntrqgis.dependency_management.WqDependencyManagement.package_directory()
+_packages_path = wntrqgis.dependency_management.WntrInstaller.package_directory()
 if _packages_path not in sys.path:
     sys.path.append(_packages_path)
 

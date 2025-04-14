@@ -37,9 +37,12 @@ def processing(qgis_processing):
 
 @pytest.fixture(autouse=True, scope="session")
 def check_wntr():
-    from wntrqgis.dependency_management import WqDependencyManagement
+    from wntrqgis.dependency_management import WntrInstaller
 
-    WqDependencyManagement.ensure_wntr()
+    try:
+        import wntr  # noqa F401
+    except ImportError:
+        WntrInstaller.install_wntr()
 
 
 @pytest.fixture
