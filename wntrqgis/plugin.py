@@ -312,7 +312,10 @@ except ModuleNotFoundError:
     def warm_up_wntr(self):
         """wntr is slow to load so start warming it up now !"""
         self._load_wntr_task = QgsTask.fromFunction(
-            "Set up wntr-qgis", import_wntr, on_finished=self.install_wntr_if_none
+            "Set up wntr-qgis",
+            import_wntr,
+            on_finished=self.install_wntr_if_none,
+            flags=QgsTask.Hidden | QgsTask.Silent,
         )
         QgsApplication.taskManager().addTask(self._load_wntr_task)
         if self.TESTING:
@@ -321,7 +324,10 @@ except ModuleNotFoundError:
     def install_wntr_if_none(self, exception, value=None):  # noqa: ARG002
         if exception:
             self._install_wntr_task = QgsTask.fromFunction(
-                "Install WNTR", lambda _: WntrInstaller.install_wntr(), on_finished=self.show_welcome_message
+                "Install WNTR",
+                lambda _: WntrInstaller.install_wntr(),
+                on_finished=self.show_welcome_message,
+                flags=QgsTask.Silent,
             )
             QgsApplication.taskManager().addTask(self._install_wntr_task)
             if self.TESTING:
