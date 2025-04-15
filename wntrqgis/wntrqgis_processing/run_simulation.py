@@ -36,6 +36,7 @@ from wntrqgis.elements import (
     ModelLayer,
     ResultLayer,
 )
+from wntrqgis.i18n import tr
 from wntrqgis.interface import (
     NetworkModelError,
     Writer,
@@ -59,10 +60,10 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return "run"
 
     def displayName(self):  # noqa N802
-        return self.tr("Run Simulation")
+        return tr("Run Simulation")
 
     def shortHelpString(self):  # noqa N802
-        return self.tr("""
+        return tr("""
             This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), \
             combine them with the chosen options, and run a simulation on WNTR.
             The output files are a layer of 'nodes' (junctions, tanks, reservoirs) and \
@@ -81,7 +82,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         for lyr in ModelLayer:
             param = QgsProcessingParameterFeatureSource(
                 lyr.name,
-                self.tr(lyr.friendly_name),
+                lyr.friendly_name,
                 types=lyr.acceptable_processing_vectors,
                 optional=lyr is not ModelLayer.JUNCTIONS,
             )
@@ -93,8 +94,8 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         param = QgsProcessingParameterEnum(
             self.UNITS,
-            self.tr("Units"),
-            options=[fu.value for fu in FlowUnit],
+            tr("Units"),
+            options=[fu.friendly_name for fu in FlowUnit],
             allowMultiple=False,
             usesStaticStrings=False,
         )
@@ -104,7 +105,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         param = QgsProcessingParameterEnum(
             self.HEADLOSS_FORMULA,
-            self.tr("Headloss Formula"),
+            tr("Headloss Formula"),
             options=[formula.friendly_name for formula in HeadlossFormula],
             allowMultiple=False,
             usesStaticStrings=False,
@@ -116,21 +117,21 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self.addParameter(param)
 
         param = QgsProcessingParameterNumber(
-            self.DURATION, self.tr("Simulation duration in hours (or 0 for single period)"), minValue=0
+            self.DURATION, tr("Simulation duration in hours (or 0 for single period)"), minValue=0
         )
         param.setGuiDefaultValueOverride(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         self.addParameter(param)
 
         self.addParameter(
-            QgsProcessingParameterFeatureSink(ResultLayer.NODES.value, self.tr("Simulation Results - Nodes"))
+            QgsProcessingParameterFeatureSink(ResultLayer.NODES.results_name, tr("Simulation Results - Nodes"))
         )
         self.addParameter(
-            QgsProcessingParameterFeatureSink(ResultLayer.LINKS.value, self.tr("Simulation Results - Links"))
+            QgsProcessingParameterFeatureSink(ResultLayer.LINKS.results_name, tr("Simulation Results - Links"))
         )
 
         self.addParameter(
             QgsProcessingParameterFileDestination(
-                self.OUTPUTINP, "Output .inp file", optional=True, createByDefault=False
+                self.OUTPUTINP, tr("Output .inp file"), optional=True, createByDefault=False
             )
         )
 
@@ -181,7 +182,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
         layers_for_settings = {
-            lyr: input_layer.id()
+            lyr.name: input_layer.id()
             for lyr in ModelLayer
             if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
         }
@@ -190,14 +191,14 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         try:
             crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
         except AttributeError:
-            raise QgsProcessingException(self.tr("A junctions layer is required.")) from None
+            raise QgsProcessingException(tr("A junctions layer is required.")) from None
 
         try:
             # network_model.add_features_to_network_model(sources, wn)
             wntrqgis.from_qgis(sources, wq_flow_unit.name, wn=wn, project=context.project(), crs=crs)
             check_network(wn)
         except NetworkModelError as e:
-            raise QgsProcessingException(self.tr("Error preparing model - " + str(e))) from None
+            raise QgsProcessingException(tr("Error preparing model - " + str(e))) from None
 
         self._describe_model(wn)
 
@@ -222,15 +223,18 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         result_writer = Writer(wn, sim_results, units=wq_flow_unit.name)
 
+        layers = {}
+
         for lyr in ResultLayer:
-            (sink, outputs[lyr]) = self.parameterAsSink(
+            (sink, outputs[lyr.results_name]) = self.parameterAsSink(
                 parameters,
-                lyr.value,
+                lyr.results_name,
                 context,
                 result_writer.get_qgsfields(lyr),
                 lyr.qgs_wkb_type,
                 crs,
             )
+            layers[lyr] = outputs[lyr.results_name]
             result_writer.write(lyr, sink)
 
         logger.removeHandler(logging_handler)
@@ -238,6 +242,8 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         finish_time = time.strftime("%X")
         style_theme = "extended" if wn.options.time.duration > 0 else None
-        self._setup_postprocessing(outputs, f"Simulation Results ({finish_time})", False, style_theme)
+        self._setup_postprocessing(
+            layers, tr("Simulation Results ({finish_time})").format(finish_time=finish_time), False, style_theme, True
+        )
 
         return outputs

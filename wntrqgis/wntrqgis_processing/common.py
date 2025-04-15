@@ -1,6 +1,6 @@
 from __future__ import annotations  # noqa
 from typing import ClassVar, TYPE_CHECKING, Any
-from enum import IntEnum
+from enum import Enum
 import logging
 
 import time
@@ -10,29 +10,34 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsProcessingContext,
 )
-from qgis.PyQt.QtCore import QCoreApplication
+
 from wntrqgis.dependency_management import WntrInstaller, WntrInstallError
 from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import SettingKey, ProjectSettings
 from wntrqgis.style import style
+from wntrqgis.i18n import tr
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr
 LOGGER = logging.getLogger("wntrqgis")
 
 
-class Progression(IntEnum):
-    CHECKING_DEPENDENCIES = 5
-    INSTALLING_WNTR = 15
-    PREPARING_MODEL = 25
-    RUNNING_SIMULATION = 40
-    CREATING_OUTPUTS = 70
-    FINISHED_PROCESSING = 95
+class Progression(Enum):
+    def __new__(cls, *args):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
 
-    LOADING_INP_FILE = 10
+    def __init__(self, *args):
+        self.friendly_name = args[1]
 
-    def __str__(self):
-        return self.name.replace("_", " ").title()
+    CHECKING_DEPENDENCIES = 5, tr("Checking dependencies")
+    INSTALLING_WNTR = 15, tr("Installing WNTR")
+    PREPARING_MODEL = 25, tr("Preparing model")
+    RUNNING_SIMULATION = 40, tr("Running simulation")
+    CREATING_OUTPUTS = 70, tr("Creating outputs")
+    FINISHED_PROCESSING = 95, tr("Finished processing")
+    LOADING_INP_FILE = 10, tr("Loading inp file")
 
 
 class WntrQgisProcessingBase:
@@ -53,25 +58,22 @@ class WntrQgisProcessingBase:
         self.last_time = self.start_time
         self.last_progress: Progression | None = None
 
-    def tr(self, string: str) -> str:
-        return QCoreApplication.translate("Processing", string)
-
     def _update_progress(self, prog_status: Progression) -> None:
         if self.feedback.isCanceled():
-            raise QgsProcessingException(self.tr("Execution of script cancelled by user"))
+            raise QgsProcessingException(tr("Execution of script cancelled by user"))
 
         time_now = time.perf_counter()
         elapsed_ms = (time_now - self.last_time) * 1000
         if self.last_progress:
-            self.feedback.pushDebugInfo(f"{self.last_progress} took {elapsed_ms:.0f}ms")
+            self.feedback.pushDebugInfo(f"{self.last_progress.friendly_name} took {elapsed_ms:.0f}ms")
         self.last_time = time_now
         self.last_progress = prog_status
 
         self.feedback.setProgress(prog_status.value)
-        self.feedback.setProgressText(self.tr(str(prog_status)))
+        self.feedback.setProgressText(prog_status.friendly_name)
 
     def _describe_model(self, wn: wntr.network.model.WaterNetworkModel) -> None:
-        self.feedback.pushInfo(self.tr("WNTR model created. Model contains:"))
+        self.feedback.pushInfo(tr("WNTR model created. Model contains:"))
         self.feedback.pushInfo(str(wn.describe(level=0)))
 
     def _ensure_wntr(self) -> None:
@@ -90,8 +92,8 @@ class WntrQgisProcessingBase:
 
         self.feedback.pushDebugInfo("WNTR version: " + wntr_version)
 
-    def _setup_postprocessing(self, outputs: dict[str, str], group_name: str, *args, **kwargs):
-        output_order: list[str] = [
+    def _setup_postprocessing(self, outputs: dict, group_name: str, *args, **kwargs):
+        output_order: list = [
             ModelLayer.JUNCTIONS,
             ModelLayer.PIPES,
             ModelLayer.PUMPS,
@@ -108,12 +110,18 @@ class WntrQgisProcessingBase:
 
                 layer_details = self.context.layerToLoadOnCompletionDetails(lyr_id)
                 layer_details.setPostProcessor(self.post_processors[lyr_id])
-                layer_details.groupName = self.tr(group_name)
+                layer_details.groupName = group_name
                 layer_details.layerSortKey = output_order.index(layer_type)
 
 
 class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
-    def __init__(self, layer_type: str, make_editable=False, style_theme=None, is_model_layer=True):  # noqa: FBT002
+    def __init__(
+        self,
+        layer_type: ModelLayer | ResultLayer,
+        make_editable=False,  # noqa: FBT002
+        style_theme=None,
+        is_model_layer=True,  # noqa: FBT002
+    ):
         super().__init__()
         self.layer_type = layer_type
         self.make_editable = make_editable
@@ -126,7 +134,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         if self.is_model_layer:
             project_settings = ProjectSettings(context.project())
             wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
-            wntr_layers[self.layer_type] = layer.id()
+            wntr_layers[self.layer_type.name] = layer.id()
             project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)
 
         if self.make_editable:

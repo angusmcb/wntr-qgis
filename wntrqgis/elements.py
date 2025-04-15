@@ -11,28 +11,42 @@ from enum import Enum, Flag, auto
 
 from qgis.core import QgsProcessing, QgsWkbTypes
 
+from wntrqgis.i18n import tr
+
 
 class FlowUnit(Enum):
-    LPS = "Litres per Second"  # doc: Litres per second
-    LPM = "Litres per Minute"  # doc: Litres per minute
-    MLD = "Mega Litres Per Day"
-    CMH = "Cubic Metres per Hour"
-    CFS = "Cubic Feet per Second"
-    GPM = "Gallons per Minute"
-    MGD = "Mega Gallons per Day"
-    IMGD = "Imperial Mega Gallons per Day"
-    AFD = "Acre-feet per Day"
-    SI = "International System of Units (SI)"
+    def __new__(cls, *args):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
+
+    def __init__(self, *args):
+        self.friendly_name = args[1]
+
+    LPS = auto(), tr("Litres per Second")
+    LPM = auto(), tr("Litres per Minute")
+    MLD = auto(), tr("Mega Litres Per Day")
+    CMH = auto(), tr("Cubic Metres per Hour")
+    CFS = auto(), tr("Cubic Feet per Second")
+    GPM = auto(), tr("Gallons per Minute")
+    MGD = auto(), tr("Mega Gallons per Day")
+    IMGD = auto(), tr("Imperial Mega Gallons per Day")
+    AFD = auto(), tr("Acre-feet per Day")
+    SI = auto(), tr("International System of Units (SI)")
 
 
 class HeadlossFormula(Enum):
-    HAZEN_WILLIAMS = "H-W"
-    DARCY_WEISBACH = "D-W"
-    CHEZY_MANNING = "C-M"
+    def __new__(cls, *args):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
 
-    @property
-    def friendly_name(self):
-        return self.name.replace("_", " ").title()
+    def __init__(self, *args):
+        self.friendly_name = args[1]
+
+    HAZEN_WILLIAMS = "H-W", tr("Hazen-Williams")
+    DARCY_WEISBACH = "D-W", tr("Darcy-Weisbach")
+    CHEZY_MANNING = "C-M", tr("Chezy-Manning")
 
 
 class PumpTypes(str, Enum):
@@ -103,12 +117,21 @@ class LayerType(Flag):
         return [QgsProcessing.TypeVectorPoint] if self in LayerType.NODES else [QgsProcessing.TypeVectorLine]
 
 
-class _AbstractLayer(str, Enum):
+class _AbstractLayer(Enum):
     """Abstract enum for layer enums"""
 
+    def __new__(cls, *args):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
+
+    def __init__(self, *args):
+        self.friendly_name = args[1]
+
     @property
-    def friendly_name(self):
-        return self.value.title()
+    def results_name(self):
+        """Name of the layer in the results"""
+        return "RESULT_" + self.name
 
     @property
     def qgs_wkb_type(self):
@@ -116,12 +139,12 @@ class _AbstractLayer(str, Enum):
 
 
 class ModelLayer(_AbstractLayer):
-    JUNCTIONS = "JUNCTIONS"
-    RESERVOIRS = "RESERVOIRS"
-    TANKS = "TANKS"
-    PIPES = "PIPES"
-    PUMPS = "PUMPS"
-    VALVES = "VALVES"
+    JUNCTIONS = "JUNCTIONS", tr("Junctions")
+    RESERVOIRS = "RESERVOIRS", tr("Reservoirs")
+    TANKS = "TANKS", tr("Tanks")
+    PIPES = "PIPES", tr("Pipes")
+    PUMPS = "PUMPS", tr("Pumps")
+    VALVES = "VALVES", tr("Valves")
 
     @property
     def element_family(self) -> ElementFamily:
@@ -214,8 +237,8 @@ class ModelLayer(_AbstractLayer):
 
 
 class ResultLayer(_AbstractLayer):
-    NODES = "OUTPUTNODES"
-    LINKS = "OUTPUTLINKS"
+    NODES = "OUTPUTNODES", tr("Nodes")
+    LINKS = "OUTPUTLINKS", tr("Links")
 
     @property
     def element_family(self):

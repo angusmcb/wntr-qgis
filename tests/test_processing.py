@@ -159,7 +159,7 @@ def test_alg_import_inp_bad_units(processing, import_alg, import_alg_params, qgi
         processing.runAndLoadResults(import_alg, import_alg_params)
 
 
-@pytest.mark.filterwarnings("ignore: 1 pipes have very different attribute length")
+@pytest.mark.filterwarnings(r"ignore: 1 pipe\(s\) have very different attribute length")
 def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new_project, example_dir):
     """todo: add test to feedback from processing"""
 
@@ -179,8 +179,8 @@ def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new
     processing.run(
         run_alg,
         {
-            "OUTPUTNODES": "TEMPORARY_OUTPUT",
-            "OUTPUTLINKS": "TEMPORARY_OUTPUT",
+            "RESULT_NODES": "TEMPORARY_OUTPUT",
+            "RESULT_LINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
             "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
@@ -192,7 +192,7 @@ def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new
     assert feedbacktest.warningreceived
 
 
-@pytest.mark.filterwarnings("ignore: 110 pipes have very different attribute length")
+@pytest.mark.filterwarnings(r"ignore: 110 pipe\(s\) have very different attribute length")
 @pytest.mark.parametrize(("example", "duration"), [("Net3.simplified.inp", 24), ("valves.inp", 0)])
 def test_alg_chain_inp_run(
     processing,
@@ -217,8 +217,8 @@ def test_alg_chain_inp_run(
     run_result = processing.run(
         run_alg,
         {
-            "OUTPUTNODES": "TEMPORARY_OUTPUT",
-            "OUTPUTLINKS": "TEMPORARY_OUTPUT",
+            "RESULT_NODES": "TEMPORARY_OUTPUT",
+            "RESULT_LINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
             "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
@@ -227,7 +227,7 @@ def test_alg_chain_inp_run(
         },
     )
 
-    expected_run_results = ["OUTPUTNODES", "OUTPUTLINKS", "OUTPUTINP"]
+    expected_run_results = ["RESULT_NODES", "RESULT_LINKS", "OUTPUTINP"]
     assert all(outkey in expected_run_results for outkey in run_result)
 
     inputwn = wntr.network.read_inpfile(inputinp)

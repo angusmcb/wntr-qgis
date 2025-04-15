@@ -32,6 +32,7 @@ from wntrqgis.elements import (
     HeadlossFormula,
     ModelLayer,
 )
+from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
 from wntrqgis.resource_manager import WqIcon
 from wntrqgis.settings import ProjectSettings, SettingKey
@@ -50,10 +51,10 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return "importinp"
 
     def displayName(self):  # noqa N802
-        return self.tr("Import from Epanet INP file")
+        return tr("Import from Epanet INP file")
 
     def shortHelpString(self):  # noqa N802
-        return self.tr("""
+        return tr("""
             Import all junctions, tanks, reservoirs, pipes, pumps and valves from an EPANET inp file.
             This will also save selected options from the .inp file.
             All units will be converted into the unit set selected. If not selected, it will default \
@@ -67,27 +68,27 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self.addParameter(
             QgsProcessingParameterFile(
                 self.INPUT,
-                self.tr("Epanet Input File (.inp)"),
+                tr("Epanet Input File (.inp)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="inp",
             )
         )
 
-        param = QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"))
+        param = QgsProcessingParameterCrs(self.CRS, tr("Coordinate Reference System (CRS)"))
         param.setGuiDefaultValueOverride("ProjectCrs")
         self.addParameter(param)
 
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.UNITS,
-                self.tr("Units to to convert to (leave blank to use .inp file units)"),
-                options=[fu.value for fu in FlowUnit],
+                tr("Units to to convert to (leave blank to use .inp file units)"),
+                options=[fu.friendly_name for fu in FlowUnit],
                 optional=True,
             )
         )
 
         for layer in ModelLayer:
-            self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
+            self.addParameter(QgsProcessingParameterFeatureSink(layer.name, layer.friendly_name))
 
     def preprocessParameters(self, parameters):  # noqa N802
         if not Path(parameters[self.INPUT]).is_file():
@@ -159,17 +160,19 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         warnings.filterwarnings("ignore", "Normalized/laundered field name:", RuntimeWarning)
 
         outputs: dict[str, str] = {}
+        layers: dict[ModelLayer, str] = {}
         for layer in ModelLayer:
             fields = network_writer.get_qgsfields(layer)
-            (sink, outputs[layer]) = self.parameterAsSink(
+            (sink, outputs[layer.name]) = self.parameterAsSink(
                 parameters, layer.name, context, fields, layer.qgs_wkb_type, crs
             )
+            layers[layer] = outputs[layer.name]
             network_writer.write(layer, sink)
 
         self._update_progress(Progression.FINISHED_PROCESSING)
 
         filename = Path(input_file).stem
 
-        self._setup_postprocessing(outputs, f"Model Layers ({filename})", False)
+        self._setup_postprocessing(layers, tr("Model Layers ({filename})").format(filename=filename), False)
 
         return outputs

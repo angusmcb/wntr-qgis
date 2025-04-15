@@ -28,6 +28,7 @@ from wntrqgis.elements import (
     HeadlossFormula,
     ModelLayer,
 )
+from wntrqgis.i18n import tr
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
@@ -44,10 +45,10 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return "settings"
 
     def displayName(self):  # noqa N802
-        return self.tr("Settings")
+        return tr("Settings")
 
     def shortHelpString(self):  # noqa N802
-        return self.tr("""
+        return tr("""
             The settings you configure here will be used when using the 'run' button.
             """)
 
@@ -61,7 +62,7 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         for lyr in ModelLayer:
             param = QgsProcessingParameterVectorLayer(
                 lyr.name,
-                self.tr(lyr.friendly_name),
+                lyr.friendly_name,
                 types=lyr.acceptable_processing_vectors,
                 optional=True,  # lyr is not WqModelLayer.JUNCTIONS,
             )
@@ -73,8 +74,8 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         param = QgsProcessingParameterEnum(
             self.UNITS,
-            self.tr("Units"),
-            options=[fu.value for fu in FlowUnit],
+            tr("Units"),
+            options=[fu.friendly_name for fu in FlowUnit],
             allowMultiple=False,
             usesStaticStrings=False,
             optional=True,
@@ -85,7 +86,7 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         param = QgsProcessingParameterEnum(
             self.HEADLOSS_FORMULA,
-            self.tr("Headloss Formula"),
+            tr("Headloss Formula"),
             options=[formula.friendly_name for formula in HeadlossFormula],
             allowMultiple=False,
             usesStaticStrings=False,
@@ -98,7 +99,7 @@ class SettingsAlgorithm(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         self.addParameter(param)
 
         param = QgsProcessingParameterNumber(
-            self.DURATION, self.tr("Simulation duration in hours (or 0 for single period)"), minValue=0
+            self.DURATION, tr("Simulation duration in hours (or 0 for single period)"), minValue=0
         )
         param.setGuiDefaultValueOverride(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         self.addParameter(param)

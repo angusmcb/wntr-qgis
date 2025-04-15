@@ -24,11 +24,19 @@ from qgis.core import (
     QgsTask,
 )
 from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
+from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
-from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtGui import QIcon, QPixmap
-from qgis.PyQt.QtWidgets import QAction, QActionGroup, QFileDialog, QMenu, QPushButton, QToolButton, QWidget
+from qgis.PyQt.QtWidgets import (
+    QAction,
+    QActionGroup,
+    QFileDialog,
+    QMenu,
+    QPushButton,
+    QToolButton,
+    QWidget,
+)
 from qgis.utils import iface
 
 import wntrqgis
@@ -40,6 +48,7 @@ from wntrqgis.elements import (
     ModelLayer,
     ResultLayer,
 )
+from wntrqgis.i18n import tr
 from wntrqgis.resource_manager import WqIcon, join_pixmap
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.provider import Provider
@@ -73,8 +82,9 @@ class Plugin:
         #     pass
 
         self.actions: dict[str, typing.Any] = {}
-        self.menu = "Water Network Tools for Resilience"
+        self.menu = tr("Water Network Tools for Resilience")
 
+        self.init_translation()
         s = QgsSettings()
         oldversion = s.value(WNTR_SETTING_VERSION, None)
         s.setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
@@ -99,6 +109,16 @@ except ModuleNotFoundError:
 """,
                 ]
             )
+
+    def init_translation(self):
+        qgis_locale = QLocale(QSettings().value("locale/userLocale"))
+        locale_path = str(Path(__file__).parent / "resources" / "i18n")
+        self.translator = QTranslator()
+        self.translator.load(qgis_locale, "", "", locale_path)
+        QCoreApplication.installTranslator(self.translator)
+
+    def tr(self, string: str, disambiguation=None, n=-1) -> str:
+        return QCoreApplication.translate("Plugin", string, disambiguation, n)
 
     def add_action(
         self,
@@ -177,7 +197,7 @@ except ModuleNotFoundError:
         self.add_action(
             "template_layers",
             join_pixmap(WqIcon.NEW.q_pixmap, WqIcon.LOGO.q_pixmap),
-            text="Create Template Memory Layers",
+            text=tr("Create Template Memory Layers"),
             callback=self.create_template_layers,
             parent=iface.mainWindow(),
         )
@@ -185,7 +205,7 @@ except ModuleNotFoundError:
         self.add_action(
             "create_template_geopackage",
             join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), WqIcon.LOGO.q_pixmap),
-            text="Create Template Geopackage",
+            text=tr("Create Template Geopackage"),
             callback=self.create_template_geopackage,
             parent=iface.mainWindow(),
         )
@@ -205,7 +225,7 @@ except ModuleNotFoundError:
         self.add_action(
             "load_inp",
             join_pixmap(WqIcon.OPEN.q_pixmap, WqIcon.LOGO.q_pixmap),
-            text="Load from .inp file",
+            text=tr("Load from .inp file"),
             callback=self.load_inp_file,
             parent=iface.mainWindow(),
             add_to_toolbar=True,
@@ -213,14 +233,14 @@ except ModuleNotFoundError:
         self.add_action(
             "run_simulation",
             join_pixmap(WqIcon.RUN.q_pixmap, WqIcon.LOGO.q_pixmap),
-            text="Run Simulation",
+            text=tr("Run Simulation"),
             callback=self.run_simulation,
             parent=iface.mainWindow(),
         )
         self.add_action(
             "settings",
             "",
-            text="Change layers...",
+            text=tr("Change layers..."),
             callback=self.open_settings,
             parent=iface.mainWindow(),
             add_to_menu=False,
@@ -230,7 +250,7 @@ except ModuleNotFoundError:
         self.run_menu.addAction(self.actions["run_simulation"])
         self.run_menu.addAction(self.actions["settings"])
 
-        headloss_formula_menu = QMenu("Headloss Formula", iface.mainWindow())
+        headloss_formula_menu = QMenu(tr("Headloss Formula"), iface.mainWindow())
         headloss_formula_group = QActionGroup(headloss_formula_menu)
 
         self.headloss_formula_actions = {}
@@ -246,13 +266,13 @@ except ModuleNotFoundError:
 
         self.run_menu.addMenu(headloss_formula_menu)
 
-        units_menu = QMenu("Units", iface.mainWindow())
+        units_menu = QMenu(tr("Units"), iface.mainWindow())
         units_group = QActionGroup(units_menu)
 
         self.units_actions = {}
 
         for unit in FlowUnit:
-            self.units_actions[unit] = QAction(unit.value, units_menu, checkable=True)
+            self.units_actions[unit] = QAction(unit.friendly_name, units_menu, checkable=True)
             self.units_actions[unit].setData(unit)
             self.units_actions[unit].triggered.connect(lambda _, param=unit: self.set_units(param))
             units_menu.addAction(self.units_actions[unit])
@@ -262,19 +282,19 @@ except ModuleNotFoundError:
 
         self.run_menu.addMenu(units_menu)
 
-        self.duration_menu = QMenu("Duration (hours)", iface.mainWindow())
+        self.duration_menu = QMenu(tr("Duration (hours)"), iface.mainWindow())
         self.duration_group = QActionGroup(self.duration_menu)
 
         self.duration_actions = {}
 
-        self.duration_actions[0] = QAction("Single period simulation", self.duration_menu, checkable=True)
+        self.duration_actions[0] = QAction(tr("Single period simulation"), self.duration_menu, checkable=True)
         self.duration_actions[0].setData(0)
         self.duration_actions[0].triggered.connect(lambda: self.set_duration(0))
         self.duration_menu.addAction(self.duration_actions[0])
         self.duration_group.addAction(self.duration_actions[0])
 
         for hours in range(1, 25):
-            self.duration_actions[hours] = QAction(f"{hours} hours", self.duration_menu, checkable=True)
+            self.duration_actions[hours] = QAction(tr("%n hour(s)", "", hours), self.duration_menu, checkable=True)
             self.duration_actions[hours].setData(hours)
             self.duration_actions[hours].triggered.connect(lambda _, param=hours: self.set_duration(param))
             self.duration_menu.addAction(self.duration_actions[hours])
@@ -294,7 +314,7 @@ except ModuleNotFoundError:
         self.add_action(
             "load_example",
             "",
-            text="Load Example",
+            text=tr("Load Example"),
             callback=self.load_example,
             parent=iface.mainWindow(),
             add_to_toolbar=False,
@@ -324,7 +344,7 @@ except ModuleNotFoundError:
     def install_wntr_if_none(self, exception, value=None):  # noqa: ARG002
         if exception:
             self._install_wntr_task = QgsTask.fromFunction(
-                "Install WNTR",
+                tr("Installing WNTR"),
                 lambda _: WntrInstaller.install_wntr(),
                 on_finished=self.show_welcome_message,
                 flags=QgsTask.Silent,
@@ -345,15 +365,19 @@ except ModuleNotFoundError:
             return
 
         if self._install_status in [_InstallStatus.FRESH_INSTALL, _InstallStatus.UPGRADE]:
-            word = "installed" if self._install_status == _InstallStatus.FRESH_INSTALL else "upgraded"
+            msg = (
+                tr("WNTR QGIS installed successfully")
+                if self._install_status == _InstallStatus.FRESH_INSTALL
+                else tr("WNTR QGIS upgraded successfully")
+            )
 
             self.message_widget = iface.messageBar().createMessage(
-                f"WNTR-QGIS {word} successfully",
-                "Load an example to try me out",
+                msg,
+                tr("Load an example to try me out"),
             )
 
             example_button = QPushButton(self.message_widget)
-            example_button.setText("Load Example")
+            example_button.setText(tr("Load Example"))
             example_button.pressed.connect(self.load_example_from_messagebar)
             self.message_widget.layout().addWidget(example_button)
             iface.messageBar().pushWidget(self.message_widget, Qgis.Info)
@@ -419,7 +443,7 @@ except ModuleNotFoundError:
         current_duration = math.floor(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         if current_duration not in self.duration_actions:
             self.duration_actions[current_duration] = QAction(
-                f"{current_duration} hours", self.duration_menu, checkable=True
+                tr("%n hours", n=current_duration), self.duration_menu, checkable=True
             )
             self.duration_actions[current_duration].setData(current_duration)
             self.duration_actions[current_duration].triggered.connect(
@@ -467,7 +491,7 @@ except ModuleNotFoundError:
             nonlocal feedback
             nonlocal algorithm
             if not successful:
-                iface.messageBar().pushMessage("Error", feedback.errors[0], level=Qgis.Critical, duration=0)
+                iface.messageBar().pushMessage(tr("Error"), feedback.errors[0], level=Qgis.Critical, duration=0)
 
                 QgsMessageLog.logMessage(
                     "Task finished unsucessfully\n" + feedback.htmlLog(), MESSAGE_CATEGORY, Qgis.Warning
@@ -483,7 +507,7 @@ except ModuleNotFoundError:
                 on_finish()
             if success_message:
                 iface.messageBar().pushMessage(
-                    "Success",
+                    tr("Success"),
                     success_message,
                     level=Qgis.Success,
                     duration=5,
@@ -502,7 +526,7 @@ except ModuleNotFoundError:
 
     def load_inp_file(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
-            None, "Choose Input File", QSettings().value("UI/lastProjectDir"), "EPANET INP File (*.inp)"
+            None, tr("Choose Input File"), QSettings().value("UI/lastProjectDir"), tr("EPANET INP File") + " (*.inp)"
         )
         if not filepath:
             return
@@ -518,7 +542,7 @@ except ModuleNotFoundError:
         self.run_alg_async(
             "wntr:importinp",
             parameters,
-            success_message="Loaded .inp file",
+            success_message=tr("Loaded .inp file"),
         )
 
     def load_example(self) -> None:
@@ -541,7 +565,7 @@ except ModuleNotFoundError:
             "wntr:importinp",
             parameters,
             on_finish=self.load_osm,
-            success_message="Example loaded with Open Street Map background",
+            success_message=tr("Example loaded with Open Street Map background"),
         )
 
     def open_settings(self) -> None:
@@ -553,7 +577,7 @@ except ModuleNotFoundError:
         project_settings = ProjectSettings(QgsProject.instance())
         saved_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
         input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in ModelLayer}
-        result_layers = {layer.value: self._temporary_processing_output() for layer in ResultLayer}
+        result_layers = {layer.results_name: self._temporary_processing_output() for layer in ResultLayer}
         flow_units = project_settings.get(SettingKey.FLOW_UNITS, FlowUnit.LPS)
         flow_unit_id = list(FlowUnit).index(flow_units)
         headloss_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
@@ -567,8 +591,9 @@ except ModuleNotFoundError:
             **input_layers,
         }
 
-        success_message = (
-            f"Analysed using units '{flow_units.value}' and headloss formula '{headloss_formula.friendly_name}'"
+        success_message = tr("Analysed using units '{units}' and headloss formula '{headloss_formula}'").format(
+            units=flow_units.friendly_name,
+            headloss_formula=headloss_formula.friendly_name,
         )
 
         self.run_alg_async(
@@ -579,7 +604,10 @@ except ModuleNotFoundError:
 
     def create_template_geopackage(self):
         geopackage_path, _ = QFileDialog.getSaveFileName(
-            iface.mainWindow(), "Save Geopackage", QSettings().value("UI/lastProjectDir"), "Geopackage (*.gpkg)"
+            iface.mainWindow(),
+            tr("Save Geopackage"),
+            QSettings().value("UI/lastProjectDir"),
+            tr("Geopackage") + " (*.gpkg)",
         )
         if not geopackage_path:
             return
