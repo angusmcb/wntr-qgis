@@ -37,7 +37,7 @@ We can run a simulation and load the results back into QGIS.
 >>> results = sim.run_sim()
 >>> result_layers = wntrqgis.to_qgis(wn, results, crs='EPSG:3089', units='lps')
 >>> result_layers
-{'NODES': <QgsVectorLayer: 'Outputnodes' (memory)>, 'LINKS': <QgsVectorLayer: 'Outputlinks' (memory)>}
+{'NODES': <QgsVectorLayer: 'Nodes' (memory)>, 'LINKS': <QgsVectorLayer: 'Links' (memory)>}
 
 Reference
 =========

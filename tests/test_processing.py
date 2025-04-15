@@ -179,8 +179,8 @@ def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new
     processing.run(
         run_alg,
         {
-            "OUTPUTNODES": "TEMPORARY_OUTPUT",
-            "OUTPUTLINKS": "TEMPORARY_OUTPUT",
+            "RESULT_NODES": "TEMPORARY_OUTPUT",
+            "RESULT_LINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
             "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
@@ -217,8 +217,8 @@ def test_alg_chain_inp_run(
     run_result = processing.run(
         run_alg,
         {
-            "OUTPUTNODES": "TEMPORARY_OUTPUT",
-            "OUTPUTLINKS": "TEMPORARY_OUTPUT",
+            "RESULT_NODES": "TEMPORARY_OUTPUT",
+            "RESULT_LINKS": "TEMPORARY_OUTPUT",
             "OUTPUTINP": "TEMPORARY_OUTPUT",
             "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
@@ -227,7 +227,7 @@ def test_alg_chain_inp_run(
         },
     )
 
-    expected_run_results = ["OUTPUTNODES", "OUTPUTLINKS", "OUTPUTINP"]
+    expected_run_results = ["RESULT_NODES", "RESULT_LINKS", "OUTPUTINP"]
     assert all(outkey in expected_run_results for outkey in run_result)
 
     inputwn = wntr.network.read_inpfile(inputinp)
@@ -242,9 +242,9 @@ def test_alg_chain_inp_run(
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
-        assert all(
-            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
-        ), f" when testing {i}"
+        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)), (
+            f" when testing {i}"
+        )
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
             all(sublist)

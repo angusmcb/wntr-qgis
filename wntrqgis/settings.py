@@ -63,6 +63,10 @@ class ProjectSettings:
         saved_value = QgsExpressionContextUtils.projectScope(self._project).variable(setting_name)
         if saved_value is None:
             return default
+
+        if issubclass(setting.expected_type, Enum):
+            return setting.expected_type[saved_value]
+
         return setting.expected_type(saved_value)
 
     def set(self, setting: SettingKey, value: Any):
@@ -75,6 +79,6 @@ class ProjectSettings:
             raise TypeError(msg)
 
         if isinstance(value, Enum):
-            value = value.value
+            value = value.name
 
         QgsExpressionContextUtils.setProjectVariable(self._project, setting_name, value)

@@ -14,6 +14,7 @@ from qgis.core import (
 )
 
 from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
+from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
 from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
@@ -26,11 +27,11 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         super().__init__()
 
         self._name = "templatelayers"
-        self._display_name = "Create Template Layers"
-        self._short_help_string = """
+        self._display_name = tr("Create Template Layers")
+        self._short_help_string = tr("""
         This will create a set of 'template' layers, which you can use for building your model.
         You do not need to create or use all layers if not required for your model.
-        """
+        """)
 
     def createInstance(self):  # noqa N802
         return TemplateLayers()
@@ -39,10 +40,10 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return self._name
 
     def displayName(self) -> str:  # noqa N802
-        return self.tr(self._display_name)
+        return tr(self._display_name)
 
     def shortHelpString(self) -> str:  # noqa N802
-        return self.tr(self._short_help_string)
+        return tr(self._short_help_string)
 
     def icon(self):
         return WqIcon.NEW.q_icon
@@ -51,24 +52,22 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
     #    return "" # "https://www.helpsite.com"
 
     def initAlgorithm(self, config=None):  # noqa N802
-        self.addParameter(
-            QgsProcessingParameterCrs(self.CRS, self.tr("Coordinate Reference System (CRS)"), "ProjectCrs")
-        )
+        self.addParameter(QgsProcessingParameterCrs(self.CRS, tr("Coordinate Reference System (CRS)"), "ProjectCrs"))
 
         advanced_analysis_types = [
-            (FieldGroup.WATER_QUALITY_ANALYSIS, "Create Fields for Water Quality Analysis"),
-            (FieldGroup.PRESSURE_DEPENDENT_DEMAND, "Create Fields for Pressure Driven Analysis"),
-            (FieldGroup.ENERGY, "Create Fields for Energy Analysis"),
+            (FieldGroup.WATER_QUALITY_ANALYSIS, tr("Create Fields for Water Quality Analysis")),
+            (FieldGroup.PRESSURE_DEPENDENT_DEMAND, tr("Create Fields for Pressure Driven Analysis")),
+            (FieldGroup.ENERGY, tr("Create Fields for Energy Analysis")),
         ]
         for analysis_type, description in advanced_analysis_types:
             param = QgsProcessingParameterBoolean(
-                analysis_type.name, self.tr(description), optional=True, defaultValue=False
+                analysis_type.name, tr(description), optional=True, defaultValue=False
             )
             param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
             self.addParameter(param)
 
         for layer in ModelLayer:
-            self.addParameter(QgsProcessingParameterFeatureSink(layer.name, self.tr(layer.friendly_name)))
+            self.addParameter(QgsProcessingParameterFeatureSink(layer.name, layer.friendly_name))
 
     def processAlgorithm(  # noqa N802
         self,
@@ -98,11 +97,13 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         warnings.filterwarnings("ignore", "Normalized/laundered field name:", RuntimeWarning)
 
         outputs: dict[str, str] = {}
+        layers: dict[ModelLayer, str] = {}
         for layer in ModelLayer:
             fields = network_writer.get_qgsfields(layer)
             wkb_type = layer.qgs_wkb_type
-            (_, outputs[layer]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
+            (_, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
+            layers[layer] = outputs[layer.name]
 
-        self._setup_postprocessing(outputs, "Model Layers", True)
+        self._setup_postprocessing(layers, tr("Model Layers"), True)
 
         return outputs
