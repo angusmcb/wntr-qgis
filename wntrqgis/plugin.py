@@ -250,7 +250,7 @@ except ModuleNotFoundError:
         self.run_menu.addAction(self.actions["run_simulation"])
         self.run_menu.addAction(self.actions["settings"])
 
-        headloss_formula_menu = QMenu("Headloss Formula", iface.mainWindow())
+        headloss_formula_menu = QMenu(tr("Headloss Formula"), iface.mainWindow())
         headloss_formula_group = QActionGroup(headloss_formula_menu)
 
         self.headloss_formula_actions = {}
@@ -526,7 +526,7 @@ except ModuleNotFoundError:
 
     def load_inp_file(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
-            None, "Choose Input File", QSettings().value("UI/lastProjectDir"), "EPANET INP File (*.inp)"
+            None, tr("Choose Input File"), QSettings().value("UI/lastProjectDir"), tr("EPANET INP File") + " (*.inp)"
         )
         if not filepath:
             return
@@ -542,7 +542,7 @@ except ModuleNotFoundError:
         self.run_alg_async(
             "wntr:importinp",
             parameters,
-            success_message="Loaded .inp file",
+            success_message=tr("Loaded .inp file"),
         )
 
     def load_example(self) -> None:
@@ -604,7 +604,10 @@ except ModuleNotFoundError:
 
     def create_template_geopackage(self):
         geopackage_path, _ = QFileDialog.getSaveFileName(
-            iface.mainWindow(), "Save Geopackage", QSettings().value("UI/lastProjectDir"), "Geopackage (*.gpkg)"
+            iface.mainWindow(),
+            tr("Save Geopackage"),
+            QSettings().value("UI/lastProjectDir"),
+            tr("Geopackage") + " (*.gpkg)",
         )
         if not geopackage_path:
             return

@@ -10,7 +10,7 @@ from qgis_plugin_tools.infrastructure.plugin_maker import PluginMaker
 #################################################
 """
 
-locales = ["fr"]
+locales = ["fr", "es", "de"]
 profile = "foo"
 py_files = [fil for fil in glob.glob("wntrqgis/**/*.py", recursive=True) if "packages" not in fil]
 ui_files = list(glob.glob("**/*.ui", recursive=True))

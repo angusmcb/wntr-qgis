@@ -561,5 +561,30 @@
         <source>cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)</source>
         <translation>impossible de calculer la longueur de la canalisation (probablement en raison d’un problème avec le système de coordonnées de référence sélectionné)</translation>
     </message>
+    <message>
+        <location filename="../../plugin.py" line="528"/>
+        <source>Choose Input File</source>
+        <translation>Choisir le fichier d’entrée</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="528"/>
+        <source>EPANET INP File</source>
+        <translation>Fichier INP EPANET</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="542"/>
+        <source>Loaded .inp file</source>
+        <translation>Fichier .inp chargé</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="606"/>
+        <source>Save Geopackage</source>
+        <translation>Enregistrer le Geopackage</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="606"/>
+        <source>Geopackage</source>
+        <translation>Geopackage</translation>
+    </message>
 </context>
 </TS>
