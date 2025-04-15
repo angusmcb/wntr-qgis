@@ -47,6 +47,7 @@ from wntrqgis.elements import (
     ResultField,
     ResultLayer,
 )
+from wntrqgis.i18n import tr
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
@@ -222,7 +223,7 @@ def to_qgis(
     if crs:
         crs_object = QgsCoordinateReferenceSystem(crs)
         if not crs_object.isValid():
-            msg = f"CRS {crs} is not valid."
+            msg = tr("CRS {crs} is not valid.").format(crs=crs)
             raise ValueError(msg)
     else:
         crs_object = QgsCoordinateReferenceSystem()
@@ -270,8 +271,9 @@ class Writer:
             units = wn.options.hydraulic.inpfile_units
             units_friendly_name = FlowUnit[units].value
             logger.warning(
-                "No units specified. Will use the value specified in WaterNetworkModel object: %s",
-                units_friendly_name,
+                tr(
+                    "No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}"
+                ).format(units_friendly_name=units_friendly_name)
             )
 
         self._converter = _Converter(units, HeadlossFormula(wn.options.hydraulic.headloss))
@@ -607,7 +609,9 @@ class _SpatialIndex:
         matched_node_point, matched_node_name = self._nodelist[nearest[0]]
         snap_distance = matched_node_point.distance(line_vertex_point)
         if snap_distance > original_length * 0.1:
-            msg = f"nearest node to snap to is too far ({matched_node_name})."
+            msg = tr("nearest node to snap to is too far ({matched_node_name}).").format(
+                matched_node_name=matched_node_name
+            )
             # Line length:{original_length} Snap Distance: {snap_distance}"
             raise RuntimeError(msg)
         return (matched_node_point, matched_node_name)
@@ -619,10 +623,10 @@ class _SpatialIndex:
         try:
             vertices = geometry.asPolyline()
         except TypeError:
-            msg = "All links must be single part lines"
+            msg = tr("All links must be single part lines")
             raise RuntimeError(msg) from None
         except ValueError:
-            msg = "All links must have valid geometry"
+            msg = tr("All links must have valid geometry")
             raise RuntimeError(msg) from None
 
         start_point = vertices.pop(0)
@@ -632,11 +636,13 @@ class _SpatialIndex:
             (new_start_point, start_node_name) = self._snapper(start_point, original_length)
             (new_end_point, end_node_name) = self._snapper(end_point, original_length)
         except RuntimeError as e:
-            msg = f"couldn't snap: {e}"
+            msg = tr("couldn't snap: {exception}").format(exception=e)
             raise RuntimeError(msg) from None
 
         if start_node_name == end_node_name:
-            msg = f"connects to the same node on both ends ({start_node_name})"
+            msg = tr("connects to the same node on both ends ({start_node_name})").format(
+                start_node_name=start_node_name
+            )
             raise RuntimeError(msg)
 
         snapped_geometry = QgsGeometry.fromPolylineXY([new_start_point, *vertices, new_end_point])
@@ -791,14 +797,16 @@ def from_qgis(
 
     if wn:
         if headloss:
-            msg = "Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead"
+            msg = tr(
+                "Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead"
+            )
             raise ValueError(msg)
         headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
     else:
         wn = wntr.network.WaterNetworkModel()
 
         if not headloss:
-            msg = "headloss must be set if wn is not set: possible values are: H-W, D-W, C-M "
+            msg = tr("headloss must be set if wn is not set: possible values are: H-W, D-W, C-M")
             raise ValueError(msg)
         headloss_formula_type = HeadlossFormula(headloss)
         with warnings.catch_warnings():
@@ -826,7 +834,7 @@ def from_qgis(
         for layer_name, layer in layers.items():
             model_layers.update({ModelLayer(str(layer_name).upper()): layer})
     except ValueError:
-        msg = f"'{layer_name}' is not a valid layer type."
+        msg = tr("'{layer_name}' is not a valid layer type.").format(layer_name=layer_name)
         raise ValueError(msg) from None
 
     reader.add_features_to_network_model(model_layers, wn)
@@ -917,12 +925,12 @@ class _FromGis:
         try:
             node_df = pd.concat(node_dfs, sort=False, ignore_index=True)
         except ValueError:
-            msg = "No nodes provided"
+            msg = tr("There are no nodes in the model")
             raise NetworkModelError(msg) from ValueError
         try:
             link_df = pd.concat(link_dfs, sort=False, ignore_index=True)
         except ValueError:
-            msg = "No links provided"
+            msg = tr("There are no links in the model")
             raise NetworkModelError(msg) from ValueError
 
         node_df = self._fix_column_types(node_df)
@@ -994,7 +1002,7 @@ class _FromGis:
                 elif expected_type is bool:
                     source_df[column_name] = pd.to_numeric(source_df[column_name]).astype("Int64").astype("object")
             except ValueError as e:
-                msg = f"Problem in column {column_name}: {e}"
+                msg = tr("Problem in column {column_name}: {exception}").format(column_name=column_name, exception=e)
                 raise NetworkModelError(msg) from None
         return source_df
 
@@ -1010,7 +1018,7 @@ class _FromGis:
     def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
         null_geometry = df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
         if null_geometry:
-            msg = f"in nodes, {null_geometry} feature(s) have no geometry"
+            msg = tr("in nodes, {n} feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
         for geometry, name in df.loc[:, ["geometry", "name"]].itertuples(index=False):
@@ -1023,7 +1031,7 @@ class _FromGis:
     def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
         null_geometry = link_df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
         if null_geometry:
-            msg = f"in links, {null_geometry} feature(s) have no geometry"
+            msg = tr("in links, {n} feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
         snapped_data = []
@@ -1031,7 +1039,7 @@ class _FromGis:
             for geometry, name in link_df.loc[:, ["geometry", "name"]].itertuples(index=False):  # noqa: B007
                 snapped_data.append(self._spatial_index.snap_link(geometry))
         except RuntimeError as e:
-            msg = f"problem snapping the feature {name}: {e} "
+            msg = tr("problem snapping the feature {name}: {exception}").format(name=name, exception=e)
             raise NetworkModelError(msg) from None
         link_df[["geometry", "start_node_name", "end_node_name"]] = snapped_data
 
@@ -1068,11 +1076,12 @@ class _FromGis:
             examples.columns = pd.Index(["name", "attribute_length", "calculated_length"])
             examples = examples.loc[has_attr_length].loc[mismatch]
             examples = examples.head(5)
-            msg = (
-                f"{mismatch.sum()} pipes"
-                " have very different attribute length vs measured length. First five are: "
-                + ", ".join(
-                    examples.apply("{name} ({attribute_length:.0f}m vs {calculated_length:.0f}m)".format_map, axis=1)
+            number_of_mismatches = mismatch.sum()
+            msg = tr(
+                "{number_of_mismatches} pipes have very different attribute length vs measured length. First five are: "
+            ).format(number_of_mismatches=number_of_mismatches) + ", ".join(
+                examples.apply(
+                    tr("{name} ({attribute_length:.0f}metres vs {calculated_length:.0f}metres)").format_map, axis=1
                 )
             )
             warnings.warn(msg, stacklevel=1)
@@ -1109,9 +1118,8 @@ class _FromGis:
             length = self._measurer.convertLengthMeasurement(length, QGIS_DISTANCE_UNIT_METERS)
 
         if math.isnan(length):
-            msg = (
-                "cannot calculate length of pipe"
-                " (probably due to a problem with the selected coordinate reference system)"
+            msg = tr(
+                "cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)"  # noqa: E501
             )
             raise RuntimeError(msg)
         return length
@@ -1192,12 +1200,12 @@ class _FromGis:
             df: DataFrame to check for duplicates.
 
         Raises:
-            ValueError: If duplicates are found.
+            NetworkModelError: If duplicates are found.
         """
         if "name" in df.columns:
             duplicates = df.loc[df["name"].duplicated(), "name"]
             if not duplicates.empty:
-                msg = f"Duplicate names found: {', '.join(duplicates.unique())}"
+                msg = tr("Duplicate names found: ") + ", ".join(duplicates.unique())
                 raise NetworkModelError(msg)
 
 
@@ -1237,17 +1245,17 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
 
     """
     if not wn.num_junctions:
-        msg = "At least one junction is necessary"
+        msg = tr("At least one junction is necessary")
         raise NetworkModelError(msg)
     if not wn.num_tanks and not wn.num_reservoirs:
-        msg = "At least one tank or reservoir is required"
+        msg = tr("At least one tank or reservoir is required")
         raise NetworkModelError(msg)
     if not wn.num_links:
-        msg = "At least one link (pipe, pump or valve) is necessary"
+        msg = tr("At least one link (pipe, pump or valve) is necessary")
         raise NetworkModelError(msg)
     orphan_nodes = wn.nodes.unused()
     if len(orphan_nodes):
-        msg = "the following nodes are not connected to any links: " + ", ".join(orphan_nodes)
+        msg = tr("the following nodes are not connected to any links: ") + ", ".join(orphan_nodes)
         raise NetworkModelError(msg)
 
 
@@ -1276,8 +1284,9 @@ class NetworkModelError(Exception):
 class PatternError(NetworkModelError, ValueError):
     def __init__(self, exception, layer, pattern_name):
         super().__init__(
-            f"in {layer} problem reading {pattern_name} pattern ({exception})."
-            " Patterns should be of the form 1 2.0 3 4.0, where each numeric value is seperated by one ore more spaces."
+            tr(
+                "in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces."  # noqa: E501
+            ).format(layer=layer, pattern_name=pattern_name, exception=exception)
         )
 
 
@@ -1285,24 +1294,29 @@ class CurveError(NetworkModelError, ValueError):
     def __init__(self, exception, curve_type: _Curves.Type):
         curve_name = ""
         if curve_type is _Curves.Type.HEAD:
-            curve_name = "pump head"
+            curve_name = tr("pump head")
         elif curve_type is _Curves.Type.EFFICIENCY:
-            curve_name = "pump efficiency"
+            curve_name = tr("pump efficiency")
         elif curve_type is _Curves.Type.HEADLOSS:
-            curve_name = "general purpose valve headloss"
+            curve_name = tr("general purpose valve headloss")
         elif curve_type is _Curves.Type.VOLUME:
-            curve_name = "tank volume"
+            curve_name = tr("tank volume")
 
-        super().__init__(f"problem reading {curve_name} curve ({exception})Curves hould be of the form [(1,2), (3,4)]")
+        super().__init__(
+            tr("problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]").format(
+                curve_name=curve_name, exception=exception
+            )
+        )
 
 
 class WntrError(NetworkModelError):
     def __init__(self, exception):
-        super().__init__(f"error from WNTR. {exception}")
+        super().__init__(tr("error from WNTR. {exception}").format(exception=exception))
 
 
 class UnitError(NetworkModelError, ValueError):
     def __init__(self, exception):
         super().__init__(
-            f"Units {exception} is not a known set of units. Possible units are: " + ", ".join(FlowUnit._member_names_)
+            tr("{exception} is not a known set of units. Possible units are: ").format(exception=exception)
+            + ", ".join(FlowUnit._member_names_)
         )

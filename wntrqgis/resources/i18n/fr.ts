@@ -4,22 +4,22 @@
 <context>
     <name>@default</name>
     <message>
-        <location filename="../../plugin.py" line="86"/>
+        <location filename="../../plugin.py" line="85"/>
         <source>Water Network Tools for Resilience</source>
         <translation>Outils de réseau d’eau pour la résilience</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="198"/>
+        <location filename="../../plugin.py" line="197"/>
         <source>Create Template Memory Layers</source>
         <translation>Créer des couches mémoire de modèle</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="206"/>
+        <location filename="../../plugin.py" line="205"/>
         <source>Create Template Geopackage</source>
         <translation>Créer un géopackage de modèle</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="226"/>
+        <location filename="../../plugin.py" line="225"/>
         <source>Load from .inp file</source>
         <translation>Charger depuis un fichier .inp</translation>
     </message>
@@ -29,7 +29,7 @@
         <translation>Exécuter la simulation</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="241"/>
+        <location filename="../../plugin.py" line="240"/>
         <source>Change layers...</source>
         <translation>Modifier les couches...</translation>
     </message>
@@ -39,17 +39,17 @@
         <translation>Unités</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="286"/>
+        <location filename="../../plugin.py" line="285"/>
         <source>Duration (hours)</source>
         <translation>Durée (heures)</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="291"/>
+        <location filename="../../plugin.py" line="290"/>
         <source>Single period simulation</source>
         <translation>Simulation d’une seule période</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="381"/>
+        <location filename="../../plugin.py" line="380"/>
         <source>Load Example</source>
         <translation>Charger un exemple</translation>
     </message>
@@ -59,47 +59,47 @@
         <translation>Installation de WNTR</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="369"/>
+        <location filename="../../plugin.py" line="368"/>
         <source>WNTR QGIS installed successfully</source>
         <translation>WNTR QGIS installé avec succès</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="369"/>
+        <location filename="../../plugin.py" line="368"/>
         <source>WNTR QGIS upgraded successfully</source>
         <translation>WNTR QGIS mis à niveau avec succès</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="375"/>
+        <location filename="../../plugin.py" line="374"/>
         <source>Load an example to try me out</source>
         <translation>Chargez un exemple pour me tester</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="446"/>
+        <location filename="../../plugin.py" line="445"/>
         <source>%n hours</source>
         <translation>%n heures</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="495"/>
+        <location filename="../../plugin.py" line="494"/>
         <source>Error</source>
         <translation>Erreur</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="510"/>
+        <location filename="../../plugin.py" line="509"/>
         <source>Success</source>
         <translation>Succès</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="565"/>
+        <location filename="../../plugin.py" line="564"/>
         <source>Example loaded with Open Street Map background</source>
         <translation>Exemple chargé avec un fond Open Street Map</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="595"/>
+        <location filename="../../plugin.py" line="594"/>
         <source>Analysed using units &apos;{units}&apos; and headloss formula &apos;{headloss_formula}&apos;</source>
         <translation>Analysé en utilisant les unités « {units} » et la formule de perte de charge « {headloss_formula} »</translation>
     </message>
     <message numerus="yes">
-        <location filename="../../plugin.py" line="298"/>
+        <location filename="../../plugin.py" line="297"/>
         <source>%n hour(s)</source>
         <translation>
             <numerusform>%n heure</numerusform>
@@ -394,6 +394,172 @@
         <location filename="../../wntrqgis_processing/common.py" line="40"/>
         <source>Loading inp file</source>
         <translation>Chargement du fichier inp</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1286"/>
+        <source>in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces.</source>
+        <translation>dans {layer} problème de lecture du modèle {pattern_name} ({exception}). Les modèles doivent être de la forme 1 2.0 3 4.0, où chaque valeur numérique est séparée par un ou plusieurs espaces.</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1297"/>
+        <source>pump head</source>
+        <translation>hauteur de pompe</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1299"/>
+        <source>pump efficiency</source>
+        <translation>efficacité de la pompe</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1301"/>
+        <source>general purpose valve headloss</source>
+        <translation>perte de charge de vanne polyvalente</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1303"/>
+        <source>tank volume</source>
+        <translation>volume du réservoir</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1305"/>
+        <source>problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]</source>
+        <translation>problème de lecture de la courbe {curve_name} ({exception}). Les courbes doivent être de la forme [(1,2), (3,4)].</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1314"/>
+        <source>error from WNTR. {exception}</source>
+        <translation>erreur de WNTR. {exception}</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1319"/>
+        <source>{exception} is not a known set of units. Possible units are: </source>
+        <translation>{exception} n’est pas un ensemble d’unités connu. Les unités possibles sont : </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="800"/>
+        <source>Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead</source>
+        <translation>Impossible de définir la perte de charge lorsque wn est défini. Définissez la perte de charge dans wn.options.hydraulic.headloss à la place</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="809"/>
+        <source>headloss must be set if wn is not set: possible values are: H-W, D-W, C-M</source>
+        <translation>La perte de charge doit être définie si wn n’est pas défini : les valeurs possibles sont : H-W, D-W, C-M</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="837"/>
+        <source>&apos;{layer_name}&apos; is not a valid layer type.</source>
+        <translation>'{layer_name}' n’est pas un type de couche valide.</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="928"/>
+        <source>There are no nodes in the model</source>
+        <translation>Il n’y a aucun nœud dans le modèle</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="933"/>
+        <source>There are no links in the model</source>
+        <translation>Il n’y a aucun lien dans le modèle</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1005"/>
+        <source>Problem in column {column_name}: {exception}</source>
+        <translation>Problème dans la colonne {column_name} : {exception}</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1021"/>
+        <source>in nodes, {n} feature(s) have no geometry</source>
+        <translation>
+            <numerusform>dans les nœuds, {n} entité n’a pas de géométrie</numerusform>
+            <numerusform>dans les nœuds, {n} entités n’ont pas de géométrie</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1034"/>
+        <source>in links, {n} feature(s) have no geometry</source>
+        <translation>
+            <numerusform>dans les liens, {n} entité n’a pas de géométrie</numerusform>
+            <numerusform>dans les liens, {n} entités n’ont pas de géométrie</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1042"/>
+        <source>problem snapping the feature {name}: {exception}</source>
+        <translation>problème d’accrochage de l’entité {name} : {exception}</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1208"/>
+        <source>Duplicate names found: </source>
+        <translation>Noms en double trouvés : </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1248"/>
+        <source>At least one junction is necessary</source>
+        <translation>Au moins un nœud de jonction est nécessaire</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1251"/>
+        <source>At least one tank or reservoir is required</source>
+        <translation>Au moins une cuve ou un réservoir est requis</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1254"/>
+        <source>At least one link (pipe, pump or valve) is necessary</source>
+        <translation>Au moins un lien (canalisation, pompe ou vanne) est nécessaire</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1258"/>
+        <source>the following nodes are not connected to any links: </source>
+        <translation>les nœuds suivants ne sont connectés à aucun lien : </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="226"/>
+        <source>CRS {crs} is not valid.</source>
+        <translation>Le SCR {crs} n’est pas valide.</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="273"/>
+        <source>No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}</source>
+        <translation>Aucune unité spécifiée. La valeur spécifiée dans l’objet WaterNetworkModel sera utilisée : {units_friendly_name}</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="612"/>
+        <source>nearest node to snap to is too far ({matched_node_name}).</source>
+        <translation>le nœud le plus proche pour l’accrochage est trop éloigné ({matched_node_name}).</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="626"/>
+        <source>All links must be single part lines</source>
+        <translation>Tous les liens doivent être des lignes à une seule partie</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="629"/>
+        <source>All links must have valid geometry</source>
+        <translation>Tous les liens doivent avoir une géométrie valide</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="639"/>
+        <source>couldn&apos;t snap: {exception}</source>
+        <translation>impossible d’accrocher : {exception}</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="643"/>
+        <source>connects to the same node on both ends ({start_node_name})</source>
+        <translation>se connecte au même nœud aux deux extrémités ({start_node_name})</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1080"/>
+        <source>{number_of_mismatches} pipes have very different attribute length vs measured length. First five are: </source>
+        <translation>{number_of_mismatches} canalisations ont une longueur d’attribut très différente de la longueur mesurée. Les cinq premières sont : </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1082"/>
+        <source>{name} ({attribute_length:.0f}metres vs {calculated_length:.0f}metres)</source>
+        <translation>{name} ({attribute_length:.0f} mètres contre {calculated_length:.0f} mètres)</translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1121"/>
+        <source>cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)</source>
+        <translation>impossible de calculer la longueur de la canalisation (probablement en raison d’un problème avec le système de coordonnées de référence sélectionné)</translation>
     </message>
 </context>
 </TS>
