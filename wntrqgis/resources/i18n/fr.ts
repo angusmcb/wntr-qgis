@@ -396,42 +396,42 @@
         <translation>Chargement du fichier inp</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1286"/>
+        <location filename="../../interface.py" line="1288"/>
         <source>in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces.</source>
         <translation>dans {layer} problème de lecture du modèle {pattern_name} ({exception}). Les modèles doivent être de la forme 1 2.0 3 4.0, où chaque valeur numérique est séparée par un ou plusieurs espaces.</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1297"/>
+        <location filename="../../interface.py" line="1299"/>
         <source>pump head</source>
         <translation>hauteur de pompe</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1299"/>
+        <location filename="../../interface.py" line="1301"/>
         <source>pump efficiency</source>
         <translation>efficacité de la pompe</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1301"/>
+        <location filename="../../interface.py" line="1303"/>
         <source>general purpose valve headloss</source>
         <translation>perte de charge de vanne polyvalente</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1303"/>
+        <location filename="../../interface.py" line="1305"/>
         <source>tank volume</source>
         <translation>volume du réservoir</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1305"/>
+        <location filename="../../interface.py" line="1307"/>
         <source>problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]</source>
         <translation>problème de lecture de la courbe {curve_name} ({exception}). Les courbes doivent être de la forme [(1,2), (3,4)].</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1314"/>
+        <location filename="../../interface.py" line="1316"/>
         <source>error from WNTR. {exception}</source>
         <translation>erreur de WNTR. {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1319"/>
+        <location filename="../../interface.py" line="1321"/>
         <source>{exception} is not a known set of units. Possible units are: </source>
         <translation>{exception} n’est pas un ensemble d’unités connu. Les unités possibles sont : </translation>
     </message>
@@ -465,49 +465,33 @@
         <source>Problem in column {column_name}: {exception}</source>
         <translation>Problème dans la colonne {column_name} : {exception}</translation>
     </message>
-    <message numerus="yes">
-        <location filename="../../interface.py" line="1021"/>
-        <source>in nodes, {n} feature(s) have no geometry</source>
-        <translation>
-            <numerusform>dans les nœuds, {n} entité n’a pas de géométrie</numerusform>
-            <numerusform>dans les nœuds, {n} entités n’ont pas de géométrie</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location filename="../../interface.py" line="1034"/>
-        <source>in links, {n} feature(s) have no geometry</source>
-        <translation>
-            <numerusform>dans les liens, {n} entité n’a pas de géométrie</numerusform>
-            <numerusform>dans les liens, {n} entités n’ont pas de géométrie</numerusform>
-        </translation>
-    </message>
     <message>
         <location filename="../../interface.py" line="1042"/>
         <source>problem snapping the feature {name}: {exception}</source>
         <translation>problème d’accrochage de l’entité {name} : {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1208"/>
+        <location filename="../../interface.py" line="1210"/>
         <source>Duplicate names found: </source>
         <translation>Noms en double trouvés : </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1248"/>
+        <location filename="../../interface.py" line="1250"/>
         <source>At least one junction is necessary</source>
         <translation>Au moins un nœud de jonction est nécessaire</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1251"/>
+        <location filename="../../interface.py" line="1253"/>
         <source>At least one tank or reservoir is required</source>
         <translation>Au moins une cuve ou un réservoir est requis</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1254"/>
+        <location filename="../../interface.py" line="1256"/>
         <source>At least one link (pipe, pump or valve) is necessary</source>
         <translation>Au moins un lien (canalisation, pompe ou vanne) est nécessaire</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1258"/>
+        <location filename="../../interface.py" line="1260"/>
         <source>the following nodes are not connected to any links: </source>
         <translation>les nœuds suivants ne sont connectés à aucun lien : </translation>
     </message>
@@ -547,17 +531,7 @@
         <translation>se connecte au même nœud aux deux extrémités ({start_node_name})</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1080"/>
-        <source>{number_of_mismatches} pipes have very different attribute length vs measured length. First five are: </source>
-        <translation>{number_of_mismatches} canalisations ont une longueur d’attribut très différente de la longueur mesurée. Les cinq premières sont : </translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1082"/>
-        <source>{name} ({attribute_length:.0f}metres vs {calculated_length:.0f}metres)</source>
-        <translation>{name} ({attribute_length:.0f} mètres contre {calculated_length:.0f} mètres)</translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1121"/>
+        <location filename="../../interface.py" line="1123"/>
         <source>cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)</source>
         <translation>impossible de calculer la longueur de la canalisation (probablement en raison d’un problème avec le système de coordonnées de référence sélectionné)</translation>
     </message>
@@ -585,6 +559,35 @@
         <location filename="../../plugin.py" line="606"/>
         <source>Geopackage</source>
         <translation>Geopackage</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1021"/>
+        <source>in nodes, %n feature(s) have no geometry</source>
+        <translation>
+            <numerusform>dans les nœuds, %n entité n’a pas de géométrie</numerusform>
+            <numerusform>dans les nœuds, %n entités n’ont pas de géométrie</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1034"/>
+        <source>in links, %n feature(s) have no geometry</source>
+        <translation>
+            <numerusform>dans les liens, %n entité n’a pas de géométrie</numerusform>
+            <numerusform>dans les liens, %n entités n’ont pas de géométrie</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1080"/>
+        <source>%n pipe(s) have very different attribute length vs measured length. First five are: </source>
+        <translation>
+            <numerusform>%n canalisation a une longueur d’attribut très différente de la longueur mesurée. Les cinq premières sont : </numerusform>
+            <numerusform>%n canalisations ont une longueur d’attribut très différente de la longueur mesurée. Les cinq premières sont : </numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1084"/>
+        <source>{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)</source>
+        <translation>{name} ({attribute_length:.0f} mètres contre {calculated_length:.0f} mètres)</translation>
     </message>
 </context>
 </TS>

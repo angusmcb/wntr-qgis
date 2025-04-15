@@ -272,7 +272,7 @@ class Writer:
             units_friendly_name = FlowUnit[units].value
             logger.warning(
                 tr(
-                    "No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}"
+                    "No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}"  # noqa: E501
                 ).format(units_friendly_name=units_friendly_name)
             )
 
@@ -1018,7 +1018,7 @@ class _FromGis:
     def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
         null_geometry = df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
         if null_geometry:
-            msg = tr("in nodes, {n} feature(s) have no geometry", "", null_geometry)
+            msg = tr("in nodes, %n feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
         for geometry, name in df.loc[:, ["geometry", "name"]].itertuples(index=False):
@@ -1031,7 +1031,7 @@ class _FromGis:
     def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
         null_geometry = link_df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
         if null_geometry:
-            msg = tr("in links, {n} feature(s) have no geometry", "", null_geometry)
+            msg = tr("in links, %n feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
         snapped_data = []
@@ -1078,10 +1078,12 @@ class _FromGis:
             examples = examples.head(5)
             number_of_mismatches = mismatch.sum()
             msg = tr(
-                "{number_of_mismatches} pipes have very different attribute length vs measured length. First five are: "
-            ).format(number_of_mismatches=number_of_mismatches) + ", ".join(
+                "%n pipe(s) have very different attribute length vs measured length. First five are: ",
+                "",
+                number_of_mismatches,
+            ) + ", ".join(
                 examples.apply(
-                    tr("{name} ({attribute_length:.0f}metres vs {calculated_length:.0f}metres)").format_map, axis=1
+                    tr("{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)").format_map, axis=1
                 )
             )
             warnings.warn(msg, stacklevel=1)

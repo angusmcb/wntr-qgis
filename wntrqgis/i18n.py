@@ -1,5 +1,3 @@
-from typing import Any
-
 from qgis.PyQt.QtWidgets import QApplication
 
 

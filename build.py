@@ -2,6 +2,8 @@
 import glob
 from pathlib import Path
 
+import qgis_plugin_tools.infrastructure.plugin_maker as pm
+import qgis_plugin_tools.tools.resources as r
 from qgis_plugin_tools.infrastructure.plugin_maker import PluginMaker
 
 """
@@ -10,7 +12,7 @@ from qgis_plugin_tools.infrastructure.plugin_maker import PluginMaker
 #################################################
 """
 
-locales = ["fr", "es", "de"]
+locales = ["en", "fr", "es", "de"]
 profile = "foo"
 py_files = [fil for fil in glob.glob("wntrqgis/**/*.py", recursive=True) if "packages" not in fil]
 ui_files = list(glob.glob("**/*.ui", recursive=True))
@@ -18,9 +20,6 @@ resources = list(glob.glob("**/*.qrc", recursive=True))
 extra_dirs = ["resources"]
 compiled_resources = ["resources.py"]
 
-
-import qgis_plugin_tools.infrastructure.plugin_maker as pm
-import qgis_plugin_tools.tools.resources as r
 
 # print(r._IS_SUBMODULE_USAGE)
 

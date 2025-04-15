@@ -336,104 +336,78 @@
         <source>Problem in column {column_name}: {exception}</source>
         <translation>Problema en la columna {column_name}: {exception}</translation>
     </message>
-    <message numerus="yes">
-        <location filename="../../interface.py" line="1021"/>
-        <source>in nodes, {n} feature(s) have no geometry</source>
-        <translation>
-            <numerusform>en nodos, {n} elemento no tiene geometría</numerusform>
-            <numerusform>en nodos, {n} elementos no tienen geometría</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location filename="../../interface.py" line="1034"/>
-        <source>in links, {n} feature(s) have no geometry</source>
-        <translation>
-            <numerusform>en enlaces, {n} elemento no tiene geometría</numerusform>
-            <numerusform>en enlaces, {n} elementos no tienen geometría</numerusform>
-        </translation>
-    </message>
     <message>
         <location filename="../../interface.py" line="1042"/>
         <source>problem snapping the feature {name}: {exception}</source>
         <translation>problema al ajustar el elemento {name}: {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1080"/>
-        <source>{number_of_mismatches} pipes have very different attribute length vs measured length. First five are: </source>
-        <translation>{number_of_mismatches} tuberías tienen una longitud de atributo muy diferente a la longitud medida. Las primeras cinco son: </translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1082"/>
-        <source>{name} ({attribute_length:.0f}metres vs {calculated_length:.0f}metres)</source>
-        <translation>{name} ({attribute_length:.0f}metros vs {calculated_length:.0f}metros)</translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1121"/>
+        <location filename="../../interface.py" line="1123"/>
         <source>cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)</source>
         <translation>no se puede calcular la longitud de la tubería (probablemente debido a un problema con el sistema de referencia de coordenadas seleccionado)</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1208"/>
+        <location filename="../../interface.py" line="1210"/>
         <source>Duplicate names found: </source>
         <translation>Se encontraron nombres duplicados: </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1248"/>
+        <location filename="../../interface.py" line="1250"/>
         <source>At least one junction is necessary</source>
         <translation>Se necesita al menos un nodo de unión</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1251"/>
+        <location filename="../../interface.py" line="1253"/>
         <source>At least one tank or reservoir is required</source>
         <translation>Se requiere al menos un tanque o depósito</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1254"/>
+        <location filename="../../interface.py" line="1256"/>
         <source>At least one link (pipe, pump or valve) is necessary</source>
         <translation>Se necesita al menos un enlace (tubería, bomba o válvula)</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1258"/>
+        <location filename="../../interface.py" line="1260"/>
         <source>the following nodes are not connected to any links: </source>
         <translation>los siguientes nodos no están conectados a ningún enlace: </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1286"/>
+        <location filename="../../interface.py" line="1288"/>
         <source>in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces.</source>
         <translation>en {layer} problema al leer el patrón {pattern_name} ({exception}). Los patrones deben tener la forma 1 2.0 3 4.0, donde cada valor numérico está separado por uno o más espacios.</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1297"/>
+        <location filename="../../interface.py" line="1299"/>
         <source>pump head</source>
         <translation>cabezal de bomba</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1299"/>
+        <location filename="../../interface.py" line="1301"/>
         <source>pump efficiency</source>
         <translation>eficiencia de la bomba</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1301"/>
+        <location filename="../../interface.py" line="1303"/>
         <source>general purpose valve headloss</source>
         <translation>pérdida de carga de válvula de propósito general</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1303"/>
+        <location filename="../../interface.py" line="1305"/>
         <source>tank volume</source>
         <translation>volumen del tanque</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1305"/>
+        <location filename="../../interface.py" line="1307"/>
         <source>problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]</source>
         <translation>problema al leer la curva {curve_name} ({exception}). Las curvas deben tener la forma [(1,2), (3,4)]</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1314"/>
+        <location filename="../../interface.py" line="1316"/>
         <source>error from WNTR. {exception}</source>
         <translation>error de WNTR. {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1319"/>
+        <location filename="../../interface.py" line="1321"/>
         <source>{exception} is not a known set of units. Possible units are: </source>
         <translation>{exception} no es un conjunto de unidades conocido. Las unidades posibles son: </translation>
     </message>
@@ -582,6 +556,35 @@
         <location filename="../../plugin.py" line="606"/>
         <source>Geopackage</source>
         <translation>Geopackage</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1021"/>
+        <source>in nodes, %n feature(s) have no geometry</source>
+        <translation>
+            <numerusform>en nodos, %n elemento no tiene geometría</numerusform>
+            <numerusform>en nodos, %n elementos no tienen geometría</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1034"/>
+        <source>in links, %n feature(s) have no geometry</source>
+        <translation>
+            <numerusform>en enlaces, %n elemento no tiene geometría</numerusform>
+            <numerusform>en enlaces, %n elementos no tienen geometría</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../interface.py" line="1080"/>
+        <source>%n pipe(s) have very different attribute length vs measured length. First five are: </source>
+        <translation>
+            <numerusform>%n tubería tiene una longitud de atributo muy diferente a la longitud medida. Las primeras cinco son: </numerusform>
+            <numerusform>%n tuberías tienen una longitud de atributo muy diferente a la longitud medida. Las primeras cinco son: </numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1084"/>
+        <source>{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)</source>
+        <translation>{name} ({attribute_length:.0f} metros vs {calculated_length:.0f} metros)</translation>
     </message>
 </context>
 </TS>

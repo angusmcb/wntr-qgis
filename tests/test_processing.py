@@ -159,7 +159,7 @@ def test_alg_import_inp_bad_units(processing, import_alg, import_alg_params, qgi
         processing.runAndLoadResults(import_alg, import_alg_params)
 
 
-@pytest.mark.filterwarnings("ignore: 1 pipes have very different attribute length")
+@pytest.mark.filterwarnings(r"ignore: 1 pipe\(s\) have very different attribute length")
 def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new_project, example_dir):
     """todo: add test to feedback from processing"""
 
@@ -192,7 +192,7 @@ def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new
     assert feedbacktest.warningreceived
 
 
-@pytest.mark.filterwarnings("ignore: 110 pipes have very different attribute length")
+@pytest.mark.filterwarnings(r"ignore: 110 pipe\(s\) have very different attribute length")
 @pytest.mark.parametrize(("example", "duration"), [("Net3.simplified.inp", 24), ("valves.inp", 0)])
 def test_alg_chain_inp_run(
     processing,
@@ -242,9 +242,9 @@ def test_alg_chain_inp_run(
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
-        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)), (
-            f" when testing {i}"
-        )
+        assert all(
+            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
+        ), f" when testing {i}"
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
             all(sublist)

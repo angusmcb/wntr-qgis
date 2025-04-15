@@ -118,9 +118,9 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def __init__(
         self,
         layer_type: ModelLayer | ResultLayer,
-        make_editable=False,
+        make_editable=False,  # noqa: FBT002
         style_theme=None,
-        is_model_layer=True,
+        is_model_layer=True,  # noqa: FBT002
     ):
         super().__init__()
         self.layer_type = layer_type

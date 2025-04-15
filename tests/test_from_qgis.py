@@ -138,7 +138,7 @@ def test_no_links():
     all_layers = {"JUNCTIONS": layer("point", [("name", str)]), "PIPES": layer("linestring", [("name", str)])}
     add_point(all_layers["JUNCTIONS"], (1, 1), ["J1"])
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="No links provided"):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="There are no links in the model"):
         wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
 
@@ -146,7 +146,7 @@ def test_no_nodes():
     all_layers = {"JUNCTIONS": layer("point"), "PIPES": layer("linestring", [("name", str)])}
     add_line(all_layers["PIPES"], [(1, 1)], ["P1"])
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="No nodes provided"):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="There are no nodes in the model"):
         wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
 
@@ -478,7 +478,7 @@ def test_prioritise_length_attribute():
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P2", 100])
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
-    warn_message = r"1 pipes have very different attribute length vs measured length. First five are: P2 \(5m vs 100m\)"
+    warn_message = r"1 pipe\(s\) have very different attribute length vs measured length. First five are: P2 \(5 metres vs 100 metres\)"  # noqa: E501
     with pytest.warns(UserWarning, match=warn_message):
         wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
 
