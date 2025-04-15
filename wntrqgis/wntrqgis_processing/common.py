@@ -92,7 +92,7 @@ class WntrQgisProcessingBase:
 
         self.feedback.pushDebugInfo("WNTR version: " + wntr_version)
 
-    def _setup_postprocessing(self, outputs: dict[ModelLayer | ResultLayer, str], group_name: str, *args, **kwargs):
+    def _setup_postprocessing(self, outputs: dict, group_name: str, *args, **kwargs):
         output_order: list = [
             ModelLayer.JUNCTIONS,
             ModelLayer.PIPES,
