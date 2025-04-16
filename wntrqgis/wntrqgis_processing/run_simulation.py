@@ -198,7 +198,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             wntrqgis.from_qgis(sources, wq_flow_unit.name, wn=wn, project=context.project(), crs=crs)
             check_network(wn)
         except NetworkModelError as e:
-            raise QgsProcessingException(tr("Error preparing model - " + str(e))) from None
+            raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
 
         self._describe_model(wn)
 
@@ -217,7 +217,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         try:
             sim_results = sim.run_sim(file_prefix=temp_folder)
         except wntr.epanet.exceptions.EpanetException as e:
-            raise QgsProcessingException("Epanet error: " + str(e)) from None
+            raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
 
         self._update_progress(Progression.CREATING_OUTPUTS)
 

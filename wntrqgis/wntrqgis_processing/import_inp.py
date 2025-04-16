@@ -131,7 +131,9 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             flow_unit = list(FlowUnit)[unit_enum_int]
         else:
             flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
-        feedback.pushInfo("Will output with the following units: " + str(flow_unit.value))
+        feedback.pushInfo(
+            tr("Will output with the following units: {flow_unit}").format(flow_unit=flow_unit.friendly_name)
+        )
 
         headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
 

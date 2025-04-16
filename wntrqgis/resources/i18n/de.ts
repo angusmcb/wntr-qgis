@@ -4,7 +4,7 @@
 <context>
     <name>@default</name>
     <message>
-        <location filename="../../plugin.py" line="85"/>
+        <location filename="../../plugin.py" line="86"/>
         <source>Water Network Tools for Resilience</source>
         <translation>Werkzeuge für Wassernetzwerke zur Resilienz</translation>
     </message>
@@ -167,107 +167,107 @@
         <translation>Einstellungen</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="231"/>
+        <location filename="../../elements.py" line="204"/>
         <source>Junctions</source>
         <translation>Knoten</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="232"/>
+        <location filename="../../elements.py" line="206"/>
         <source>Reservoirs</source>
         <translation>Reservoirs</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="233"/>
+        <location filename="../../elements.py" line="208"/>
         <source>Tanks</source>
         <translation>Behälter</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="234"/>
+        <location filename="../../elements.py" line="210"/>
         <source>Pipes</source>
         <translation>Rohre</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="235"/>
+        <location filename="../../elements.py" line="212"/>
         <source>Pumps</source>
         <translation>Pumpen</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="236"/>
+        <location filename="../../elements.py" line="214"/>
         <source>Valves</source>
         <translation>Ventile</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="329"/>
+        <location filename="../../elements.py" line="314"/>
         <source>Nodes</source>
         <translation>Knoten</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="330"/>
+        <location filename="../../elements.py" line="316"/>
         <source>Links</source>
         <translation>Verbindungen</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="37"/>
+        <location filename="../../elements.py" line="32"/>
         <source>Litres per Second</source>
         <translation>Liter pro Sekunde</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="39"/>
+        <location filename="../../elements.py" line="34"/>
         <source>Litres per Minute</source>
         <translation>Liter pro Minute</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="41"/>
+        <location filename="../../elements.py" line="36"/>
         <source>Mega Litres Per Day</source>
         <translation>Megaliter pro Tag</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="43"/>
+        <location filename="../../elements.py" line="38"/>
         <source>Cubic Metres per Hour</source>
         <translation>Kubikmeter pro Stunde</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="45"/>
+        <location filename="../../elements.py" line="40"/>
         <source>Cubic Feet per Second</source>
         <translation>Kubikfuß pro Sekunde</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="47"/>
+        <location filename="../../elements.py" line="42"/>
         <source>Gallons per Minute</source>
         <translation>Gallonen pro Minute</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="49"/>
+        <location filename="../../elements.py" line="44"/>
         <source>Mega Gallons per Day</source>
         <translation>Megagallonen pro Tag</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="51"/>
+        <location filename="../../elements.py" line="46"/>
         <source>Imperial Mega Gallons per Day</source>
         <translation>Imperiale Megagallonen pro Tag</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="53"/>
+        <location filename="../../elements.py" line="48"/>
         <source>Acre-feet per Day</source>
         <translation>Acre-Fuß pro Tag</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="55"/>
+        <location filename="../../elements.py" line="50"/>
         <source>International System of Units (SI)</source>
         <translation>Internationales Einheitensystem (SI)</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="72"/>
+        <location filename="../../elements.py" line="62"/>
         <source>Hazen-Williams</source>
         <translation>Hazen-Williams</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="74"/>
+        <location filename="../../elements.py" line="64"/>
         <source>Darcy-Weisbach</source>
         <translation>Darcy-Weisbach</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="76"/>
+        <location filename="../../elements.py" line="66"/>
         <source>Chezy-Manning</source>
         <translation>Chezy-Manning</translation>
     </message>
@@ -282,132 +282,132 @@
         <translation>Keine Einheiten angegeben. Es wird der im WaterNetworkModel-Objekt angegebene Wert verwendet: {units_friendly_name}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="617"/>
+        <location filename="../../interface.py" line="618"/>
         <source>nearest node to snap to is too far ({matched_node_name}).</source>
         <translation>Der nächste Knoten zum Einrasten ist zu weit entfernt ({matched_node_name}).</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="631"/>
+        <location filename="../../interface.py" line="632"/>
         <source>All links must be single part lines</source>
         <translation>Alle Verbindungen müssen einteilige Linien sein</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="634"/>
+        <location filename="../../interface.py" line="635"/>
         <source>All links must have valid geometry</source>
         <translation>Alle Verbindungen müssen eine gültige Geometrie haben</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="644"/>
+        <location filename="../../interface.py" line="645"/>
         <source>couldn&apos;t snap: {exception}</source>
         <translation>Konnte nicht einrasten: {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="648"/>
+        <location filename="../../interface.py" line="649"/>
         <source>connects to the same node on both ends ({start_node_name})</source>
         <translation>Verbindet sich an beiden Enden mit demselben Knoten ({start_node_name})</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="805"/>
+        <location filename="../../interface.py" line="806"/>
         <source>Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead</source>
         <translation>Kann den Verlust nicht einstellen, wenn wn gesetzt ist. Stellen Sie den Verlust stattdessen in wn.options.hydraulic.headloss ein</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="814"/>
+        <location filename="../../interface.py" line="815"/>
         <source>headloss must be set if wn is not set: possible values are: H-W, D-W, C-M</source>
         <translation>Verlust muss eingestellt werden, wenn wn nicht gesetzt ist: Mögliche Werte sind: H-W, D-W, C-M</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="842"/>
+        <location filename="../../interface.py" line="843"/>
         <source>&apos;{layer_name}&apos; is not a valid layer type.</source>
         <translation>'{layer_name}' ist kein gültiger Layer-Typ.</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="933"/>
+        <location filename="../../interface.py" line="934"/>
         <source>There are no nodes in the model</source>
         <translation>Es gibt keine Knoten im Modell</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="938"/>
+        <location filename="../../interface.py" line="939"/>
         <source>There are no links in the model</source>
         <translation>Es gibt keine Verbindungen im Modell</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1010"/>
+        <location filename="../../interface.py" line="1011"/>
         <source>Problem in column {column_name}: {exception}</source>
         <translation>Problem in Spalte {column_name}: {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1047"/>
+        <location filename="../../interface.py" line="1048"/>
         <source>problem snapping the feature {name}: {exception}</source>
         <translation>Problem beim Einrasten des Elements {name}: {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1128"/>
+        <location filename="../../interface.py" line="1129"/>
         <source>cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)</source>
         <translation>Kann die Länge des Rohrs nicht berechnen (wahrscheinlich aufgrund eines Problems mit dem ausgewählten Koordinatenreferenzsystem)</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1215"/>
+        <location filename="../../interface.py" line="1216"/>
         <source>Duplicate names found: </source>
         <translation>Doppelte Namen gefunden: </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1255"/>
+        <location filename="../../interface.py" line="1256"/>
         <source>At least one junction is necessary</source>
         <translation>Mindestens ein Knoten ist erforderlich</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1258"/>
+        <location filename="../../interface.py" line="1259"/>
         <source>At least one tank or reservoir is required</source>
         <translation>Mindestens ein Behälter oder Reservoir ist erforderlich</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1261"/>
+        <location filename="../../interface.py" line="1262"/>
         <source>At least one link (pipe, pump or valve) is necessary</source>
         <translation>Mindestens eine Verbindung (Rohr, Pumpe oder Ventil) ist erforderlich</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1265"/>
+        <location filename="../../interface.py" line="1266"/>
         <source>the following nodes are not connected to any links: </source>
         <translation>Die folgenden Knoten sind mit keinen Verbindungen verbunden: </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1293"/>
+        <location filename="../../interface.py" line="1294"/>
         <source>in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces.</source>
         <translation>In {layer} Problem beim Lesen des Musters {pattern_name} ({exception}). Muster sollten die Form 1 2.0 3 4.0 haben, wobei jeder numerische Wert durch ein oder mehrere Leerzeichen getrennt ist.</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1304"/>
+        <location filename="../../interface.py" line="1305"/>
         <source>pump head</source>
         <translation>Pumpenkopf</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1306"/>
+        <location filename="../../interface.py" line="1307"/>
         <source>pump efficiency</source>
         <translation>Pumpeneffizienz</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1308"/>
+        <location filename="../../interface.py" line="1309"/>
         <source>general purpose valve headloss</source>
         <translation>Allzweckventilverlust</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1310"/>
+        <location filename="../../interface.py" line="1311"/>
         <source>tank volume</source>
         <translation>Tankvolumen</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1312"/>
+        <location filename="../../interface.py" line="1313"/>
         <source>problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]</source>
         <translation>Problem beim Lesen der Kurve {curve_name} ({exception}). Kurven sollten die Form [(1,2), (3,4)] haben</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1321"/>
+        <location filename="../../interface.py" line="1322"/>
         <source>error from WNTR. {exception}</source>
         <translation>Fehler von WNTR. {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1326"/>
+        <location filename="../../interface.py" line="1327"/>
         <source>{exception} is not a known set of units. Possible units are: </source>
         <translation>{exception} ist kein bekanntes Einheitenset. Mögliche Einheiten sind: </translation>
     </message>
@@ -491,7 +491,7 @@
         <translation>Einheiten, in die konvertiert werden soll (leer lassen, um die .inp-Datei-Einheiten zu verwenden)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="176"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="178"/>
         <source>Model Layers ({filename})</source>
         <translation>Modellebenen ({filename})</translation>
     </message>
@@ -512,11 +512,6 @@
         <location filename="../../wntrqgis_processing/run_simulation.py" line="132"/>
         <source>Output .inp file</source>
         <translation>Ausgabe .inp-Datei</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="201"/>
-        <source>Error preparing model - </source>
-        <translation>Fehler beim Vorbereiten des Modells - </translation>
     </message>
     <message>
         <location filename="../../wntrqgis_processing/run_simulation.py" line="245"/>
@@ -558,7 +553,7 @@
         <translation>Geopackage</translation>
     </message>
     <message numerus="yes">
-        <location filename="../../interface.py" line="1026"/>
+        <location filename="../../interface.py" line="1027"/>
         <source>in nodes, %n feature(s) have no geometry</source>
         <translation>
             <numerusform>in Knoten, %n Element hat keine Geometrie</numerusform>
@@ -566,7 +561,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../interface.py" line="1039"/>
+        <location filename="../../interface.py" line="1040"/>
         <source>in links, %n feature(s) have no geometry</source>
         <translation>
             <numerusform>in Verbindungen, %n Element hat keine Geometrie</numerusform>
@@ -574,7 +569,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../interface.py" line="1085"/>
+        <location filename="../../interface.py" line="1086"/>
         <source>%n pipe(s) have very different attribute length vs measured length. First five are: </source>
         <translation>
             <numerusform>%n Rohr hat eine sehr unterschiedliche Attributlänge im Vergleich zur gemessenen Länge. Die ersten fünf sind: </numerusform>
@@ -582,284 +577,299 @@
         </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1089"/>
+        <location filename="../../interface.py" line="1090"/>
         <source>{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)</source>
         <translation>{name} ({attribute_length:.0f} Meter vs {calculated_length:.0f} Meter)</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="472"/>
+        <location filename="../../elements.py" line="451"/>
         <source>Power</source>
         <translation>Leistung</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="535"/>
+        <location filename="../../elements.py" line="506"/>
         <source>Head</source>
         <translation>Druckhöhe</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="121"/>
+        <location filename="../../elements.py" line="99"/>
         <source>Open</source>
         <translation>Offen</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="123"/>
+        <location filename="../../elements.py" line="101"/>
         <source>Active</source>
         <translation>Aktiv</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="125"/>
+        <location filename="../../elements.py" line="103"/>
         <source>Closed</source>
         <translation>Geschlossen</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="147"/>
+        <location filename="../../elements.py" line="118"/>
         <source>Pressure Reducing Valve</source>
         <translation>Druckminderventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="149"/>
+        <location filename="../../elements.py" line="120"/>
         <source>Pressure Sustaining Valve</source>
         <translation>Druckhalteventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="151"/>
+        <location filename="../../elements.py" line="122"/>
         <source>Pressure Breaking Valve</source>
         <translation>Druckbrechventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="153"/>
+        <location filename="../../elements.py" line="124"/>
         <source>Flow Control Valve</source>
         <translation>Durchflussregelventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="155"/>
+        <location filename="../../elements.py" line="126"/>
         <source>Throttle Control Valve</source>
         <translation>Drosselregelventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="157"/>
+        <location filename="../../elements.py" line="128"/>
         <source>General Purpose Valve</source>
         <translation>Allzweckventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="430"/>
+        <location filename="../../elements.py" line="409"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="432"/>
+        <location filename="../../elements.py" line="411"/>
         <source>Elevation</source>
         <translation>Höhe</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="434"/>
+        <location filename="../../elements.py" line="413"/>
         <source>Base Demand</source>
         <translation>Grundbedarf</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="436"/>
+        <location filename="../../elements.py" line="415"/>
         <source>Demand Pattern</source>
         <translation>Bedarfsmuster</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="438"/>
+        <location filename="../../elements.py" line="417"/>
         <source>Emitter Coefficient</source>
         <translation>Emitterkoeffizient</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="440"/>
+        <location filename="../../elements.py" line="419"/>
         <source>Initial Level</source>
         <translation>Initialer Pegel</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="442"/>
+        <location filename="../../elements.py" line="421"/>
         <source>Minimum Level</source>
         <translation>Minimaler Pegel</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="444"/>
+        <location filename="../../elements.py" line="423"/>
         <source>Maximum Level</source>
         <translation>Maximaler Pegel</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="446"/>
+        <location filename="../../elements.py" line="425"/>
         <source>Valve Type</source>
         <translation>Ventiltyp</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="448"/>
+        <location filename="../../elements.py" line="427"/>
         <source>Diameter</source>
         <translation>Durchmesser</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="450"/>
+        <location filename="../../elements.py" line="429"/>
         <source>Minimum Volume</source>
         <translation>Minimales Volumen</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="452"/>
+        <location filename="../../elements.py" line="431"/>
         <source>Volume Curve</source>
         <translation>Volumenkurve</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="454"/>
+        <location filename="../../elements.py" line="433"/>
         <source>Overflow</source>
         <translation>Überlauf</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="456"/>
+        <location filename="../../elements.py" line="435"/>
         <source>Base Head</source>
         <translation>Basisdruckhöhe</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="458"/>
+        <location filename="../../elements.py" line="437"/>
         <source>Head Pattern</source>
         <translation>Druckhöhenmuster</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="460"/>
+        <location filename="../../elements.py" line="439"/>
         <source>Length</source>
         <translation>Länge</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="462"/>
+        <location filename="../../elements.py" line="441"/>
         <source>Roughness</source>
         <translation>Rauheit</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="464"/>
+        <location filename="../../elements.py" line="443"/>
         <source>Minor Loss</source>
         <translation>Kleiner Verlust</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="466"/>
+        <location filename="../../elements.py" line="445"/>
         <source>Check Valve</source>
         <translation>Rückschlagventil</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="468"/>
+        <location filename="../../elements.py" line="447"/>
         <source>Pump Type</source>
         <translation>Pumpentyp</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="470"/>
+        <location filename="../../elements.py" line="449"/>
         <source>Pump Curve</source>
         <translation>Pumpenkurve</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="474"/>
+        <location filename="../../elements.py" line="453"/>
         <source>Base Speed</source>
         <translation>Basisgeschwindigkeit</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="476"/>
+        <location filename="../../elements.py" line="455"/>
         <source>Speed Pattern</source>
         <translation>Geschwindigkeitsmuster</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="478"/>
+        <location filename="../../elements.py" line="457"/>
         <source>Initial Status</source>
         <translation>Initialer Status</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="480"/>
+        <location filename="../../elements.py" line="459"/>
         <source>Initial Setting</source>
         <translation>Initiale Einstellung</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="482"/>
+        <location filename="../../elements.py" line="461"/>
         <source>Headloss Curve</source>
         <translation>Verlustkurve</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="484"/>
+        <location filename="../../elements.py" line="463"/>
         <source>Initial Quality</source>
         <translation>Initiale Qualität</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="486"/>
+        <location filename="../../elements.py" line="465"/>
         <source>Mixing Fraction</source>
         <translation>Mischungsfraktion</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="488"/>
+        <location filename="../../elements.py" line="467"/>
         <source>Mixing Model</source>
         <translation>Mischungsmodell</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="490"/>
+        <location filename="../../elements.py" line="469"/>
         <source>Bulk Coefficient</source>
         <translation>Volumenkoeffizient</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="492"/>
+        <location filename="../../elements.py" line="471"/>
         <source>Wall Coefficient</source>
         <translation>Wandkoeffizient</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="494"/>
+        <location filename="../../elements.py" line="473"/>
         <source>Minimum Pressure</source>
         <translation>Minimaler Druck</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="496"/>
+        <location filename="../../elements.py" line="475"/>
         <source>Required Pressure</source>
         <translation>Erforderlicher Druck</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="498"/>
+        <location filename="../../elements.py" line="477"/>
         <source>Pressure Exponent</source>
         <translation>Druckexponent</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="500"/>
+        <location filename="../../elements.py" line="479"/>
         <source>Efficiency</source>
         <translation>Effizienz</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="502"/>
+        <location filename="../../elements.py" line="481"/>
         <source>Energy Pattern</source>
         <translation>Energiekurve</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="504"/>
+        <location filename="../../elements.py" line="483"/>
         <source>Energy Price</source>
         <translation>Energiepreis</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="533"/>
+        <location filename="../../elements.py" line="504"/>
         <source>Demand</source>
         <translation>Bedarf</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="537"/>
+        <location filename="../../elements.py" line="508"/>
         <source>Pressure</source>
         <translation>Druck</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="539"/>
+        <location filename="../../elements.py" line="510"/>
         <source>Flowrate</source>
         <translation>Durchflussrate</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="541"/>
+        <location filename="../../elements.py" line="512"/>
         <source>Headloss</source>
         <translation>Verlust</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="543"/>
+        <location filename="../../elements.py" line="514"/>
         <source>Velocity</source>
         <translation>Geschwindigkeit</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="545"/>
+        <location filename="../../elements.py" line="516"/>
         <source>Quality</source>
         <translation>Qualität</translation>
     </message>
     <message>
-        <location filename="../../elements.py" line="547"/>
+        <location filename="../../elements.py" line="518"/>
         <source>Reaction Rate</source>
         <translation>Reaktionsrate</translation>
+    </message>
+    <message>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="201"/>
+        <source>Error preparing model: {exception}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="220"/>
+        <source>Epanet error: {exception}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="134"/>
+        <source>Will output with the following units: {flow_unit}</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>
