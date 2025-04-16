@@ -6,22 +6,18 @@ from qgis.PyQt.QtCore import QCoreApplication, QLocale, QTranslator
 from wntrqgis.i18n import tr
 
 
-def load_translator(locale):
+@pytest.fixture
+def locale():
+    return "en"
+
+
+@pytest.fixture
+def translator(locale):
     qgis_locale = QLocale(locale)
     locale_path = str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "i18n")
     translator = QTranslator()
     translator.load(qgis_locale, "", "", locale_path)
     return translator
-
-
-@pytest.fixture
-def translator(request):
-    return load_translator(request.param)
-
-
-@pytest.fixture
-def translator_en():
-    return load_translator("en")
 
 
 @pytest.mark.parametrize(
@@ -31,10 +27,11 @@ def translator_en():
         (2, "2 hours"),
     ],
 )
-def test_numerus_translation_hours(num_hours, expected_message, translator_en):
-    QCoreApplication.installTranslator(translator_en)
+def test_numerus_translation_hours(num_hours, expected_message, translator):
+    QCoreApplication.installTranslator(translator)
 
     translated_message = tr("%n hour(s)", "", num_hours)
+
     assert translated_message == expected_message
 
 
@@ -45,10 +42,11 @@ def test_numerus_translation_hours(num_hours, expected_message, translator_en):
         (2, "in nodes, 2 features have no geometry"),
     ],
 )
-def test_numerus_translation_nodes(num_features, expected_message, translator_en):
-    QCoreApplication.installTranslator(translator_en)
+def test_numerus_translation_nodes(num_features, expected_message, translator):
+    QCoreApplication.installTranslator(translator)
 
     translated_message = tr("in nodes, %n feature(s) have no geometry", "", num_features)
+
     assert translated_message == expected_message
 
 
@@ -59,8 +57,8 @@ def test_numerus_translation_nodes(num_features, expected_message, translator_en
         (2, "in links, 2 features have no geometry"),
     ],
 )
-def test_numerus_translation_links(num_features, expected_message, translator_en):
-    QCoreApplication.installTranslator(translator_en)
+def test_numerus_translation_links(num_features, expected_message, translator):
+    QCoreApplication.installTranslator(translator)
 
     translated_message = tr("in links, %n feature(s) have no geometry", "", num_features)
 
@@ -74,8 +72,8 @@ def test_numerus_translation_links(num_features, expected_message, translator_en
         (2, "2 pipes have very different attribute length vs measured length. First five are: "),
     ],
 )
-def test_numerus_translation_pipes(num_pipes, expected_message, translator_en):
-    QCoreApplication.installTranslator(translator_en)
+def test_numerus_translation_pipes(num_pipes, expected_message, translator):
+    QCoreApplication.installTranslator(translator)
 
     translated_message = tr(
         "%n pipe(s) have very different attribute length vs measured length. First five are: ",
@@ -87,7 +85,7 @@ def test_numerus_translation_pipes(num_pipes, expected_message, translator_en):
 
 
 @pytest.mark.parametrize(
-    ("translator", "expected_message"),
+    ("locale", "expected_message"),
     [
         ("en", "Run Simulation"),
         ("es", "Ejecutar simulación"),
@@ -97,7 +95,6 @@ def test_numerus_translation_pipes(num_pipes, expected_message, translator_en):
         ("pt", "Executar Simulação"),
         ("ar", "تشغيل المحاكاة"),
     ],
-    indirect=["translator"],
 )
 def test_run_simulation_translation(translator, expected_message):
     QCoreApplication.installTranslator(translator)
