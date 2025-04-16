@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 import wntrqgis.dependency_management
 from wntrqgis.interface import from_qgis, to_qgis
-from wntrqgis.resource_manager import examples
 
 _packages_path = wntrqgis.dependency_management.WntrInstaller.package_directory()
 if _packages_path not in sys.path:
@@ -33,6 +32,17 @@ _cp = configparser.ConfigParser()
 with codecs.open(str(Path(__file__).parent / "metadata.txt"), "r", "utf8") as f:
     _cp.read_file(f)
 __version__ = _cp.get("general", "version")
+
+
+def _inp_path(example_name: str) -> str:
+    return str(Path(__file__).resolve().parent / "resources" / "examples" / (example_name + ".inp"))
+
+
+examples = {
+    "KY1": _inp_path("ky1"),
+    "KY10": _inp_path("ky10"),
+    "VALVES": _inp_path("valves"),
+}
 
 
 def classFactory(iface: "QgisInterface"):  # noqa N802
