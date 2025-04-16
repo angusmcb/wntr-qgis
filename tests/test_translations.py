@@ -6,7 +6,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QLocale, QTranslator
 from wntrqgis.i18n import tr
 
 
-def translator(locale):
+def load_translator(locale):
     qgis_locale = QLocale(locale)
     locale_path = str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "i18n")
     translator = QTranslator()
@@ -15,8 +15,13 @@ def translator(locale):
 
 
 @pytest.fixture
+def translator(request):
+    return load_translator(request.param)
+
+
+@pytest.fixture
 def translator_en():
-    return translator("en")
+    return load_translator("en")
 
 
 @pytest.mark.parametrize(
@@ -82,7 +87,7 @@ def test_numerus_translation_pipes(num_pipes, expected_message, translator_en):
 
 
 @pytest.mark.parametrize(
-    ("locale", "expected_message"),
+    ("translator", "expected_message"),
     [
         ("en", "Run Simulation"),
         ("es", "Ejecutar simulación"),
@@ -92,10 +97,10 @@ def test_numerus_translation_pipes(num_pipes, expected_message, translator_en):
         ("pt", "Executar Simulação"),
         ("ar", "تشغيل المحاكاة"),
     ],
+    indirect=["translator"],
 )
-def test_run_simulation_translation(locale, expected_message):
-    t = translator(locale)
-    QCoreApplication.installTranslator(t)
+def test_run_simulation_translation(translator, expected_message):
+    QCoreApplication.installTranslator(translator)
 
     translated_message = tr("Run Simulation")
 
