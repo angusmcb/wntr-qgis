@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/wntrqgis">
+        <file>logo.svg</file>
+        <file>mActionFileNew.svg</file>
+        <file>mActionFileOpen.svg</file>
+        <file alias="run.svg">lightning-svgrepo-com.svg</file>
+    </qresource>
+</RCC>

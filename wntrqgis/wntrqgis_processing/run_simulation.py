@@ -28,6 +28,7 @@ from qgis.core import (
     QgsProcessingUtils,
     QgsProject,
 )
+from qgis.PyQt.QtGui import QIcon
 
 import wntrqgis
 from wntrqgis.elements import (
@@ -42,7 +43,6 @@ from wntrqgis.interface import (
     Writer,
     check_network,
 )
-from wntrqgis.resource_manager import WqIcon
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
 
@@ -73,7 +73,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             """)
 
     def icon(self):
-        return WqIcon.RUN.q_icon
+        return QIcon(":/wntrqgis/run.svg")
 
     def initAlgorithm(self, config=None):  # noqa N802
         project_settings = ProjectSettings(QgsProject.instance())

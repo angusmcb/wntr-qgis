@@ -24,10 +24,10 @@ from qgis.core import (
     QgsTask,
 )
 from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
-from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator
+from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, Qt, QTranslator
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
-from qgis.PyQt.QtGui import QIcon, QPixmap
+from qgis.PyQt.QtGui import QIcon, QPainter, QPixmap
 from qgis.PyQt.QtWidgets import (
     QAction,
     QActionGroup,
@@ -41,6 +41,7 @@ from qgis.utils import iface
 
 import wntrqgis
 import wntrqgis.expressions
+import wntrqgis.resources.icons.resources
 from wntrqgis.dependency_management import WntrInstaller
 from wntrqgis.elements import (
     FlowUnit,
@@ -49,7 +50,6 @@ from wntrqgis.elements import (
     ResultLayer,
 )
 from wntrqgis.i18n import tr
-from wntrqgis.resource_manager import WqIcon, join_pixmap
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.provider import Provider
 
@@ -196,7 +196,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "template_layers",
-            join_pixmap(WqIcon.NEW.q_pixmap, WqIcon.LOGO.q_pixmap),
+            join_pixmap(QPixmap(":images/themes/default/mActionFileNew.svg"), QPixmap(":wntrqgis/logo.svg")),
             text=tr("Create Template Memory Layers"),
             callback=self.create_template_layers,
             parent=iface.mainWindow(),
@@ -204,7 +204,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "create_template_geopackage",
-            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), WqIcon.LOGO.q_pixmap),
+            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), QPixmap(":wntrqgis/logo.svg")),
             text=tr("Create Template Geopackage"),
             callback=self.create_template_geopackage,
             parent=iface.mainWindow(),
@@ -224,7 +224,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "load_inp",
-            join_pixmap(WqIcon.OPEN.q_pixmap, WqIcon.LOGO.q_pixmap),
+            join_pixmap(QPixmap(":images/themes/default/mActionFileOpen.svg"), QPixmap(":wntrqgis/logo.svg")),
             text=tr("Load from .inp file"),
             callback=self.load_inp_file,
             parent=iface.mainWindow(),
@@ -232,7 +232,7 @@ except ModuleNotFoundError:
         )
         self.add_action(
             "run_simulation",
-            join_pixmap(WqIcon.RUN.q_pixmap, WqIcon.LOGO.q_pixmap),
+            join_pixmap(QPixmap(":wntrqgis/run.svg"), QPixmap(":wntrqgis/logo.svg")),
             text=tr("Run Simulation"),
             callback=self.run_simulation,
             parent=iface.mainWindow(),
@@ -415,7 +415,7 @@ except ModuleNotFoundError:
                 continue
 
             indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
-            indicator.setIcon(WqIcon.LOGO.q_icon)
+            indicator.setIcon(QIcon(":wntrqgis/logo.svg"))
             layer_type_name = inverse_model_layers[layer_id].title()
             indicator.setToolTip(f"{layer_type_name} Layer")
             iface.layerTreeView().addIndicator(layer, indicator)
@@ -675,3 +675,17 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
     if not Path(wntr.__file__).exists():
         msg = "File missing - probably due to plugin upgrade"
         raise ImportError(msg)
+
+
+def join_pixmap(p1, p2, mode=QPainter.CompositionMode_SourceOver):
+    # s = p1.size().expandedTo(p2.size())
+    result = QPixmap(128, 128)
+    result.fill(Qt.transparent)
+    painter = QPainter(result)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.drawPixmap(0, 0, 128, 128, p1)
+    painter.setCompositionMode(mode)
+    # painter.drawPixmap(result.rect(), p2, p2.rect())
+    painter.drawPixmap(64, 64, 64, 64, p2)
+    painter.end()
+    return result

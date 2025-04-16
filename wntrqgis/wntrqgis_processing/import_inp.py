@@ -25,6 +25,7 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFile,
 )
+from qgis.PyQt.QtGui import QIcon
 
 from wntrqgis.elements import (
     # FieldGroup,
@@ -34,7 +35,6 @@ from wntrqgis.elements import (
 )
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
-from wntrqgis.resource_manager import WqIcon
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
 
@@ -62,7 +62,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             """)
 
     def icon(self):
-        return WqIcon.OPEN.q_icon
+        return QIcon(":images/themes/default/mActionFileOpen.svg")
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(

@@ -1,6 +1,6 @@
 from qgis.core import QgsProcessingProvider
+from qgis.PyQt.QtGui import QIcon
 
-from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
@@ -15,7 +15,7 @@ class Provider(QgsProcessingProvider):
         return "WNTR"
 
     def icon(self):
-        return WqIcon.LOGO.q_icon
+        return QIcon(":/wntrqgis/logo.svg")
 
     def loadAlgorithms(self) -> None:  # noqa N802
         self.addAlgorithm(RunSimulation())

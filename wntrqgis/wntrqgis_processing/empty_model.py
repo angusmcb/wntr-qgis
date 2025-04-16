@@ -12,11 +12,11 @@ from qgis.core import (
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFeatureSink,
 )
+from qgis.PyQt.QtGui import QIcon
 
 from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
-from wntrqgis.resource_manager import WqIcon
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
 
@@ -46,7 +46,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         return tr(self._short_help_string)
 
     def icon(self):
-        return WqIcon.NEW.q_icon
+        return QIcon(":images/themes/default/mActionFileNew.svg")
 
     # def helpUrl(self) -> str:  # N802
     #    return "" # "https://www.helpsite.com"
