@@ -15,7 +15,7 @@ omit = ["wntrqgis/qgis_plugin_tools/*","wntrqgis/packages/*"]
 [tool.ruff]
 target-version = "py39"
 extend = "ruff_defaults.toml"
-exclude = ["wntrqgis/qgis_plugin_tools"]
+exclude = ["wntrqgis/qgis_plugin_tools","wntrqgis/resources"]
 
 [tool.ruff.lint.per-file-ignores]
 "conf.py" = ["INP001"]
