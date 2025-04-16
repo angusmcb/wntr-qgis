@@ -31,6 +31,7 @@ from wntrqgis.elements import (
     ModelLayer,
     ResultField,
     ResultLayer,
+    _AbstractValueMap,
 )
 
 
@@ -61,12 +62,12 @@ class _FieldStyles:
                 "CheckBox",
                 {"AllowNullState": False},
             )
-        if issubclass(python_type_class, Enum):
+        if issubclass(python_type_class, _AbstractValueMap):
             enum_list = list(python_type_class)
-            if python_type_class is InitialStatus and self.layer_type is ModelLayer.PIPES:
-                enum_list = [InitialStatus.Open, InitialStatus.Closed]
+            if python_type_class is InitialStatus and self.layer_type in [ModelLayer.PIPES, ModelLayer.PUMPS]:
+                enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
 
-            value_map = [{enum_instance.value: enum_instance.name} for enum_instance in enum_list]
+            value_map = [{enum_instance.friendly_name: enum_instance.name} for enum_instance in enum_list]
 
             return QgsEditorWidgetSetup(
                 "ValueMap",
@@ -92,7 +93,10 @@ class _FieldStyles:
             return QgsDefaultValue("0")
 
         if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
-            return QgsDefaultValue(f"'{InitialStatus.Active.name}'")
+            return QgsDefaultValue(f"'{InitialStatus.ACTIVE.name}'")
+
+        if self.field_type.python_type is InitialStatus and self.layer_type in [ModelLayer.PUMPS, ModelLayer.PIPES]:
+            return QgsDefaultValue(f"'{InitialStatus.OPEN.name}'")
 
         if issubclass(self.field_type.python_type, Enum):
             return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).name}'")

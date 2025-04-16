@@ -15,58 +15,147 @@ from wntrqgis.i18n import tr
 
 
 class FlowUnit(Enum):
-    def __new__(cls, *args):
-        obj = object.__new__(cls)
-        obj._value_ = args[0]
-        return obj
+    """
+    >>> for unit in FlowUnit:
+    ...     assert unit.friendly_name, f"{unit.name} is missing a friendly_name"
+    """
 
-    def __init__(self, *args):
-        self.friendly_name = args[1]
+    LPS = auto()
+    LPM = auto()
+    MLD = auto()
+    CMH = auto()
+    CFS = auto()
+    GPM = auto()
+    MGD = auto()
+    IMGD = auto()
+    AFD = auto()
+    SI = auto()
 
-    LPS = auto(), tr("Litres per Second")
-    LPM = auto(), tr("Litres per Minute")
-    MLD = auto(), tr("Mega Litres Per Day")
-    CMH = auto(), tr("Cubic Metres per Hour")
-    CFS = auto(), tr("Cubic Feet per Second")
-    GPM = auto(), tr("Gallons per Minute")
-    MGD = auto(), tr("Mega Gallons per Day")
-    IMGD = auto(), tr("Imperial Mega Gallons per Day")
-    AFD = auto(), tr("Acre-feet per Day")
-    SI = auto(), tr("International System of Units (SI)")
+    @property
+    def friendly_name(self):
+        if self is FlowUnit.LPS:
+            return tr("Litres per Second")
+        if self is FlowUnit.LPM:
+            return tr("Litres per Minute")
+        if self is FlowUnit.MLD:
+            return tr("Mega Litres Per Day")
+        if self is FlowUnit.CMH:
+            return tr("Cubic Metres per Hour")
+        if self is FlowUnit.CFS:
+            return tr("Cubic Feet per Second")
+        if self is FlowUnit.GPM:
+            return tr("Gallons per Minute")
+        if self is FlowUnit.MGD:
+            return tr("Mega Gallons per Day")
+        if self is FlowUnit.IMGD:
+            return tr("Imperial Mega Gallons per Day")
+        if self is FlowUnit.AFD:
+            return tr("Acre-feet per Day")
+        if self is FlowUnit.SI:
+            return tr("International System of Units (SI)")
+        raise ValueError
 
 
 class HeadlossFormula(Enum):
-    def __new__(cls, *args):
-        obj = object.__new__(cls)
-        obj._value_ = args[0]
-        return obj
+    """
+    >>> for formula in HeadlossFormula:
+    ...     assert formula.friendly_name, f"{formula.name} is missing a friendly_name"
+    """
 
-    def __init__(self, *args):
-        self.friendly_name = args[1]
+    HAZEN_WILLIAMS = "H-W"
+    DARCY_WEISBACH = "D-W"
+    CHEZY_MANNING = "C-M"
 
-    HAZEN_WILLIAMS = "H-W", tr("Hazen-Williams")
-    DARCY_WEISBACH = "D-W", tr("Darcy-Weisbach")
-    CHEZY_MANNING = "C-M", tr("Chezy-Manning")
-
-
-class PumpTypes(str, Enum):
-    POWER = "POWER"
-    HEAD = "HEAD"
-
-
-class InitialStatus(str, Enum):
-    Open = "Open"
-    Active = "Active"
-    Closed = "Closed"
+    @property
+    def friendly_name(self):
+        if self is HeadlossFormula.HAZEN_WILLIAMS:
+            return tr("Hazen-Williams")
+        if self is HeadlossFormula.DARCY_WEISBACH:
+            return tr("Darcy-Weisbach")
+        if self is HeadlossFormula.CHEZY_MANNING:
+            return tr("Chezy-Manning")
+        raise ValueError
 
 
-class ValveType(str, Enum):
-    PRV = "Pressure Reducing Valve"
-    PSV = "Pressure Sustaining Valve"
-    PBV = "Pressure Breaking Valve"
-    FCV = "Flow Control Valve"
-    TCV = "Throttle Control Valve"
-    GPV = "General Purpose Valve"
+class _AbstractValueMap(Enum):
+    """Abstract enum for value maps"""
+
+    @property
+    def friendly_name(self):
+        """To be implemented by subclasses"""
+
+
+class PumpTypes(_AbstractValueMap):
+    """
+    >>> for pump_type in PumpTypes:
+    ...     assert (
+    ...         pump_type.friendly_name
+    ...     ), f"{pump_type.name} is missing a friendly_name"
+    """
+
+    POWER = auto()
+    HEAD = auto()
+
+    @property
+    def friendly_name(self):
+        if self is PumpTypes.POWER:
+            return tr("Power")
+        if self is PumpTypes.HEAD:
+            return tr("Head")
+        raise ValueError
+
+
+class InitialStatus(_AbstractValueMap):
+    """
+    >>> for status in InitialStatus:
+    ...     assert status.friendly_name, f"{status.name} is missing a friendly_name"
+    """
+
+    ACTIVE = auto()
+    OPEN = auto()
+    CLOSED = auto()
+
+    @property
+    def friendly_name(self):
+        if self is InitialStatus.OPEN:
+            return tr("Open")
+        if self is InitialStatus.ACTIVE:
+            return tr("Active")
+        if self is InitialStatus.CLOSED:
+            return tr("Closed")
+        raise ValueError
+
+
+class ValveType(_AbstractValueMap):
+    """
+    >>> for valve_type in ValveType:
+    ...     assert (
+    ...         valve_type.friendly_name
+    ...     ), f"{valve_type.name} is missing a friendly_name"
+    """
+
+    PRV = auto()
+    PSV = auto()
+    PBV = auto()
+    FCV = auto()
+    TCV = auto()
+    GPV = auto()
+
+    @property
+    def friendly_name(self):
+        if self is ValveType.PRV:
+            return tr("Pressure Reducing Valve")
+        if self is ValveType.PSV:
+            return tr("Pressure Sustaining Valve")
+        if self is ValveType.PBV:
+            return tr("Pressure Breaking Valve")
+        if self is ValveType.FCV:
+            return tr("Flow Control Valve")
+        if self is ValveType.TCV:
+            return tr("Throttle Control Valve")
+        if self is ValveType.GPV:
+            return tr("General Purpose Valve")
+        raise ValueError
 
 
 class FieldGroup(Flag):

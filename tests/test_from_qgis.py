@@ -922,3 +922,63 @@ def test_null_geometry_link():
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in links, 1 feature\(s\) have no geometry"):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+
+@pytest.mark.parametrize(
+    ("initial_status", "expected_status"),
+    [("OPEN", "Opened"), ("Open", "Opened"), ("CLOSED", "Closed"), ("Closed", "Closed"), (None, "Opened")],
+)
+def test_initial_status_pump(initial_status, expected_status):
+    import wntr
+
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    reservoir_layer = layer("point", [("name", str)])
+    add_point(reservoir_layer, (4, 5), ["R1"])
+
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("initial_status", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, initial_status])
+
+    layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+    assert wn.get_link("P1").initial_status == wntr.network.base.LinkStatus[expected_status]
+
+
+@pytest.mark.parametrize(
+    ("initial_status", "expected_status"), [("OPEN", "Opened"), ("CLOSED", "Closed"), (None, "Opened")]
+)
+def test_initial_status_pipe(initial_status, expected_status):
+    import wntr
+
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    add_point(junction_layer, (4, 5), ["J2"])
+
+    pipe_layer = layer("linestring", [("name", str), ("initial_status", str)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", initial_status])
+
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+    assert wn.get_link("P1").initial_status == wntr.network.base.LinkStatus[expected_status]
+
+
+@pytest.mark.parametrize(
+    ("initial_status", "expected_status"),
+    [("OPEN", "Opened"), ("CLOSED", "Closed"), ("ACTIVE", "Active"), (None, "Active")],
+)
+def test_initial_status_valve(initial_status, expected_status):
+    import wntr
+
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    add_point(junction_layer, (4, 5), ["J2"])
+
+    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", str)])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
+
+    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
+
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+    assert wn.get_link("V1").initial_status == wntr.network.base.LinkStatus[expected_status]

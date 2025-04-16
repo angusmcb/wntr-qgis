@@ -46,6 +46,7 @@ from wntrqgis.elements import (
     ModelLayer,
     ResultField,
     ResultLayer,
+    _AbstractValueMap,
 )
 from wntrqgis.i18n import tr
 
@@ -578,7 +579,12 @@ class Writer:
         if dtype is list:  # Must be checked before string type
             return QMetaType.QVariantList if USE_QMETATYPE else QVariant.List
 
-        if pd.api.types.is_string_dtype(dtype):
+        try:
+            is_abstract_value_map = issubclass(_AbstractValueMap, dtype)
+        except TypeError:
+            is_abstract_value_map = False
+
+        if is_abstract_value_map or pd.api.types.is_string_dtype(dtype):
             return QMetaType.QString if USE_QMETATYPE else QVariant.String
 
         if pd.api.types.is_float_dtype(dtype):
