@@ -105,6 +105,10 @@ class _FieldStyles:
             return QgsDefaultValue("''")  # because 'NULL' doesn't look nice
         return QgsDefaultValue()
 
+    @property
+    def alias(self):
+        return self.field_type.friendly_name
+
 
 class _LayerStyler:
     def __init__(self, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
@@ -129,6 +133,7 @@ class _LayerStyler:
                 continue
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
             layer.setDefaultValueDefinition(i, field_styler.default_value)
+            layer.setFieldAlias(i, field_styler.alias)
 
     def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is ResultLayer.NODES:

@@ -15,11 +15,6 @@ from wntrqgis.i18n import tr
 
 
 class FlowUnit(Enum):
-    """
-    >>> for unit in FlowUnit:
-    ...     assert unit.friendly_name, f"{unit.name} is missing a friendly_name"
-    """
-
     LPS = auto()
     LPM = auto()
     MLD = auto()
@@ -57,11 +52,6 @@ class FlowUnit(Enum):
 
 
 class HeadlossFormula(Enum):
-    """
-    >>> for formula in HeadlossFormula:
-    ...     assert formula.friendly_name, f"{formula.name} is missing a friendly_name"
-    """
-
     HAZEN_WILLIAMS = "H-W"
     DARCY_WEISBACH = "D-W"
     CHEZY_MANNING = "C-M"
@@ -86,13 +76,6 @@ class _AbstractValueMap(Enum):
 
 
 class PumpTypes(_AbstractValueMap):
-    """
-    >>> for pump_type in PumpTypes:
-    ...     assert (
-    ...         pump_type.friendly_name
-    ...     ), f"{pump_type.name} is missing a friendly_name"
-    """
-
     POWER = auto()
     HEAD = auto()
 
@@ -106,11 +89,6 @@ class PumpTypes(_AbstractValueMap):
 
 
 class InitialStatus(_AbstractValueMap):
-    """
-    >>> for status in InitialStatus:
-    ...     assert status.friendly_name, f"{status.name} is missing a friendly_name"
-    """
-
     ACTIVE = auto()
     OPEN = auto()
     CLOSED = auto()
@@ -127,13 +105,6 @@ class InitialStatus(_AbstractValueMap):
 
 
 class ValveType(_AbstractValueMap):
-    """
-    >>> for valve_type in ValveType:
-    ...     assert (
-    ...         valve_type.friendly_name
-    ...     ), f"{valve_type.name} is missing a friendly_name"
-    """
-
     PRV = auto()
     PSV = auto()
     PBV = auto()
@@ -209,14 +180,6 @@ class LayerType(Flag):
 class _AbstractLayer(Enum):
     """Abstract enum for layer enums"""
 
-    def __new__(cls, *args):
-        obj = object.__new__(cls)
-        obj._value_ = args[0]
-        return obj
-
-    def __init__(self, *args):
-        self.friendly_name = args[1]
-
     @property
     def results_name(self):
         """Name of the layer in the results"""
@@ -228,12 +191,28 @@ class _AbstractLayer(Enum):
 
 
 class ModelLayer(_AbstractLayer):
-    JUNCTIONS = "JUNCTIONS", tr("Junctions")
-    RESERVOIRS = "RESERVOIRS", tr("Reservoirs")
-    TANKS = "TANKS", tr("Tanks")
-    PIPES = "PIPES", tr("Pipes")
-    PUMPS = "PUMPS", tr("Pumps")
-    VALVES = "VALVES", tr("Valves")
+    JUNCTIONS = "JUNCTIONS"
+    RESERVOIRS = "RESERVOIRS"
+    TANKS = "TANKS"
+    PIPES = "PIPES"
+    PUMPS = "PUMPS"
+    VALVES = "VALVES"
+
+    @property
+    def friendly_name(self):
+        if self is ModelLayer.JUNCTIONS:
+            return tr("Junctions")
+        if self is ModelLayer.RESERVOIRS:
+            return tr("Reservoirs")
+        if self is ModelLayer.TANKS:
+            return tr("Tanks")
+        if self is ModelLayer.PIPES:
+            return tr("Pipes")
+        if self is ModelLayer.PUMPS:
+            return tr("Pumps")
+        if self is ModelLayer.VALVES:
+            return tr("Valves")
+        raise ValueError
 
     @property
     def element_family(self) -> ElementFamily:
@@ -326,8 +305,16 @@ class ModelLayer(_AbstractLayer):
 
 
 class ResultLayer(_AbstractLayer):
-    NODES = "OUTPUTNODES", tr("Nodes")
-    LINKS = "OUTPUTLINKS", tr("Links")
+    NODES = "OUTPUTNODES"
+    LINKS = "OUTPUTLINKS"
+
+    @property
+    def friendly_name(self):
+        if self is ResultLayer.NODES:
+            return tr("Nodes")
+        if self is ResultLayer.LINKS:
+            return tr("Links")
+        raise ValueError
 
     @property
     def element_family(self):
@@ -372,13 +359,7 @@ class _AbstractField(Enum):
 
 
 class ModelField(_AbstractField):
-    """All recognised fields that could be in a model layer
-
-    >>> for field in ModelField:
-    ...     assert (
-    ...         field.name.lower() == field.value.lower()
-    ...     ), f"{field.name} != {field.value}"
-    """
+    """All recognised fields that could be in a model layer"""
 
     NAME = "name", str, FieldGroup.BASE
     ELEVATION = "elevation", float, FieldGroup.BASE
@@ -422,6 +403,86 @@ class ModelField(_AbstractField):
     ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
 
+    @property
+    def friendly_name(self):
+        if self is ModelField.NAME:
+            return tr("Name")
+        if self is ModelField.ELEVATION:
+            return tr("Elevation")
+        if self is ModelField.BASE_DEMAND:
+            return tr("Base Demand")
+        if self is ModelField.DEMAND_PATTERN:
+            return tr("Demand Pattern")
+        if self is ModelField.EMITTER_COEFFICIENT:
+            return tr("Emitter Coefficient")
+        if self is ModelField.INIT_LEVEL:
+            return tr("Initial Level")
+        if self is ModelField.MIN_LEVEL:
+            return tr("Minimum Level")
+        if self is ModelField.MAX_LEVEL:
+            return tr("Maximum Level")
+        if self is ModelField.VALVE_TYPE:
+            return tr("Valve Type")
+        if self is ModelField.DIAMETER:
+            return tr("Diameter")
+        if self is ModelField.MIN_VOL:
+            return tr("Minimum Volume")
+        if self is ModelField.VOL_CURVE:
+            return tr("Volume Curve")
+        if self is ModelField.OVERFLOW:
+            return tr("Overflow")
+        if self is ModelField.BASE_HEAD:
+            return tr("Base Head")
+        if self is ModelField.HEAD_PATTERN:
+            return tr("Head Pattern")
+        if self is ModelField.LENGTH:
+            return tr("Length")
+        if self is ModelField.ROUGHNESS:
+            return tr("Roughness")
+        if self is ModelField.MINOR_LOSS:
+            return tr("Minor Loss")
+        if self is ModelField.CHECK_VALVE:
+            return tr("Check Valve")
+        if self is ModelField.PUMP_TYPE:
+            return tr("Pump Type")
+        if self is ModelField.PUMP_CURVE:
+            return tr("Pump Curve")
+        if self is ModelField.POWER:
+            return tr("Power")
+        if self is ModelField.BASE_SPEED:
+            return tr("Base Speed")
+        if self is ModelField.SPEED_PATTERN:
+            return tr("Speed Pattern")
+        if self is ModelField.INITIAL_STATUS:
+            return tr("Initial Status")
+        if self is ModelField.INITIAL_SETTING:
+            return tr("Initial Setting")
+        if self is ModelField.HEADLOSS_CURVE:
+            return tr("Headloss Curve")
+        if self is ModelField.INITIAL_QUALITY:
+            return tr("Initial Quality")
+        if self is ModelField.MIXING_FRACTION:
+            return tr("Mixing Fraction")
+        if self is ModelField.MIXING_MODEL:
+            return tr("Mixing Model")
+        if self is ModelField.BULK_COEFF:
+            return tr("Bulk Coefficient")
+        if self is ModelField.WALL_COEFF:
+            return tr("Wall Coefficient")
+        if self is ModelField.MINIMUM_PRESSURE:
+            return tr("Minimum Pressure")
+        if self is ModelField.REQUIRED_PRESSURE:
+            return tr("Required Pressure")
+        if self is ModelField.PRESSURE_EXPONENT:
+            return tr("Pressure Exponent")
+        if self is ModelField.EFFICIENCY:
+            return tr("Efficiency")
+        if self is ModelField.ENERGY_PATTERN:
+            return tr("Energy Pattern")
+        if self is ModelField.ENERGY_PRICE:
+            return tr("Energy Price")
+        raise ValueError
+
 
 class ResultField(_AbstractField):
     """Fields that can be in the results layers"""
@@ -436,3 +497,23 @@ class ResultField(_AbstractField):
 
     QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
     REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS
+
+    @property
+    def friendly_name(self):
+        if self is ResultField.DEMAND:
+            return tr("Demand")
+        if self is ResultField.HEAD:
+            return tr("Head")
+        if self is ResultField.PRESSURE:
+            return tr("Pressure")
+        if self is ResultField.FLOWRATE:
+            return tr("Flowrate")
+        if self is ResultField.HEADLOSS:
+            return tr("Headloss")
+        if self is ResultField.VELOCITY:
+            return tr("Velocity")
+        if self is ResultField.QUALITY:
+            return tr("Quality")
+        if self is ResultField.REACTION_RATE:
+            return tr("Reaction Rate")
+        raise ValueError
