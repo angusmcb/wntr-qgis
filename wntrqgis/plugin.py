@@ -82,9 +82,9 @@ class Plugin:
         #     pass
 
         self.actions: dict[str, typing.Any] = {}
+        self.init_translation()
         self.menu = tr("Water Network Tools for Resilience")
 
-        self.init_translation()
         s = QgsSettings()
         oldversion = s.value(WNTR_SETTING_VERSION, None)
         s.setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
