@@ -143,11 +143,11 @@ def field_value(field, layer) -> str:
 
     python_type = field.python_type
     if issubclass(python_type, Enum):
-        if python_type is InitialStatus and layer is ModelLayer.PIPES:
-            enum_list = [InitialStatus.Open, InitialStatus.Closed]
+        if python_type is InitialStatus and layer in [ModelLayer.PIPES, ModelLayer.PUMPS]:
+            enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
         else:
-            enum_list = python_type.__members__
-        return ", ".join(enum_list)
+            enum_list = python_type
+        return ", ".join([enum.name for enum in enum_list])
     if issubclass(python_type, PatternType):
         return "Pattern"
     if issubclass(python_type, CurveType):
