@@ -19,7 +19,7 @@ def translator(locale):
     translator.load(qgis_locale, "", "", locale_path)
     QCoreApplication.installTranslator(translator)
     yield
-    x = 1  # do something to stop yield being removed. (Required to not lose reference to QTranslator object)
+    QCoreApplication.removeTranslator(translator)  # not strictly needed
 
 
 @pytest.mark.parametrize(
