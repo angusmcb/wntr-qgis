@@ -17,7 +17,9 @@ def translator(locale):
     locale_path = str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "i18n")
     translator = QTranslator()
     translator.load(qgis_locale, "", "", locale_path)
-    return translator
+    QCoreApplication.installTranslator(translator)
+    yield
+    x = 1  # do something to stop yield being removed. (Required to not lose reference to QTranslator object)
 
 
 @pytest.mark.parametrize(
@@ -28,8 +30,6 @@ def translator(locale):
     ],
 )
 def test_numerus_translation_hours(num_hours, expected_message, translator):
-    QCoreApplication.installTranslator(translator)
-
     translated_message = tr("%n hour(s)", "", num_hours)
 
     assert translated_message == expected_message
@@ -43,8 +43,6 @@ def test_numerus_translation_hours(num_hours, expected_message, translator):
     ],
 )
 def test_numerus_translation_nodes(num_features, expected_message, translator):
-    QCoreApplication.installTranslator(translator)
-
     translated_message = tr("in nodes, %n feature(s) have no geometry", "", num_features)
 
     assert translated_message == expected_message
@@ -58,8 +56,6 @@ def test_numerus_translation_nodes(num_features, expected_message, translator):
     ],
 )
 def test_numerus_translation_links(num_features, expected_message, translator):
-    QCoreApplication.installTranslator(translator)
-
     translated_message = tr("in links, %n feature(s) have no geometry", "", num_features)
 
     assert translated_message == expected_message
@@ -73,8 +69,6 @@ def test_numerus_translation_links(num_features, expected_message, translator):
     ],
 )
 def test_numerus_translation_pipes(num_pipes, expected_message, translator):
-    QCoreApplication.installTranslator(translator)
-
     translated_message = tr(
         "%n pipe(s) have very different attribute length vs measured length. First five are: ",
         "",
@@ -97,8 +91,6 @@ def test_numerus_translation_pipes(num_pipes, expected_message, translator):
     ],
 )
 def test_run_simulation_translation(translator, expected_message):
-    QCoreApplication.installTranslator(translator)
-
     translated_message = tr("Run Simulation")
 
     assert translated_message == expected_message
