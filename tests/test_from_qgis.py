@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
@@ -159,7 +161,7 @@ def test_wntr_error():
     add_point(all_layers["JUNCTIONS"], (2, 2), ["J2"])
     add_line(all_layers["PUMPS"], [(1, 1), (2, 2)], ["P1", "NOT_A_PUMP_TYPE"])
 
-    with pytest.raises(wntrqgis.interface.WntrError, match="error from WNTR. pump_parameter must be a float or string"):
+    with pytest.raises(wntrqgis.interface.WntrError, match="pump_parameter"):
         wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
 
@@ -847,7 +849,15 @@ def test_headloss_curve_error():
         wntrqgis.from_qgis(layers, "LPS", "H-W")
 
 
-def test_volume_curve():
+@pytest.mark.parametrize(
+    "curve_string",
+    [
+        "[(0.0,100),(10.0,1000),(20,10000.0)]",
+        "(0.0,100),(10.0,1000),(20,10000.0)",
+        "[0.0,100],('10.0','1000'),('20','10000.0')",
+    ],
+)
+def test_volume_curve(curve_string):
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
     tank_layer = layer("point", [("name", str), ("max_level", float), ("vol_curve", str)])
@@ -866,16 +876,36 @@ def test_volume_curve():
     ]
 
 
-def test_volume_curve_error():
+@pytest.mark.parametrize(
+    "curve_string",
+    [
+        "[]",
+        "[(0.0,100),(10.0,1000)],(20,10000.0)",
+        "[xx]",
+        "[(1,2),(20,2,3)]",
+        '[(1.0,"x"),(20.0,3)]',
+        "[1, 10, 20]",
+        "[1,2] [2, 3]",
+        "(1,2) (20, 2)",
+        "assert False",
+        "dict()",
+        1,
+        1.0,
+        0.0,
+        True,
+        False,
+    ],
+)
+def test_volume_curve_error(curve_string):
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
-    tank_layer = layer("point", [("name", str), ("max_level", float), ("vol_curve", str)])
-    add_point(tank_layer, (4, 5), ["T1", 20, "[](0.0,100),(10.0,1000),(20,10000.0)]"])
+    tank_layer = layer("point", [("name", str), ("max_level", float), ("vol_curve", type(curve_string))])
+    add_point(tank_layer, (4, 5), ["T1", 20, curve_string])
     pipe_layer = layer("linestring", [("name", str)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
     layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
 
-    with pytest.raises(wntrqgis.interface.CurveError, match="problem reading tank volume curve"):
+    with pytest.raises(wntrqgis.interface.CurveError, match=re.escape(str(curve_string))):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
 
 
@@ -982,3 +1012,35 @@ def test_initial_status_valve(initial_status, expected_status):
 
     wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
     assert wn.get_link("V1").initial_status == wntr.network.base.LinkStatus[expected_status]
+
+
+def test_inital_status_error():
+    initial_status = "NOT_A_STATUS"
+
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    add_point(junction_layer, (4, 5), ["J2"])
+
+    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", str)])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
+
+    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
+
+    with pytest.raises(wntrqgis.interface.WntrError, match=initial_status):
+        wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+
+def test_inital_status_error_float():
+    initial_status = 1.0
+
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    add_point(junction_layer, (4, 5), ["J2"])
+
+    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", float)])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
+
+    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
+
+    with pytest.raises(wntrqgis.interface.WntrError, match="initial_status"):
+        wntrqgis.from_qgis(layers, "LPS", "H-W")

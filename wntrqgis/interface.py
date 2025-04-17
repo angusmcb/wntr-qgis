@@ -716,24 +716,34 @@ class _Curves:
         HEADLOSS = "HEADLOSS"
 
     def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
-        if not curve_string or not isinstance(curve_string, str):
-            return None
+        try:
+            curve_points_input: list = ast.literal_eval(curve_string)
+        except (ValueError, SyntaxError):
+            raise CurveError(curve_string, curve_type) from None
+
+        curve_points = []
+        try:
+            for point in curve_points_input:
+                if len(point) != 2:  # noqa: PLR2004
+                    raise CurveError(curve_string, curve_type)
+                curve_points.append((float(point[0]), float(point[1])))
+        except (TypeError, ValueError):
+            raise CurveError(curve_string, curve_type) from None
+
+        if not len(curve_points):
+            raise CurveError(curve_string, curve_type) from None
+        try:
+            curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
+        except TypeError as e:
+            raise CurveError(curve_string, curve_type) from e
 
         name = str(self._next_curve_name)
-        try:
-            curve_points: list = ast.literal_eval(curve_string)
-        except SyntaxError as e:
-            raise CurveError(e, curve_type) from None
-        curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
         self._next_curve_name += 1
         return name
 
     def _add_all(self, curve_series: pd.Series, curve_type: _Curves.Type) -> pd.Series | None:
-        try:
-            curve_map = {curve: self._add_one(curve, curve_type) for curve in curve_series.unique()}
-        except ValueError as e:
-            raise CurveError(e, curve_type) from None
+        curve_map = {curve: self._add_one(curve, curve_type) for curve in curve_series.dropna().unique()}
         return curve_series.map(curve_map, na_action="ignore")
 
     add_head = functools.partialmethod(_add_all, curve_type=Type.HEAD)
@@ -966,7 +976,7 @@ class _FromGis:
         logging.getLogger("wntr.network.io").setLevel(logging.CRITICAL)
         try:
             wn = wntr.network.from_dict(wn_dict, wn)
-        except (AssertionError, RuntimeError, ValueError) as e:
+        except Exception as e:
             raise WntrError(e) from e
 
     def _to_dict(self, df: pd.DataFrame) -> list[dict]:
@@ -1299,7 +1309,7 @@ class PatternError(NetworkModelError, ValueError):
 
 
 class CurveError(NetworkModelError, ValueError):
-    def __init__(self, exception, curve_type: _Curves.Type):
+    def __init__(self, curve_string, curve_type: _Curves.Type):
         curve_name = ""
         if curve_type is _Curves.Type.HEAD:
             curve_name = tr("pump head")
@@ -1311,15 +1321,19 @@ class CurveError(NetworkModelError, ValueError):
             curve_name = tr("tank volume")
 
         super().__init__(
-            tr("problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]").format(
-                curve_name=curve_name, exception=exception
-            )
+            tr(
+                'problem reading {curve_name} curve "{curve_string}". Curves should be of the form: (1, 2), (3.6, 4.7)'
+            ).format(curve_name=curve_name, curve_string=curve_string)
         )
 
 
 class WntrError(NetworkModelError):
     def __init__(self, exception):
-        super().__init__(tr("error from WNTR. {exception}").format(exception=exception))
+        super().__init__(
+            tr("error from WNTR. {exception_name}: {exception}").format(
+                exception_name=type(exception).__name__, exception=exception
+            )
+        )
 
 
 class UnitError(NetworkModelError, ValueError):

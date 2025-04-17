@@ -34,9 +34,9 @@ All attributes are optional, and unless otherwise stated will use WNTR default v
 
 Patterns will also accept a field of type list, where each item in the list is a number.
 
-**Curves** Curves should be inputted with the following form:
+**Curves** Curves should be inputted with the following form, where each pair of numbers in brackets is an x, y point on the curve.
 
-``[ (0, 10), (2, 5), (3.3, 7)]``
+``(0, 10), (2, 5), (3.3, 7)``
 
 **Geographical attributes** All geographical (`coordinates`, `vertices`) and network-related (`start_node_name` and `end_node_name`) WNTR attributes are not used. This is because they are calculated automatically based on the geometry of the features.
 
