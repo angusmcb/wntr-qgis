@@ -69,12 +69,12 @@ def test_patterns_get(wn):
     assert pattern == "1.0 2.0 3.0"
 
 
-def test_patterns_add_invalid():
+def test_patterns_add_empty():
     import wntr
 
     patterns = _Patterns(wntr.network.WaterNetworkModel())
-    assert patterns.add(None) is None
-    assert patterns.add("") is None
+    pattern_name = patterns.add("")
+    assert pattern_name is None
 
 
 def test_curves_add_one(wn):
@@ -87,13 +87,13 @@ def test_curves_get(wn):
     curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
     curve_name = curves._add_one("[(1,2), (3,4)]", _Curves.Type.HEAD)
     curve = curves.get(curve_name)
-    assert curve == "[(1.0, 2), (3.0, 4)]"
+    assert curve == "[(1.0, 2.0), (3.0, 4.0)]"
 
 
 def test_curves_add_invalid(wn):
     curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
-    assert curves._add_one(None, _Curves.Type.HEAD) is None
-    assert curves._add_one("", _Curves.Type.HEAD) is None
+    with pytest.raises(wntrqgis.interface.CurveError):
+        curves._add_one(None, _Curves.Type.HEAD)
 
 
 def test_writer_get_qgsfields(wn):

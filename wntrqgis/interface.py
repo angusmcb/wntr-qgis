@@ -663,36 +663,44 @@ class _Patterns:
         self._existing_patterns: dict[tuple, str] = {}
         self._wn = wn
 
-    def add(self, pattern: str | list | None):
-        if isinstance(pattern, str) and pattern != "":
-            patternlist = [float(item) for item in pattern.split()]
+    def add(self, pattern) -> str | None:
+        input_pattern = pattern
+        if isinstance(pattern, str):
+            pattern = cast(str, pattern)
+            pattern = pattern.strip().split()
 
-        elif isinstance(pattern, list):
-            patternlist = pattern
-        else:
+        try:
+            pattern_list = [float(item) for item in pattern]
+        except (ValueError, TypeError):
+            raise ValueError(input_pattern) from None
+
+        if len(pattern_list) == 0:
             return None
 
-        pattern_tuple = tuple(patternlist)
+        pattern_tuple = tuple(pattern_list)
 
         if existing_pattern_name := self._existing_patterns.get(pattern_tuple):
             return existing_pattern_name
 
         name = str(self._next_pattern_name)
-        self._wn.add_pattern(name=name, pattern=patternlist)
+        self._wn.add_pattern(name=name, pattern=pattern_list)
         self._existing_patterns[pattern_tuple] = name
         self._next_pattern_name += 1
         return name
 
-    def add_all(self, pattern_series: pd.Series | Any, layer_name: str, pattern_name: str) -> pd.Series | None:
+    def add_all(self, pattern_series: pd.Series | Any, layer: ModelLayer, pattern_type: ModelField) -> pd.Series | None:
         if not isinstance(pattern_series, pd.Series):
             return None
+        # try:
+        #     pattern_map = {
+        #         pattern: self.add(pattern, layer_name, pattern_name) for pattern in pattern_series.dropna().unique()
+        #     }
+        # except TypeError:
         try:
-            pattern_map = {pattern: self.add(pattern) for pattern in pattern_series.unique()}
-        except TypeError:
-            return pattern_series.apply(self.add)  # for lists
+            return pattern_series.map(self.add, na_action="ignore").fillna("")
         except ValueError as e:
-            raise PatternError(e, layer_name, pattern_name) from None
-        return pattern_series.map(pattern_map)
+            raise PatternError(e, layer, pattern_type) from None
+        # return pattern_series.map(pattern_map)
 
     def get(self, pattern: wntr.network.elements.Pattern | str | None) -> str | None:
         if isinstance(pattern, str):
@@ -718,7 +726,7 @@ class _Curves:
     def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
         try:
             curve_points_input: list = ast.literal_eval(curve_string)
-        except (ValueError, SyntaxError):
+        except Exception:  # noqa: BLE001
             raise CurveError(curve_string, curve_type) from None
 
         curve_points = []
@@ -1017,7 +1025,7 @@ class _FromGis:
                     source_df[column_name] = pd.to_numeric(source_df[column_name])
                 elif expected_type is bool:
                     source_df[column_name] = pd.to_numeric(source_df[column_name]).astype("Int64").astype("object")
-            except ValueError as e:
+            except (ValueError, TypeError) as e:
                 msg = tr("Problem in column {column_name}: {exception}").format(column_name=column_name, exception=e)
                 raise NetworkModelError(msg) from None
         return source_df
@@ -1143,7 +1151,9 @@ class _FromGis:
         return length
 
     def _do_node_patterns_curves(self, node_df: pd.DataFrame) -> pd.DataFrame:
-        node_df["demand_pattern_name"] = self.patterns.add_all(node_df.get("demand_pattern"), "junctions", "demand")
+        node_df["demand_pattern_name"] = self.patterns.add_all(
+            node_df.get("demand_pattern"), ModelLayer.JUNCTIONS, ModelField.DEMAND_PATTERN
+        )
 
         if "base_demand" in node_df.columns:
             has_demand = node_df.loc[:, "base_demand"].notna()
@@ -1163,7 +1173,9 @@ class _FromGis:
 
         # reservoir head pattern
         if "head_pattern" in node_df:
-            node_df["head_pattern_name"] = self.patterns.add_all(node_df.get("head_pattern"), "reservoirs", "head")
+            node_df["head_pattern_name"] = self.patterns.add_all(
+                node_df.get("head_pattern"), ModelLayer.RESERVOIRS, ModelField.HEAD_PATTERN
+            )
 
         return node_df.drop(
             columns=["vol_curve", "head_pattern", "base_demand", "demand_pattern", "demand_pattern_name"],
@@ -1190,10 +1202,14 @@ class _FromGis:
             link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
 
         if "speed_pattern" in link_df:
-            link_df["speed_pattern_name"] = self.patterns.add_all(link_df.get("speed_pattern"), "pumps", "speed")
+            link_df["speed_pattern_name"] = self.patterns.add_all(
+                link_df.get("speed_pattern"), ModelLayer.PUMPS, ModelField.SPEED_PATTERN
+            )
 
         if "energy_pattern" in link_df:
-            link_df["energy_pattern"] = self.patterns.add_all(link_df.get("energy_pattern"), "pumps", "energy")
+            link_df["energy_pattern"] = self.patterns.add_all(
+                link_df.get("energy_pattern"), ModelLayer.PUMPS, ModelField.ENERGY_PATTERN
+            )
 
         return link_df.drop(
             columns=["headloss_curve", "pump_curve", "speed_pattern"],
@@ -1300,11 +1316,11 @@ class NetworkModelError(Exception):
 
 
 class PatternError(NetworkModelError, ValueError):
-    def __init__(self, exception, layer, pattern_name):
+    def __init__(self, pattern_string, layer: ModelLayer, pattern_type: ModelField):
         super().__init__(
             tr(
-                "in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces."  # noqa: E501
-            ).format(layer=layer, pattern_name=pattern_name, exception=exception)
+                "in {layer} problem reading {pattern_type}: {pattern_string} Patterns should be a string of numeric values separated by a space, or a list of numeric values."  # noqa: E501
+            ).format(layer=layer.friendly_name, pattern_type=pattern_type.friendly_name, pattern_string=pattern_string)
         )
 
 

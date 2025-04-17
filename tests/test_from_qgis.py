@@ -29,6 +29,7 @@ def type_to_string(the_type: type | str) -> str:
         return "integer"
     if the_type is bool:
         return "boolean"
+
     msg = f"Unsupported type: {the_type}"
     raise ValueError(msg)
 
@@ -561,32 +562,51 @@ def test_float_attributes(float_attr, expected_result, field_type):
     assert wn.get_link("P1").diameter == expected_result / 1000
 
 
-def test_float_error():
+@pytest.mark.parametrize(
+    ("float_attr", "attr_type"), [("not_a_float", str), (["not", "a", "float"], "string[]"), ([1], "integer[]")]
+)
+def test_float_error(float_attr, attr_type):
     junction_layer = layer("point")
     add_point(junction_layer, (1, 1))
     add_point(junction_layer, (4, 5))
-    pipe_layer = layer("linestring", [("name", str), ("diameter", str)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", "not_a_float"])
+    pipe_layer = layer("linestring", [("name", str), ("diameter", attr_type)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr])
 
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
-    with pytest.raises(
-        wntrqgis.interface.NetworkModelError, match='Problem in column diameter: Unable to parse string "not_a_float"'
-    ):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="Problem in column diameter: "):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
 
 
-def test_demand_pattern():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", str)])
-    add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2.5 -3"])
+@pytest.fixture
+def pattern():
+    return "1 0 2.5 -3"
+
+
+@pytest.fixture
+def demand_pattern_layers(pattern):
+    pattern_type = type(pattern)
+    if pattern_type is list:
+        if len(pattern) == 0 or type(pattern[0]) is str:
+            pattern_type = "string[]"
+        elif type(pattern[0]) is float:
+            pattern_type = "double[]"
+        elif type(pattern[0]) is int:
+            pattern_type = "integer[]"
+
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", pattern_type)])
+    add_point(junction_layer, (1, 1), ["J1", 1, pattern])
     reservoir_layer = layer("point", [("name", str)])
     add_point(reservoir_layer, (4, 5), ["R1"])
 
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
     add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
 
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+    return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+
+def test_demand_pattern(demand_pattern_layers):
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
     assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5, -3]
@@ -646,6 +666,7 @@ def test_lots_of_patterns():
     add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2.5"])
     add_point(junction_layer, (2, 2), ["J2", 1, "1 0 2.5"])
     add_point(junction_layer, (3, 3), ["J3", 1, "1 0 3.0"])
+    add_point(junction_layer, (3, 3), ["J4", 1, ""])
 
     reservoir_layer = layer("point", [("name", str), ("head_pattern", str)])
     add_point(reservoir_layer, (4, 5), ["R1", "2 0 200.5"])
@@ -664,79 +685,58 @@ def test_lots_of_patterns():
     assert wn.get_link("P1").speed_pattern_name == "5"
 
 
-def test_bad_pattern():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", str)])
-    add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2,5"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "RESERVOIRS": reservoir_layer}
-    with pytest.raises(wntrqgis.interface.PatternError, match="could not convert string to float: '2,5'"):
-        wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-
-
-def test_float_list_pattern():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", "double[]")])
-    add_point(junction_layer, (1, 1), ["J1", 1, [1.0, 0.0, 2.5]])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+@pytest.mark.parametrize(
+    ("pattern", "expected_value"),
+    [
+        ("1 0 2.5", [1.0, 0.0, 2.5]),
+        ("1 0 2.5 -3", [1.0, 0.0, 2.5, -3]),
+        ("1", [1.0]),
+        ("1 0 2.5 -3 4 5 5 5 0 7.8", [1.0, 0.0, 2.5, -3, 4, 5, 5, 5, 0, 7.8]),
+        ("   2    ", [2.0]),
+    ],
+)
+def test_pattern_string_values(expected_value, demand_pattern_layers):
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
     assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5]
+    assert list(wn.patterns["2"].multipliers) == expected_value
 
 
-def test_str_list_pattern():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", "string[]")])
-    add_point(junction_layer, (1, 1), ["J1", 1, ["1.0", "0.0", "2.5"]])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-
-    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5]
+@pytest.mark.parametrize("pattern", ["1 0 2,5", "1 0 xx", 1.0, 2, 0, True, False, [""], ["  "], ["1", "x", "3"]])
+def test_bad_pattern(pattern, demand_pattern_layers):
+    with pytest.raises(wntrqgis.interface.PatternError, match=re.escape(str(pattern))):
+        wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
 
-def test_int_list_pattern():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", "integer[]")])
-    add_point(junction_layer, (1, 1), ["J1", 1, [1, 0, -1, 100]])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
+@pytest.mark.parametrize("pattern", ["", "  ", []])
+def test_empty_pattern(pattern, demand_pattern_layers):
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+    assert len(wn.patterns) == 0
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name is None
 
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+@pytest.mark.parametrize("pattern", [[1.0, 0.0, 2.0], ["1.0", "0.0", "2.0"], [1, 0, 2]])
+def test_pattern_list_types(demand_pattern_layers):
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
     assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == [1, 0, -1, 100]
+    assert list(wn.patterns["2"].multipliers) == [1, 0, 2.0]
 
 
-def test_double_list_pattern():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", "integer[]")])
-    add_point(junction_layer, (1, 1), ["J1", 1, [1, 0, -1, 100]])
-    add_point(junction_layer, (1, 2), ["J2", 1, [1, 0, -1, 100]])
+@pytest.mark.parametrize("pattern", [[1.0, 0.0, 2.0], [1.0, 0.0, 2.1], [1.0], [0.0], [2.2]])
+def test_pattern_list_values(pattern, demand_pattern_layers):
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
+    assert list(wn.patterns["2"].multipliers) == pattern
 
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
 
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+@pytest.mark.parametrize("pattern", [[1, 0, -1, 100]])
+def test_two_list_pattern(pattern, demand_pattern_layers):
+    add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1, pattern])
+
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
     assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert wn.get_node("J2").demand_timeseries_list[0].pattern_name == "2"
