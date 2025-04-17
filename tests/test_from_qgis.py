@@ -740,7 +740,18 @@ def test_two_list_pattern(pattern, demand_pattern_layers):
 
     assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
     assert wn.get_node("J2").demand_timeseries_list[0].pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == [1, 0, -1, 100]
+    assert list(wn.patterns["2"].multipliers) == pattern
+
+
+@pytest.mark.parametrize("pattern", [[1, 0, -1, 100]])
+def test_pattern_plus_empty(pattern, demand_pattern_layers):
+    add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1])
+
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
+
+    assert len(wn.patterns) == 1
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
+    assert list(wn.patterns["2"].multipliers) == pattern
 
 
 def test_head_curve_no_conversion():
