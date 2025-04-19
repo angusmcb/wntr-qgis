@@ -697,7 +697,7 @@ class _Patterns:
         #     }
         # except TypeError:
         try:
-            return pattern_series.map(self.add, na_action="ignore").fillna("")
+            return pattern_series.map(self.add, na_action="ignore")
         except ValueError as e:
             raise PatternError(e, layer, pattern_type) from None
         # return pattern_series.map(pattern_map)
@@ -1160,7 +1160,7 @@ class _FromGis:
 
             node_df.loc[has_demand, "demand_timeseries_list"] = pd.Series(
                 [
-                    [{"base_val": demand[0], "pattern_name": demand[1]}]
+                    [{"base_val": demand[0], "pattern_name": (demand[1] if pd.notna(demand[1]) else None)}]
                     for demand in node_df.loc[has_demand, ["base_demand", "demand_pattern_name"]].itertuples(
                         index=False, name=None
                     )

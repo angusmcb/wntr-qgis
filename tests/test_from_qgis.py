@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import types
+from typing import Any
 
 import pytest
 from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
@@ -13,14 +15,26 @@ def layer(
 ) -> QgsVectorLayer:
     if not fields:
         fields = []
+
     field_string = "&".join([f"field={name}:{type_to_string(the_type)}" for name, the_type in fields])
     crs_string = f"crs={crs}" if crs else "crs=None"
     return QgsVectorLayer(f"{layer_type}?{crs_string}&{field_string}", "", "memory")
 
 
-def type_to_string(the_type: type | str) -> str:
-    if isinstance(the_type, str):
-        return the_type
+def type_to_string(the_type: type | Any) -> str:
+    if type(the_type) not in [type, types.GenericAlias]:
+        if isinstance(the_type, list):
+            if len(the_type) == 0 or type(the_type[0]) is str:
+                the_type = list[str]
+            elif type(the_type[0]) is float:
+                the_type = list[float]
+            elif type(the_type[0]) is int:
+                the_type = list[int]
+            elif type(the_type[0]) is bool:
+                the_type = list[bool]
+        else:
+            the_type = type(the_type)
+
     if the_type is str:
         return "string"
     if the_type is float:
@@ -29,6 +43,14 @@ def type_to_string(the_type: type | str) -> str:
         return "integer"
     if the_type is bool:
         return "boolean"
+    if the_type == list[str]:
+        return "string[]"
+    if the_type == list[int]:
+        return "integer[]"
+    if the_type == list[float]:
+        return "double[]"
+    if the_type == list[bool]:
+        return "boolean[]"
 
     msg = f"Unsupported type: {the_type}"
     raise ValueError(msg)
@@ -563,7 +585,7 @@ def test_float_attributes(float_attr, expected_result, field_type):
 
 
 @pytest.mark.parametrize(
-    ("float_attr", "attr_type"), [("not_a_float", str), (["not", "a", "float"], "string[]"), ([1], "integer[]")]
+    ("float_attr", "attr_type"), [("not_a_float", str), (["not", "a", "float"], list[str]), ([1], list[int])]
 )
 def test_float_error(float_attr, attr_type):
     junction_layer = layer("point")
@@ -584,17 +606,13 @@ def pattern():
 
 
 @pytest.fixture
-def demand_pattern_layers(pattern):
-    pattern_type = type(pattern)
-    if pattern_type is list:
-        if len(pattern) == 0 or type(pattern[0]) is str:
-            pattern_type = "string[]"
-        elif type(pattern[0]) is float:
-            pattern_type = "double[]"
-        elif type(pattern[0]) is int:
-            pattern_type = "integer[]"
+def expected_pattern():
+    return [1, 0, 2.5, -3]
 
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", pattern_type)])
+
+@pytest.fixture
+def demand_pattern_layers(pattern):
+    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", pattern)])
     add_point(junction_layer, (1, 1), ["J1", 1, pattern])
     reservoir_layer = layer("point", [("name", str)])
     add_point(reservoir_layer, (4, 5), ["R1"])
@@ -605,44 +623,51 @@ def demand_pattern_layers(pattern):
     return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
 
 
-def test_demand_pattern(demand_pattern_layers):
-    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
-
-    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == [1, 0, 2.5, -3]
-
-
-def test_head_pattern():
+@pytest.fixture
+def head_pattern_layers(pattern):
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str), ("head_pattern", str)])
-    add_point(reservoir_layer, (4, 5), ["R1", "2 0 200.5"])
+    reservoir_layer = layer("point", [("name", str), ("head_pattern", pattern)])
+    add_point(reservoir_layer, (4, 5), ["R1", pattern])
 
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
     add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
 
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-
-    assert wn.get_node("R1").head_pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == [2, 0, 200.5]
+    return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
 
 
-@pytest.mark.skip(reason="Energy pattern bug in wntr")
-def test_energy_pattern():
+@pytest.fixture
+def pump_energy_pattern_layers(pattern):
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
     reservoir_layer = layer("point", [("name", str)])
     add_point(reservoir_layer, (4, 5), ["R1"])
 
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("energy_pattern", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "5 4 3 2 1 1"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("energy_pattern", pattern)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, pattern])
+    return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
 
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+def test_demand_pattern(demand_pattern_layers, expected_pattern):
+    wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
+
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
+    assert list(wn.patterns["2"].multipliers) == expected_pattern
+
+
+def test_head_pattern(head_pattern_layers, expected_pattern):
+    wn = wntrqgis.from_qgis(head_pattern_layers, "LPS", "H-W")
+
+    assert wn.get_node("R1").head_pattern_name == "2"
+    assert list(wn.patterns["2"].multipliers) == expected_pattern
+
+
+@pytest.mark.skip(reason="Energy pattern bug in wntr")
+def test_energy_pattern(pump_energy_pattern_layers, expected_pattern):
+    wn = wntrqgis.from_qgis(pump_energy_pattern_layers, "LPS", "H-W")
 
     assert wn.get_link("P1").energy_pattern == "2"
-    assert list(wn.patterns["2"].multipliers) == [5, 4, 3, 2, 1, 1, 1]
+    assert list(wn.patterns["2"].multipliers) == expected_pattern
 
 
 def test_speed_pattern():
@@ -691,6 +716,7 @@ def test_lots_of_patterns():
         ("1 0 2.5", [1.0, 0.0, 2.5]),
         ("1 0 2.5 -3", [1.0, 0.0, 2.5, -3]),
         ("1", [1.0]),
+        ("0", [0.0]),
         ("1 0 2.5 -3 4 5 5 5 0 7.8", [1.0, 0.0, 2.5, -3, 4, 5, 5, 5, 0, 7.8]),
         ("   2    ", [2.0]),
     ],
@@ -702,7 +728,9 @@ def test_pattern_string_values(expected_value, demand_pattern_layers):
     assert list(wn.patterns["2"].multipliers) == expected_value
 
 
-@pytest.mark.parametrize("pattern", ["1 0 2,5", "1 0 xx", 1.0, 2, 0, True, False, [""], ["  "], ["1", "x", "3"]])
+@pytest.mark.parametrize(
+    "pattern", ["1 0 2,5", "1 0 xx", 1.0, 2, 0, True, False, [""], ["  "], ["1", "not_a_number", "3"], ["1", ""]]
+)
 def test_bad_pattern(pattern, demand_pattern_layers):
     with pytest.raises(wntrqgis.interface.PatternError, match=re.escape(str(pattern))):
         wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
@@ -713,7 +741,17 @@ def test_empty_pattern(pattern, demand_pattern_layers):
     wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
     assert len(wn.patterns) == 0
-    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name is None
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "1"
+    assert wn.get_node("J1").demand_timeseries_list[0].pattern is None
+
+
+@pytest.mark.parametrize("pattern", ["", "  ", []])
+def test_empty_head_pattern(pattern, head_pattern_layers):
+    wn = wntrqgis.from_qgis(head_pattern_layers, "LPS", "H-W")
+
+    assert len(wn.patterns) == 0
+    assert wn.get_node("R1").head_pattern_name is None
+    assert wn.get_node("R1").head_timeseries.pattern is None
 
 
 @pytest.mark.parametrize("pattern", [[1.0, 0.0, 2.0], ["1.0", "0.0", "2.0"], [1, 0, 2]])
@@ -743,15 +781,16 @@ def test_two_list_pattern(pattern, demand_pattern_layers):
     assert list(wn.patterns["2"].multipliers) == pattern
 
 
-@pytest.mark.parametrize("pattern", [[1, 0, -1, 100]])
-def test_pattern_plus_empty(pattern, demand_pattern_layers):
+def test_pattern_plus_empty(demand_pattern_layers, expected_pattern):
     add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1])
 
     wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
     assert len(wn.patterns) == 1
     assert wn.get_node("J1").demand_timeseries_list[0].pattern_name == "2"
-    assert list(wn.patterns["2"].multipliers) == pattern
+    assert wn.get_node("J2").demand_timeseries_list[0].pattern_name == "1"
+    assert wn.get_node("J2").demand_timeseries_list[0].pattern is None
+    assert list(wn.patterns["2"].multipliers) == expected_pattern
 
 
 def test_head_curve_no_conversion():
@@ -1025,14 +1064,14 @@ def test_initial_status_valve(initial_status, expected_status):
     assert wn.get_link("V1").initial_status == wntr.network.base.LinkStatus[expected_status]
 
 
-def test_inital_status_error():
+def test_inital_status_string_error():
     initial_status = "NOT_A_STATUS"
 
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
     add_point(junction_layer, (4, 5), ["J2"])
 
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", str)])
+    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", initial_status)])
     add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
 
     layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
@@ -1041,14 +1080,13 @@ def test_inital_status_error():
         wntrqgis.from_qgis(layers, "LPS", "H-W")
 
 
-def test_inital_status_error_float():
-    initial_status = 1.0
-
+@pytest.mark.parametrize("initial_status", [1.0, True, False])
+def test_inital_status_type_error(initial_status):
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
     add_point(junction_layer, (4, 5), ["J2"])
 
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", float)])
+    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", initial_status)])
     add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
 
     layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
