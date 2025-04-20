@@ -27,7 +27,7 @@ from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSele
 from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, Qt, QTranslator
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
-from qgis.PyQt.QtGui import QIcon, QPainter, QPixmap
+from qgis.PyQt.QtGui import QColorConstants, QIcon, QPainter, QPixmap
 from qgis.PyQt.QtWidgets import (
     QAction,
     QActionGroup,
@@ -218,7 +218,7 @@ except ModuleNotFoundError:
 
         self.template_layers_button.setMenu(self.template_layers_menu)
         self.template_layers_button.setDefaultAction(self.actions["template_layers"])
-        self.template_layers_button.setPopupMode(QToolButton.InstantPopup)
+        self.template_layers_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
 
         self.actions["template_layers_menu_widget"] = iface.addToolBarWidget(self.template_layers_button)
 
@@ -307,7 +307,7 @@ except ModuleNotFoundError:
         self.run_button = QToolButton()
         self.run_button.setMenu(self.run_menu)
         self.run_button.setDefaultAction(self.actions["run_simulation"])
-        self.run_button.setPopupMode(QToolButton.MenuButtonPopup)
+        self.run_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
 
         self.actions["run_menu_widget"] = iface.addToolBarWidget(self.run_button)
 
@@ -360,7 +360,7 @@ except ModuleNotFoundError:
         if exception:
             iface.messageBar().pushMessage(
                 "Failed to install WNTR. Please check your internet connection.",
-                level=Qgis.Critical,
+                level=Qgis.MessageLevel.Critical,
             )
             return
 
@@ -380,7 +380,7 @@ except ModuleNotFoundError:
             example_button.setText(tr("Load Example"))
             example_button.pressed.connect(self.load_example_from_messagebar)
             self.message_widget.layout().addWidget(example_button)
-            iface.messageBar().pushWidget(self.message_widget, Qgis.Info)
+            iface.messageBar().pushWidget(self.message_widget, Qgis.MessageLevel.Info)
 
     def add_layer_indicators(self):
         project_settings = ProjectSettings(QgsProject.instance())
@@ -491,10 +491,12 @@ except ModuleNotFoundError:
             nonlocal feedback
             nonlocal algorithm
             if not successful:
-                iface.messageBar().pushMessage(tr("Error"), feedback.errors[0], level=Qgis.Critical, duration=0)
+                iface.messageBar().pushMessage(
+                    tr("Error"), feedback.errors[0], level=Qgis.MessageLevel.Critical, duration=0
+                )
 
                 QgsMessageLog.logMessage(
-                    "Task finished unsucessfully\n" + feedback.htmlLog(), MESSAGE_CATEGORY, Qgis.Warning
+                    "Task finished unsucessfully\n" + feedback.htmlLog(), MESSAGE_CATEGORY, Qgis.MessageLevel.Warning
                 )
                 iface.statusBarIface().clearMessage()
                 return
@@ -509,7 +511,7 @@ except ModuleNotFoundError:
                 iface.messageBar().pushMessage(
                     tr("Success"),
                     success_message,
-                    level=Qgis.Success,
+                    level=Qgis.MessageLevel.Success,
                     duration=5,
                 )
 
@@ -677,14 +679,13 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
         raise ImportError(msg)
 
 
-def join_pixmap(p1, p2, mode=QPainter.CompositionMode_SourceOver):
+def join_pixmap(p1, p2):
     # s = p1.size().expandedTo(p2.size())
     result = QPixmap(128, 128)
-    result.fill(Qt.transparent)
+    result.fill(QColorConstants.Transparent)
     painter = QPainter(result)
-    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.drawPixmap(0, 0, 128, 128, p1)
-    painter.setCompositionMode(mode)
     # painter.drawPixmap(result.rect(), p2, p2.rect())
     painter.drawPixmap(64, 64, 64, 64, p2)
     painter.end()
