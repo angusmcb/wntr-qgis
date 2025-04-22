@@ -1,5 +1,4 @@
 import pytest
-import qgis.utils
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
@@ -7,6 +6,7 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
+from qgis.PyQt import QtWidgets
 
 import wntrqgis
 from wntrqgis.elements import FlowUnit, HeadlossFormula
@@ -14,13 +14,16 @@ from wntrqgis.settings import ProjectSettings, SettingKey
 
 
 @pytest.fixture(scope="module")
-def load_plugin():
-    return qgis.utils.loadPlugin("wntrqgis")
+def load_plugin(qgis_iface):
+    # return qgis.utils.loadPlugin("wntrqgis)
+    return wntrqgis.classFactory(qgis_iface)
 
 
 @pytest.fixture(scope="module")
 def start_plugin(load_plugin):
-    return qgis.utils.startPlugin("wntrqgis")
+    load_plugin.initGui()
+    return load_plugin
+    # return qgis.utils.startPlugin("wntrqgis")
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +33,8 @@ def processing_provider(qgis_app, start_plugin, scope="module"):
 
 @pytest.fixture(scope="module")
 def get_plugin_class(start_plugin):
-    return qgis.utils.plugins["wntrqgis"]
+    return start_plugin
+    # return qgis.utils.plugins["wntrqgis"]
 
 
 @pytest.fixture
@@ -93,6 +97,7 @@ def patch_dialogs(mocker, file, crs):
     qpsd.return_value.crs.return_value = QgsCoordinateReferenceSystem(crs)
 
 
+@pytest.mark.skipif(not hasattr(QtWidgets.QMessageBox, "Close"), reason="QMessageBox.Close in pytest-qgis will error")
 @pytest.mark.qgis_show_map(timeout=3, zoom_to_common_extent=True)
 def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
     patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
@@ -101,7 +106,7 @@ def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
 
     assert len(QgsProject.instance().mapLayers()) == 6
 
-    assert qgis_iface.messageBar().get_messages(Qgis.Success)[-1].startswith("Success:Loaded .inp file")
+    assert qgis_iface.messageBar().get_messages(Qgis.MessageLevel.Success)[-1].startswith("Success:Loaded .inp file")
 
 
 def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis_new_project):
@@ -111,7 +116,7 @@ def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis
 
     assert (
         qgis_iface.messageBar()
-        .get_messages(Qgis.Critical)[-1]
+        .get_messages(Qgis.MessageLevel.Critical)[-1]
         .startswith("Error:error reading .inp file: (Error 201) syntax error")
     )
 

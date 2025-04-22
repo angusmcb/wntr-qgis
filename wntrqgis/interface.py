@@ -577,7 +577,7 @@ class Writer:
 
     def _get_qgs_field_type(self, dtype: Any) -> QMetaType | QVariant:
         if dtype is list:  # Must be checked before string type
-            return QMetaType.QVariantList if USE_QMETATYPE else QVariant.List
+            return QMetaType.Type.QVariantList if USE_QMETATYPE else QVariant.List
 
         try:
             is_abstract_value_map = issubclass(_AbstractValueMap, dtype)
@@ -585,16 +585,16 @@ class Writer:
             is_abstract_value_map = False
 
         if is_abstract_value_map or pd.api.types.is_string_dtype(dtype):
-            return QMetaType.QString if USE_QMETATYPE else QVariant.String
+            return QMetaType.Type.QString if USE_QMETATYPE else QVariant.String
 
         if pd.api.types.is_float_dtype(dtype):
-            return QMetaType.Double if USE_QMETATYPE else QVariant.Double
+            return QMetaType.Type.Double if USE_QMETATYPE else QVariant.Double
 
         if pd.api.types.is_bool_dtype(dtype):
-            return QMetaType.Bool if USE_QMETATYPE else QVariant.Bool
+            return QMetaType.Type.Bool if USE_QMETATYPE else QVariant.Bool
 
         if pd.api.types.is_integer_dtype(dtype):
-            return QMetaType.Int if USE_QMETATYPE else QVariant.Int
+            return QMetaType.Type.Int if USE_QMETATYPE else QVariant.Int
 
         raise KeyError(f"Couldn't get qgs field type for {dtype}")  # noqa: EM102, TRY003
 
