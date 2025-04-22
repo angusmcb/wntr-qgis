@@ -1,5 +1,4 @@
 import pytest
-import qgis.utils
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,

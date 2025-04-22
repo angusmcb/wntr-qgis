@@ -24,7 +24,7 @@ from qgis.core import (
     QgsTask,
 )
 from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
-from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, Qt, QTranslator
+from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator, pyqtSlot
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
 from qgis.PyQt.QtGui import QColorConstants, QIcon, QPainter, QPixmap
@@ -117,9 +117,6 @@ except ModuleNotFoundError:
         self.translator.load(qgis_locale, "", "", locale_path)
         QCoreApplication.installTranslator(self.translator)
 
-    def tr(self, string: str, disambiguation=None, n=-1) -> str:
-        return QCoreApplication.translate("Plugin", string, disambiguation, n)
-
     def add_action(
         self,
         key: str,
@@ -210,13 +207,12 @@ except ModuleNotFoundError:
             parent=iface.mainWindow(),
         )
 
-        self.template_layers_menu = QMenu(iface.mainWindow())
-        self.template_layers_menu.addAction(self.actions["template_layers"])
-        self.template_layers_menu.addAction(self.actions["create_template_geopackage"])
+        template_layers_menu = QMenu(iface.mainWindow())
+        template_layers_menu.addAction(self.actions["template_layers"])
+        template_layers_menu.addAction(self.actions["create_template_geopackage"])
 
         self.template_layers_button = QToolButton()
-
-        self.template_layers_button.setMenu(self.template_layers_menu)
+        self.template_layers_button.setMenu(template_layers_menu)
         self.template_layers_button.setDefaultAction(self.actions["template_layers"])
         self.template_layers_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
 
@@ -320,10 +316,8 @@ except ModuleNotFoundError:
             add_to_toolbar=False,
         )
 
-        self.indicators: list[tuple] = []
         self.add_layer_indicators()
-        QgsProject.instance().customVariablesChanged.connect(self.add_layer_indicators)
-        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.add_layer_indicators)
+
         self.tm = QgsApplication.taskManager()
         self.warm_up_wntr()
 
@@ -383,44 +377,36 @@ except ModuleNotFoundError:
             iface.messageBar().pushWidget(self.message_widget, Qgis.MessageLevel.Info)
 
     def add_layer_indicators(self):
-        project_settings = ProjectSettings(QgsProject.instance())
-        model_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+        self._indicators = [NewModelLayerIndicator(layer) for layer in ModelLayer]
 
-        model_layers = {layer: value for layer, value in model_layers.items() if layer in ModelLayer.__members__}
-        inverse_model_layers = {value: layer for layer, value in model_layers.items()}
+        # model_layers = ProjectSettings().get(SettingKey.MODEL_LAYERS, {})
 
-        old_indicators = self.indicators
+        # model_layers = {
+        #     ModelLayer(layer): value for layer, value in model_layers.items() if layer in ModelLayer.__members__
+        # }
+        # inverse_model_layers = {value: layer for layer, value in model_layers.items()}
 
-        self.indicators = []
+        # for indicator in self.indicator_store.findChildren(ModelLayerIndicator):
+        #     if indicator.layer.layerId() != model_layers[indicator.layer_type]:
+        #         iface.layerTreeView().removeIndicator(indicator.layer, indicator)
 
-        for layer_id, layer, indicator, layer_type in old_indicators:
-            if model_layers.get(layer_type) != layer_id:
-                with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
-                    iface.layerTreeView().removeIndicator(layer, indicator)
-            else:
-                self.indicators.append((layer_id, layer, indicator, layer_type))
+        # model_layer_values = set(model_layers.values())
+        # relevant_layers = [
+        #     layer
+        #     for layer in QgsProject.instance().layerTreeRoot().findLayers()
+        #     if layer.layerId() in model_layer_values
+        # ]
 
-        root = QgsProject.instance().layerTreeRoot()
-        for layer in root.findLayers():
-            layer_id = layer.layerId()
+        # for layer in relevant_layers:
+        #     existing_indicators = iface.layerTreeView().indicators(layer)
 
-            if layer_id not in model_layers.values():
-                continue
+        #     layer_type = inverse_model_layers[layer.layerId()]
 
-            existing_indicators = iface.layerTreeView().indicators(layer)
+        #     if [i for i in existing_indicators if isinstance(i, ModelLayerIndicator)]:
+        #         continue
 
-            if existing_indicators and any(
-                existing_indicator in existing_indicators for _, _, existing_indicator, _ in self.indicators
-            ):
-                continue
-
-            indicator = QgsLayerTreeViewIndicator()  # iface.layerTreeView())
-            indicator.setIcon(QIcon(":wntrqgis/logo.svg"))
-            layer_type_name = inverse_model_layers[layer_id].title()
-            indicator.setToolTip(f"{layer_type_name} Layer")
-            iface.layerTreeView().addIndicator(layer, indicator)
-
-            self.indicators.append((layer_id, layer, indicator, inverse_model_layers[layer_id]))
+        #     indicator = ModelLayerIndicator(self.indicator_store, layer, layer_type)
+        #     iface.layerTreeView().addIndicator(layer, indicator)
 
     def update_headloss_formula_menu(self):
         project_settings = ProjectSettings(QgsProject.instance())
@@ -468,17 +454,17 @@ except ModuleNotFoundError:
         for action in self.actions.values():
             iface.removePluginMenu(self.menu, action)
             iface.removeToolBarIcon(action)
+
         # if self.examplebutton:
         #    self.examplebutton.disconnect()
         # teardown_logger("wntrqgis")
 
-        for _, layer, indicator, _ in self.indicators:
-            with contextlib.suppress(RuntimeError):  # Emitted if indicator already deleted
-                iface.layerTreeView().removeIndicator(layer, indicator)
-        QgsProject.instance().customVariablesChanged.disconnect(self.add_layer_indicators)
-        QgsProject.instance().layerTreeRoot().addedChildren.disconnect(self.add_layer_indicators)
+        # QgsProject.instance().customVariablesChanged.disconnect(self.add_layer_indicators)
+        # QgsProject.instance().layerTreeRoot().addedChildren.disconnect(self.add_layer_indicators)
 
         QgsApplication.processingRegistry().removeProvider(self.provider)
+        for indicator in self._indicators:
+            indicator.destroy()
 
     def run_alg_async(self, algorithm_name, parameters, on_finish=None, success_message: str | None = None):
         context = QgsProcessingContext()
@@ -690,3 +676,46 @@ def join_pixmap(p1, p2):
     painter.drawPixmap(64, 64, 64, 64, p2)
     painter.end()
     return result
+
+
+class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
+    def __init__(self, layer_type: ModelLayer):
+        super().__init__()
+        self.layer = None
+        self.layer_id = None
+        self.layer_type = layer_type
+        self.setIcon(QIcon(":wntrqgis/logo.svg"))
+        self.setToolTip(tr("{model_layer_type} Layer").format(model_layer_type=layer_type.friendly_name))
+        self.check_layer_id()
+        QgsProject.instance().customVariablesChanged.connect(self.check_layer_id)
+
+    def destroy(self):
+        if self.layer:
+            iface.layerTreeView().removeIndicator(self.layer, self)
+        self.deleteLater()
+
+    @pyqtSlot()
+    def check_layer_id(self):
+        layer_id = ProjectSettings().get(SettingKey.MODEL_LAYERS, {}).get(self.layer_type.name)
+        if layer_id != self.layer_id:
+            self.layer_id = layer_id
+            if self.layer:
+                iface.layerTreeView().removeIndicator(self.layer, self)
+                self.layer.destroyed.disconnect(self.layer_destroyed)
+                self.layer = None
+            self._reset()
+
+    @pyqtSlot()
+    def layer_destroyed(self, _=None):
+        self.layer = None
+        self._reset()
+
+    def _reset(self):
+        layer = QgsProject.instance().layerTreeRoot().findLayer(self.layer_id)
+        if not layer:
+            return
+
+        self.layer = layer
+
+        iface.layerTreeView().addIndicator(self.layer, self)
+        self.layer.destroyed.connect(self.layer_destroyed)
