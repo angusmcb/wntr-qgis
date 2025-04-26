@@ -14,9 +14,6 @@
             }
         },
         "python.testing.pytestEnabled": true,
-        "python.testing.pytestArgs": [
-            "test"
-        ],
         "python.testing.unittestEnabled": false,
         "cSpell.language": "en,en-GB",
         "cSpell.words": [
