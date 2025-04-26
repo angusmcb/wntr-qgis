@@ -12,6 +12,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsLayerTreeLayer,
+    QgsLayerTreeNode,
     QgsMessageLog,
     QgsProcessingAlgRunnerTask,
     QgsProcessingContext,
@@ -24,7 +25,7 @@ from qgis.core import (
     QgsTask,
 )
 from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
-from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator, pyqtSlot
+from qgis.PyQt.QtCore import QCoreApplication, QLocale, QObject, QSettings, QTranslator, pyqtSignal, pyqtSlot
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
 from qgis.PyQt.QtGui import QColorConstants, QIcon, QPainter, QPixmap
@@ -679,19 +680,22 @@ def join_pixmap(p1, p2):
 
 
 class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
+    layer_id_changed = pyqtSignal()
+
     def __init__(self, layer_type: ModelLayer):
         super().__init__()
-        self.layer = None
         self.layer_id = None
         self.layer_type = layer_type
         self.setIcon(QIcon(":wntrqgis/logo.svg"))
         self.setToolTip(tr("{model_layer_type} Layer").format(model_layer_type=layer_type.friendly_name))
+        self.layer_id_changed.connect(self.search_new_layer)
         self.check_layer_id()
         QgsProject.instance().customVariablesChanged.connect(self.check_layer_id)
+        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.search_new_layer)
 
     def destroy(self):
-        if self.layer:
-            iface.layerTreeView().removeIndicator(self.layer, self)
+        self.layer_id = None
+        self.layer_id_changed.emit()
         self.deleteLater()
 
     @pyqtSlot()
@@ -699,23 +703,22 @@ class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
         layer_id = ProjectSettings().get(SettingKey.MODEL_LAYERS, {}).get(self.layer_type.name)
         if layer_id != self.layer_id:
             self.layer_id = layer_id
-            if self.layer:
-                iface.layerTreeView().removeIndicator(self.layer, self)
-                self.layer.destroyed.disconnect(self.layer_destroyed)
-                self.layer = None
-            self._reset()
+            self.layer_id_changed.emit()
 
     @pyqtSlot()
-    def layer_destroyed(self, _=None):
-        self.layer = None
-        self._reset()
-
-    def _reset(self):
+    @pyqtSlot(QObject)
+    @pyqtSlot(QgsLayerTreeNode, int, int)
+    def search_new_layer(self, *_):
         layer = QgsProject.instance().layerTreeRoot().findLayer(self.layer_id)
         if not layer:
             return
 
-        self.layer = layer
+        iface.layerTreeView().addIndicator(layer, self)
+        layer.destroyed.connect(self.search_new_layer)
+        self.layer_id_changed.connect(lambda: self.remove_from_layer(layer))
 
-        iface.layerTreeView().addIndicator(self.layer, self)
-        self.layer.destroyed.connect(self.layer_destroyed)
+    @pyqtSlot(QgsLayerTreeLayer)
+    def remove_from_layer(self, layer):
+        with contextlib.suppress(RuntimeError | TypeError):  # if layer is already deleted
+            iface.layerTreeView().removeIndicator(layer, self)
+            layer.destroyed.disconnect(self.search_new_layer)
