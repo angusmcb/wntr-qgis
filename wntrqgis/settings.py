@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from enum import Enum
 from typing import Any
 
@@ -11,9 +12,7 @@ from wntrqgis.elements import FlowUnit, HeadlossFormula
 class SettingKey(str, Enum):
     """Enum of values that can be stored in project settings"""
 
-    OPTIONS = "options", dict
     FLOW_UNITS = "flow_units", FlowUnit
-    CONTROLS = "controls", str
     MODEL_LAYERS = "model_layers", dict
     HEADLOSS_FORMULA = "headloss_formula", HeadlossFormula
     SIMULATION_DURATION = "simulation_duration", float
@@ -46,7 +45,7 @@ class SettingKey(str, Enum):
 class ProjectSettings:
     """Gets and sets WNTR project settings"""
 
-    SETTING_PREFIX = "wntr_"
+    SETTING_PREFIX = "wntrqgis"
 
     def __init__(self, project: QgsProject | None = None):
         if not project:
@@ -55,19 +54,33 @@ class ProjectSettings:
 
     def _setting_name(self, setting):
         """Adds the setting prefix to the setting name"""
-        return self.SETTING_PREFIX + setting.value
+        return setting.value
 
     def get(self, setting: SettingKey, default: Any | None = None):
         """Get a value from project settings, with optional default value"""
         setting_name = self._setting_name(setting)
-        saved_value = QgsExpressionContextUtils.projectScope(self._project).variable(setting_name)
-        if saved_value is None:
+
+        value = QgsExpressionContextUtils.projectScope(self._project).variable(setting_name)
+
+        if value is None:
             return default
 
         if issubclass(setting.expected_type, Enum):
-            return setting.expected_type[saved_value]
+            try:
+                value = setting.expected_type[value]
+            except KeyError:
+                return default
 
-        return setting.expected_type(saved_value)
+        if setting.expected_type is dict:
+            try:
+                value = ast.literal_eval(value)
+            except (ValueError, SyntaxError):
+                return default
+
+        if not isinstance(value, setting.expected_type):
+            return default
+
+        return value
 
     def set(self, setting: SettingKey, value: Any):
         """Save a value to project settings"""
@@ -80,5 +93,8 @@ class ProjectSettings:
 
         if isinstance(value, Enum):
             value = value.name
+
+        if setting.expected_type is dict:
+            value = str(value)
 
         QgsExpressionContextUtils.setProjectVariable(self._project, setting_name, value)
