@@ -45,7 +45,7 @@ class SettingKey(str, Enum):
 class ProjectSettings:
     """Gets and sets WNTR project settings"""
 
-    SETTING_PREFIX = "wntrqgis"
+    SETTING_PREFIX = "wntrqgis_"
 
     def __init__(self, project: QgsProject | None = None):
         if not project:
@@ -54,7 +54,7 @@ class ProjectSettings:
 
     def _setting_name(self, setting):
         """Adds the setting prefix to the setting name"""
-        return setting.value
+        return self.SETTING_PREFIX + setting.value
 
     def get(self, setting: SettingKey, default: Any | None = None):
         """Get a value from project settings, with optional default value"""
@@ -75,6 +75,12 @@ class ProjectSettings:
             try:
                 value = ast.literal_eval(value)
             except (ValueError, SyntaxError):
+                return default
+
+        if setting.expected_type is float:
+            try:
+                value = float(value)
+            except ValueError:
                 return default
 
         if not isinstance(value, setting.expected_type):
