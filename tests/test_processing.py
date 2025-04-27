@@ -241,9 +241,9 @@ def test_alg_chain_inp_run(
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
-        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)), (
-            f" when testing {i}"
-        )
+        assert all(
+            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
+        ), f" when testing {i}"
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
             all(sublist)
