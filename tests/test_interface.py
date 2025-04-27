@@ -39,16 +39,28 @@ def test_converter_init():
     assert not converter._darcy_weisbach
 
 
-def test_converter_to_si(wn):
-    converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
+def test_converter_to_si():
+    converter = _Converter("CFS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
     value = converter.to_si(1.0, wntrqgis.elements.ModelField.ELEVATION)
+    assert value == 0.3048
+
+
+def test_converter_from_si():
+    converter = _Converter("CFS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
+    value = converter.from_si(0.3048, wntrqgis.elements.ModelField.ELEVATION)
     assert value == 1.0
 
 
-def test_converter_from_si(wn):
+def test_converter_to_si_darcy_weisbach():
+    converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.DARCY_WEISBACH)
+    value = converter.to_si(1, wntrqgis.elements.ModelField.ROUGHNESS)
+    assert value == 0.001
+
+
+def test_converter_to_si_hazen_williams():
     converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.from_si(1.0, wntrqgis.elements.ModelField.ELEVATION)
-    assert value == 1.0
+    value = converter.to_si(1, wntrqgis.elements.ModelField.ROUGHNESS)
+    assert value == 1
 
 
 def test_converter_invalid_units():
@@ -69,10 +81,8 @@ def test_patterns_get(wn):
     assert pattern == "1.0 2.0 3.0"
 
 
-def test_patterns_add_empty():
-    import wntr
-
-    patterns = _Patterns(wntr.network.WaterNetworkModel())
+def test_patterns_add_empty(wn):
+    patterns = _Patterns(wn)
     pattern_name = patterns.add("")
     assert pattern_name is None
 
