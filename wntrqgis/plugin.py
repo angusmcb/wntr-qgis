@@ -380,35 +380,6 @@ except ModuleNotFoundError:
     def add_layer_indicators(self):
         self._indicators = [NewModelLayerIndicator(layer) for layer in ModelLayer]
 
-        # model_layers = ProjectSettings().get(SettingKey.MODEL_LAYERS, {})
-
-        # model_layers = {
-        #     ModelLayer(layer): value for layer, value in model_layers.items() if layer in ModelLayer.__members__
-        # }
-        # inverse_model_layers = {value: layer for layer, value in model_layers.items()}
-
-        # for indicator in self.indicator_store.findChildren(ModelLayerIndicator):
-        #     if indicator.layer.layerId() != model_layers[indicator.layer_type]:
-        #         iface.layerTreeView().removeIndicator(indicator.layer, indicator)
-
-        # model_layer_values = set(model_layers.values())
-        # relevant_layers = [
-        #     layer
-        #     for layer in QgsProject.instance().layerTreeRoot().findLayers()
-        #     if layer.layerId() in model_layer_values
-        # ]
-
-        # for layer in relevant_layers:
-        #     existing_indicators = iface.layerTreeView().indicators(layer)
-
-        #     layer_type = inverse_model_layers[layer.layerId()]
-
-        #     if [i for i in existing_indicators if isinstance(i, ModelLayerIndicator)]:
-        #         continue
-
-        #     indicator = ModelLayerIndicator(self.indicator_store, layer, layer_type)
-        #     iface.layerTreeView().addIndicator(layer, indicator)
-
     def update_headloss_formula_menu(self):
         project_settings = ProjectSettings(QgsProject.instance())
         current_hlf = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
@@ -687,7 +658,7 @@ class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
         self.layer_id = None
         self.layer_type = layer_type
         self.setIcon(QIcon(":wntrqgis/logo.svg"))
-        self.setToolTip(tr("{model_layer_type} Layer").format(model_layer_type=layer_type.friendly_name))
+        self.setToolTip(layer_type.friendly_name)
         self.layer_id_changed.connect(self.search_new_layer)
         self.check_layer_id()
         QgsProject.instance().customVariablesChanged.connect(self.check_layer_id)
