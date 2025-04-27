@@ -7,7 +7,6 @@ from qgis.core import QgsProcessingException, QgsProcessingFeedback, QgsProject
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
-from wntrqgis.wntrqgis_processing.settings import SettingsAlgorithm  # noqa: F401
 
 
 # the examples are store in the plugin folder as they are used in the plugin
@@ -242,9 +241,9 @@ def test_alg_chain_inp_run(
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
-        assert all(
-            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
-        ), f" when testing {i}"
+        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)), (
+            f" when testing {i}"
+        )
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
             all(sublist)
@@ -255,24 +254,6 @@ def test_alg_chain_inp_run(
                 atol=1e-04,
             )
         ), f" when testing {i}"
-
-
-def test_settings(processing, qgis_new_project, example_dir, tmp_path):
-    """todo: add test to feedback from processing"""
-
-    # inputinp = str(example_dir / "valves.inp")
-
-    # fileset = output_params(model_layers, tmp_path, "TEMPORARY_OUTPUT")
-    # units = 0
-    # processing.run(
-    #     SettingsAlgorithm().create(),
-    #     {
-    #         "CRS": "32637",
-    #         "INPUT": inputinp,
-    #         "UNITS": units,
-    #         **fileset,
-    #     },
-    # )
 
 
 def test_alg_template_layers_with_different_crs(processing, template_alg, template_alg_params, test_crs):
