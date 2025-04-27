@@ -21,10 +21,6 @@ flake8-qgis
 PyQt5-stubs
 pandas-stubs
 
-# For running within qgis
-# geopandas
-# networkx
-
 qgis-plugin-ci
 
 sphinx
