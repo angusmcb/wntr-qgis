@@ -46,6 +46,7 @@ from wntrqgis.elements import (
     ModelLayer,
     ResultField,
     ResultLayer,
+    ValveType,
     _AbstractValueMap,
 )
 from wntrqgis.i18n import tr
@@ -1183,7 +1184,24 @@ class _FromGis:
         )
 
     def _do_link_patterns_curves(self, link_df: pd.DataFrame) -> pd.DataFrame:
+        if any(link_df["link_type"] == "Valve") and "valve_type" not in link_df.columns:
+            msg = tr("{valve_type} must be set for all valves").format(valve_type="valve_type")
+            raise NetworkModelError(msg)
+
         if "valve_type" in link_df.columns:
+            try:
+                assert (  # noqa: S101
+                    link_df.loc[link_df["link_type"] == "Valve", "valve_type"]
+                    .str.upper()
+                    .isin(ValveType._member_names_)
+                    .all()
+                )
+            except (AssertionError, AttributeError):
+                msg = tr("{valve_type} must be one of the following values: ").format(
+                    valve_type="valve_type"
+                ) + " ".join(ValveType._member_names_)
+                raise NetworkModelError(msg) from None
+
             if "initial_setting" in link_df:
                 pressure_valves = link_df["valve_type"].str.upper().isin(["PRV", "PSV", "PBV"])
                 link_df.loc[pressure_valves, "initial_setting"] = link_df.loc[pressure_valves, "initial_setting"].apply(

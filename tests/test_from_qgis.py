@@ -52,6 +52,9 @@ def type_to_string(the_type: type | Any) -> str:
     if the_type == list[bool]:
         return "boolean[]"
 
+    if the_type is type(None):
+        return "string"
+
     msg = f"Unsupported type: {the_type}"
     raise ValueError(msg)
 
@@ -1093,3 +1096,89 @@ def test_inital_status_type_error(initial_status):
 
     with pytest.raises(wntrqgis.interface.WntrError, match="initial_status"):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+
+@pytest.fixture
+def valve_type():
+    return "PRV"
+
+
+@pytest.fixture
+def initial_setting():
+    return 100.0
+
+
+@pytest.fixture
+def valve_layers(valve_type, initial_setting):
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    add_point(junction_layer, (4, 5), ["J2"])
+
+    valve_layer = layer(
+        "linestring",
+        [
+            ("name", str),
+            ("valve_type", valve_type),
+            ("initial_setting", initial_setting),
+        ],
+    )
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", valve_type, initial_setting])
+
+    return {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
+
+
+@pytest.mark.parametrize("valve_type", ["PRV", "PSV", "PBV", "prv"])
+def test_pressure_valve_initial_setting_conversion_valves(valve_layers):
+    wn = wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
+
+    assert wn.get_link("V1").initial_setting == pytest.approx(70.3438726)
+
+
+@pytest.mark.parametrize("valve_type", ["FCV"])
+def test_flow_valve_initial_setting_conversion_valves(valve_layers):
+    wn = wntrqgis.from_qgis(valve_layers, "lps", "H-W")
+
+    assert wn.get_link("V1").initial_setting == 0.1
+
+
+@pytest.mark.parametrize("valve_type", ["tcv"])
+def test_tcv_valve_initial_setting(valve_layers):
+    wn = wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
+
+    assert wn.get_link("V1").initial_setting == 100
+
+
+@pytest.mark.parametrize("valve_type", ["fcv", "prv", "tcv"])
+@pytest.mark.parametrize("initial_setting", [None])
+def test_valve_no_initial_setting(valve_layers):
+    wn = wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
+
+    assert wn.get_link("V1").initial_setting == 0
+
+
+@pytest.mark.parametrize("valve_type", ["FCV", "PRV", "PSV", "PBV", "TCV", "GPV"])
+@pytest.mark.parametrize("initial_setting", ["string_type"])
+def test_pressure_valve_initial_setting_conversion_valves_bad_values(valve_layers):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="initial_setting"):
+        wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
+
+
+@pytest.mark.parametrize("valve_type", [None])
+def test_valve_type_not_specified(valve_layers):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
+        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+
+
+@pytest.mark.parametrize("valve_type", ["not_a_valve_type"])
+def test_valve_type_wrong_type(valve_layers):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
+        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+
+
+def test_with_no_valve_type_column(valve_layers):
+    valve_layer = layer("linestring", [("name", str)])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1"])
+    valve_layers["VALVES"] = valve_layer
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
+        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
