@@ -9,8 +9,10 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingContext,
+    QgsProcessingAlgorithm,
 )
 
+from qgis.PyQt.QtCore import QCoreApplication, QThread
 from wntrqgis.dependency_management import WntrInstaller, WntrInstallError
 from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import SettingKey, ProjectSettings
@@ -40,7 +42,7 @@ class Progression(Enum):
     LOADING_INP_FILE = 10, tr("Loading inp file")
 
 
-class WntrQgisProcessingBase:
+class WntrQgisProcessingBase(QgsProcessingAlgorithm):
     post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
 
     def processAlgorithm(  # noqa N802
@@ -57,6 +59,14 @@ class WntrQgisProcessingBase:
         self.start_time = time.perf_counter()
         self.last_time = self.start_time
         self.last_progress: Progression | None = None
+
+    def postProcessAlgorithm(self, context, feedback):  # noqa: N802
+        if QThread.currentThread() == QCoreApplication.instance().thread() and hasattr(self, "_settings"):
+            project_settings = ProjectSettings()
+            for setting_key, setting_value in self._settings.items():
+                project_settings.set(setting_key, setting_value)
+
+        return super().postProcessAlgorithm(context, feedback)
 
     def _update_progress(self, prog_status: Progression) -> None:
         if self.feedback.isCanceled():
@@ -132,7 +142,7 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         style(layer, self.layer_type, self.style_theme)
 
         if self.is_model_layer:
-            project_settings = ProjectSettings(context.project())
+            project_settings = ProjectSettings()
             wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
             wntr_layers[self.layer_type.name] = layer.id()
             project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)

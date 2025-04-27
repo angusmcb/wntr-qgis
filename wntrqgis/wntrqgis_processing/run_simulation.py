@@ -16,7 +16,6 @@ import time
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
-    QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
@@ -47,7 +46,7 @@ from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
 
 
-class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
+class RunSimulation(WntrQgisProcessingBase):
     UNITS = "UNITS"
     DURATION = "DURATION"
     HEADLOSS_FORMULA = "HEADLOSS_FORMULA"
@@ -141,7 +140,7 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
+        super().processAlgorithm(parameters, context, feedback)
 
         self._ensure_wntr()
         # only import wntr-using modules once we are sure wntr is installed.
@@ -159,24 +158,19 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         logging_handler.setLevel("INFO")
         logger.addHandler(logging_handler)
 
-        project_settings = ProjectSettings(context.project())
-
         # start wntr model
         # add to model order to be: options, patterns/cruves, nodes, then links
         wn = wntr.network.WaterNetworkModel()
 
         flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
         wq_flow_unit = list(FlowUnit)[flow_unit_index]
-        project_settings.set(SettingKey.FLOW_UNITS, wq_flow_unit)
         wn.options.hydraulic.inpfile_units = wq_flow_unit.name
 
         headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
         headloss_formula = list(HeadlossFormula)[headloss_formula_index]
-        project_settings.set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
         wn.options.hydraulic.headloss = headloss_formula.value
 
         duration = self.parameterAsDouble(parameters, self.DURATION, context)
-        project_settings.set(SettingKey.SIMULATION_DURATION, duration)
         wn.options.time.duration = duration * 3600
 
         sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
@@ -186,7 +180,13 @@ class RunSimulation(QgsProcessingAlgorithm, WntrQgisProcessingBase):
             for lyr in ModelLayer
             if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
         }
-        project_settings.set(SettingKey.MODEL_LAYERS, layers_for_settings)
+
+        self._settings = {
+            SettingKey.MODEL_LAYERS: layers_for_settings,
+            SettingKey.FLOW_UNITS: wq_flow_unit,
+            SettingKey.HEADLOSS_FORMULA: headloss_formula,
+            SettingKey.SIMULATION_DURATION: duration,
+        }
 
         try:
             crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()

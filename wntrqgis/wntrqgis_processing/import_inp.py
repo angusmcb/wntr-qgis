@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any
 
 from qgis.core import (
-    QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
@@ -35,11 +34,11 @@ from wntrqgis.elements import (
 )
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
-from wntrqgis.settings import ProjectSettings, SettingKey
+from wntrqgis.settings import SettingKey
 from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
 
 
-class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
+class ImportInp(WntrQgisProcessingBase):
     INPUT = "INPUT"
     CRS = "CRS"
     UNITS = "UNITS"
@@ -104,7 +103,7 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
+        super().processAlgorithm(parameters, context, feedback)
 
         # imports are here as they are slow, will break if wntr isn't installed, and only needed in processalgorithm()
         self._ensure_wntr()
@@ -137,10 +136,12 @@ class ImportInp(QgsProcessingAlgorithm, WntrQgisProcessingBase):
 
         headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
 
-        project_settings = ProjectSettings(context.project())
-        project_settings.set(SettingKey.FLOW_UNITS, flow_unit)
-        project_settings.set(SettingKey.HEADLOSS_FORMULA, headloss_formula)
-        project_settings.set(SettingKey.SIMULATION_DURATION, wn.options.time.duration / 3600)
+        self._settings = {
+            SettingKey.FLOW_UNITS: flow_unit,
+            SettingKey.HEADLOSS_FORMULA: headloss_formula,
+            SettingKey.SIMULATION_DURATION: wn.options.time.duration / 3600,
+            SettingKey.MODEL_LAYERS: {},
+        }
 
         self._update_progress(Progression.CREATING_OUTPUTS)
 

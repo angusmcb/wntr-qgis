@@ -4,7 +4,6 @@ import warnings
 from typing import Any
 
 from qgis.core import (
-    QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProcessingParameterBoolean,
@@ -20,7 +19,7 @@ from wntrqgis.interface import Writer
 from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
 
 
-class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
+class TemplateLayers(WntrQgisProcessingBase):
     CRS = "CRS"
 
     def __init__(self) -> None:
@@ -75,7 +74,7 @@ class TemplateLayers(QgsProcessingAlgorithm, WntrQgisProcessingBase):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        WntrQgisProcessingBase.processAlgorithm(self, parameters, context, feedback)
+        super().processAlgorithm(parameters, context, feedback)
 
         self._ensure_wntr()
 
