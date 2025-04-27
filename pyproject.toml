@@ -9,7 +9,7 @@ pythonpath = [
   "."
 ]
 [tool.coverage.report]
-omit = ["wntrqgis/qgis_plugin_tools/*","wntrqgis/packages/*"]
+omit = ["wntrqgis/packages/*","wntrqgis/packages/*/wntr/*.py","wntrqgis/packages/*/wntr/*/*.py","wntrqgis/packages/*/wntr/*/*/*.py","tests/*.py","build.py","create_qgis_venv.py","conftest.py",]
 
 
 [tool.ruff]
