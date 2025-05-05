@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 from typing import Any, ClassVar  # noqa F401
 
 from qgis.core import (
@@ -212,10 +213,10 @@ class RunSimulation(WntrQgisProcessingBase):
 
         self._update_progress(Progression.RUNNING_SIMULATION)
 
-        temp_folder = QgsProcessingUtils.tempFolder() + "/wntr"
+        temp_folder = Path(QgsProcessingUtils.tempFolder()) / "wntr"
         sim = wntr.sim.EpanetSimulator(wn)
         try:
-            sim_results = sim.run_sim(file_prefix=temp_folder)
+            sim_results = sim.run_sim(file_prefix=str(temp_folder))
         except wntr.epanet.exceptions.EpanetException as e:
             raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
 
