@@ -22,6 +22,7 @@ PyQt5-stubs
 pandas-stubs
 
 qgis-plugin-ci
+qgis-plugin-tools
 
 sphinx
 pydata-sphinx-theme
