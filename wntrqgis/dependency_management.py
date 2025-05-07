@@ -9,6 +9,8 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
+from wntrqgis.i18n import tr
+
 
 class WntrInstaller:
     _unpacking_wntr = False
@@ -34,15 +36,12 @@ class WntrInstaller:
         missing_deps = [
             package for package in ["pandas", "numpy", "scipy", "networkx", "matplotlib"] if find_spec(package) is None
         ]
-
         if len(missing_deps):
-            msg = f"Missing necessary python packages {(*missing_deps,)}. Please see help for how to fix this"
-            raise WntrInstallError(msg)
+            raise MissingDependencyError(missing_deps)
 
         # Try not to let PIP install it twice at same time
         if cls._unpacking_wntr:
-            msg = "Fetching WNTR is already in progress. Please wait."
-            raise WntrInstallError(msg)
+            raise InstallInProgressError
         cls._unpacking_wntr = True
 
         kwargs: dict[str, Any] = {}
@@ -72,18 +71,16 @@ class WntrInstaller:
                 **kwargs,
             )
         except TimeoutError:
-            msg = "Took too long to fetch and install."
+            msg = tr("Took too long to fetch and install.")
             raise WntrInstallError(msg) from None
         except FileNotFoundError:
-            msg = "Couldn't find Python"
+            msg = tr("Couldn't find Python")
             raise WntrInstallError(msg) from None
         finally:
             cls._unpacking_wntr = False
 
         if process_result.returncode != 0:
-            msg = f"Error output:\n\n{process_result.stderr}"
-
-            raise WntrInstallError(msg)
+            raise WntrInstallError(process_result.stderr)
 
         if "wntr" in sys.modules:
             del sys.modules["wntr"]
@@ -100,4 +97,18 @@ class WntrInstaller:
 
 class WntrInstallError(RuntimeError):
     def __init__(self, exception):
-        super().__init__(f"Couldn't fetch and install WNTR. {exception}")
+        super().__init__(tr("Couldn't fetch and install WNTR. {exception}").format(exception=exception))
+
+
+class MissingDependencyError(WntrInstallError):
+    def __init__(self, missing_deps):
+        super().__init__(
+            tr("Missing necessary python packages {missing_deps}. Please see help for how to fix this").format(
+                missing_deps=(*missing_deps,)
+            )
+        )
+
+
+class InstallInProgressError(WntrInstallError):
+    def __init__(self):
+        super().__init__(tr("Fetching WNTR is already in progress. Please wait and try again."))
