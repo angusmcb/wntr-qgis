@@ -16,7 +16,7 @@ from qgis.PyQt.QtGui import QIcon
 from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
-from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import ProgressTracker, WntrQgisProcessingBase
 
 
 class TemplateLayers(WntrQgisProcessingBase):
@@ -74,10 +74,10 @@ class TemplateLayers(WntrQgisProcessingBase):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        super().processAlgorithm(parameters, context, feedback)
+        progress = ProgressTracker(feedback)
 
-        self._ensure_wntr()
-
+        self._ensure_wntr(progress)
+        # only import wntr-using modules once we are sure wntr is installed.
         import wntr
 
         analysis_types_to_use = FieldGroup.BASE
@@ -103,6 +103,6 @@ class TemplateLayers(WntrQgisProcessingBase):
             (_, outputs[layer.name]) = self.parameterAsSink(parameters, layer.name, context, fields, wkb_type, crs)
             layers[layer] = outputs[layer.name]
 
-        self._setup_postprocessing(layers, tr("Model Layers"), True)
+        self._setup_postprocessing(context, layers, tr("Model Layers"), True)
 
         return outputs

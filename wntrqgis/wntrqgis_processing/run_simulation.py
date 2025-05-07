@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, ClassVar  # noqa F401
 
@@ -44,7 +45,7 @@ from wntrqgis.interface import (
     check_network,
 )
 from wntrqgis.settings import ProjectSettings, SettingKey
-from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
 
 
 class RunSimulation(WntrQgisProcessingBase):
@@ -141,110 +142,127 @@ in other software.
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        super().processAlgorithm(parameters, context, feedback)
+        progress = ProgressTracker(feedback)
 
-        self._ensure_wntr()
+        self._ensure_wntr(progress)
         # only import wntr-using modules once we are sure wntr is installed.
         import wntr
 
-        self._update_progress(Progression.PREPARING_MODEL)
+        progress.update_progress(Progression.PREPARING_MODEL)
 
-        class FeedbackHandler(logging.Handler):
-            def emit(self, record):
-                feedback.pushWarning(record.getMessage())
+        with logger_to_feedback("wntr", feedback):
+            # add to model order to be: options, patterns/cruves, nodes, then links
+            wn = wntr.network.WaterNetworkModel()
 
-        logger = logging.getLogger("wntr")
-        logger.propagate = False
-        logging_handler = FeedbackHandler()
-        logging_handler.setLevel("INFO")
-        logger.addHandler(logging_handler)
+            flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
+            wq_flow_unit = list(FlowUnit)[flow_unit_index]
+            wn.options.hydraulic.inpfile_units = wq_flow_unit.name
 
-        # start wntr model
-        # add to model order to be: options, patterns/cruves, nodes, then links
-        wn = wntr.network.WaterNetworkModel()
+            headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
+            headloss_formula = list(HeadlossFormula)[headloss_formula_index]
+            wn.options.hydraulic.headloss = headloss_formula.value
 
-        flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
-        wq_flow_unit = list(FlowUnit)[flow_unit_index]
-        wn.options.hydraulic.inpfile_units = wq_flow_unit.name
+            duration = self.parameterAsDouble(parameters, self.DURATION, context)
+            wn.options.time.duration = duration * 3600
 
-        headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
-        headloss_formula = list(HeadlossFormula)[headloss_formula_index]
-        wn.options.hydraulic.headloss = headloss_formula.value
+            sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
-        duration = self.parameterAsDouble(parameters, self.DURATION, context)
-        wn.options.time.duration = duration * 3600
+            layers_for_settings = {
+                lyr.name: input_layer.id()
+                for lyr in ModelLayer
+                if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
+            }
 
-        sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
+            self._settings = {
+                SettingKey.MODEL_LAYERS: layers_for_settings,
+                SettingKey.FLOW_UNITS: wq_flow_unit,
+                SettingKey.HEADLOSS_FORMULA: headloss_formula,
+                SettingKey.SIMULATION_DURATION: duration,
+            }
 
-        layers_for_settings = {
-            lyr.name: input_layer.id()
-            for lyr in ModelLayer
-            if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
-        }
+            try:
+                crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
+            except AttributeError:
+                raise QgsProcessingException(tr("A junctions layer is required.")) from None
 
-        self._settings = {
-            SettingKey.MODEL_LAYERS: layers_for_settings,
-            SettingKey.FLOW_UNITS: wq_flow_unit,
-            SettingKey.HEADLOSS_FORMULA: headloss_formula,
-            SettingKey.SIMULATION_DURATION: duration,
-        }
+            try:
+                # network_model.add_features_to_network_model(sources, wn)
+                wntrqgis.from_qgis(sources, wq_flow_unit.name, wn=wn, project=context.project(), crs=crs)
+                check_network(wn)
+            except NetworkModelError as e:
+                raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
 
-        try:
-            crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
-        except AttributeError:
-            raise QgsProcessingException(tr("A junctions layer is required.")) from None
+            self._describe_model(wn, feedback)
 
-        try:
-            # network_model.add_features_to_network_model(sources, wn)
-            wntrqgis.from_qgis(sources, wq_flow_unit.name, wn=wn, project=context.project(), crs=crs)
-            check_network(wn)
-        except NetworkModelError as e:
-            raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
+            outputs: dict[str, str] = {}
 
-        self._describe_model(wn)
+            inp_file = self.parameterAsFile(parameters, self.OUTPUTINP, context)
+            if inp_file:
+                wntr.network.write_inpfile(wn, inp_file)
+                outputs[self.OUTPUTINP] = inp_file
+                feedback.pushInfo(".inp file written to: " + inp_file)
 
-        outputs: dict[str, str] = {}
+            progress.update_progress(Progression.RUNNING_SIMULATION)
 
-        inp_file = self.parameterAsFile(parameters, self.OUTPUTINP, context)
-        if inp_file:
-            wntr.network.write_inpfile(wn, inp_file)
-            outputs[self.OUTPUTINP] = inp_file
-            feedback.pushInfo(".inp file written to: " + inp_file)
+            temp_folder = Path(QgsProcessingUtils.tempFolder()) / "wntr"
+            sim = wntr.sim.EpanetSimulator(wn)
+            try:
+                sim_results = sim.run_sim(file_prefix=str(temp_folder))
+            except wntr.epanet.exceptions.EpanetException as e:
+                raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
 
-        self._update_progress(Progression.RUNNING_SIMULATION)
+            progress.update_progress(Progression.CREATING_OUTPUTS)
 
-        temp_folder = Path(QgsProcessingUtils.tempFolder()) / "wntr"
-        sim = wntr.sim.EpanetSimulator(wn)
-        try:
-            sim_results = sim.run_sim(file_prefix=str(temp_folder))
-        except wntr.epanet.exceptions.EpanetException as e:
-            raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
+            result_writer = Writer(wn, sim_results, units=wq_flow_unit.name)
 
-        self._update_progress(Progression.CREATING_OUTPUTS)
+            layers = {}
 
-        result_writer = Writer(wn, sim_results, units=wq_flow_unit.name)
+            for lyr in ResultLayer:
+                (sink, outputs[lyr.results_name]) = self.parameterAsSink(
+                    parameters,
+                    lyr.results_name,
+                    context,
+                    result_writer.get_qgsfields(lyr),
+                    lyr.qgs_wkb_type,
+                    crs,
+                )
+                layers[lyr] = outputs[lyr.results_name]
+                result_writer.write(lyr, sink)
 
-        layers = {}
-
-        for lyr in ResultLayer:
-            (sink, outputs[lyr.results_name]) = self.parameterAsSink(
-                parameters,
-                lyr.results_name,
-                context,
-                result_writer.get_qgsfields(lyr),
-                lyr.qgs_wkb_type,
-                crs,
-            )
-            layers[lyr] = outputs[lyr.results_name]
-            result_writer.write(lyr, sink)
-
-        logger.removeHandler(logging_handler)
-        self._update_progress(Progression.FINISHED_PROCESSING)
+        progress.update_progress(Progression.FINISHED_PROCESSING)
 
         finish_time = time.strftime("%X")
         style_theme = "extended" if wn.options.time.duration > 0 else None
         self._setup_postprocessing(
-            layers, tr("Simulation Results ({finish_time})").format(finish_time=finish_time), False, style_theme, True
+            context,
+            layers,
+            tr("Simulation Results ({finish_time})").format(finish_time=finish_time),
+            False,
+            style_theme,
+            True,
         )
 
         return outputs
+
+
+@contextmanager
+def logger_to_feedback(logger_name: str, feedback: QgsProcessingFeedback):
+    """
+    Context manager to redirect logging messages to QgsProcessingFeedback.
+    """
+
+    class FeedbackHandler(logging.Handler):
+        def emit(self, record):
+            feedback.pushWarning(record.getMessage())
+
+    logger = logging.getLogger(logger_name)
+    logger.propagate = False
+    logging_handler = FeedbackHandler()
+    logging_handler.setLevel("INFO")
+    logger.addHandler(logging_handler)
+
+    try:
+        yield
+    finally:
+        logger.propagate = True
+        logger.removeHandler(logging_handler)

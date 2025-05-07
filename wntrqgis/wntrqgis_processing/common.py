@@ -1,5 +1,5 @@
 from __future__ import annotations  # noqa
-from typing import ClassVar, TYPE_CHECKING, Any
+from typing import ClassVar, TYPE_CHECKING
 from enum import Enum
 import logging
 
@@ -57,21 +57,6 @@ class Progression(Enum):
 class WntrQgisProcessingBase(QgsProcessingAlgorithm):
     post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
 
-    def processAlgorithm(  # noqa N802
-        self,
-        parameters: dict[str, Any],  # noqa ARG002
-        context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
-    ):
-        if feedback is None:
-            feedback = QgsProcessingFeedback()
-        self.feedback = feedback
-        self.context = context
-
-        self.start_time = time.perf_counter()
-        self.last_time = self.start_time
-        self.last_progress: Progression | None = None
-
     def postProcessAlgorithm(self, context, feedback):  # noqa: N802
         if QThread.currentThread() == QCoreApplication.instance().thread() and hasattr(self, "_settings"):
             project_settings = ProjectSettings()
@@ -80,41 +65,28 @@ class WntrQgisProcessingBase(QgsProcessingAlgorithm):
 
         return super().postProcessAlgorithm(context, feedback)
 
-    def _update_progress(self, prog_status: Progression) -> None:
-        if self.feedback.isCanceled():
-            raise QgsProcessingException(tr("Execution of script cancelled by user"))
+    def _describe_model(self, wn: wntr.network.model.WaterNetworkModel, feedback: QgsProcessingFeedback) -> None:
+        feedback.pushInfo(tr("WNTR model created. Model contains:"))
+        feedback.pushInfo(str(wn.describe(level=0)))
 
-        time_now = time.perf_counter()
-        elapsed_ms = (time_now - self.last_time) * 1000
-        if self.last_progress and SHOW_TIMING:
-            self.feedback.pushDebugInfo(f"{self.last_progress.friendly_name} took {elapsed_ms:.0f}ms")
-        self.last_time = time_now
-        self.last_progress = prog_status
-
-        self.feedback.setProgress(prog_status.value)
-        self.feedback.setProgressText(prog_status.friendly_name)
-
-    def _describe_model(self, wn: wntr.network.model.WaterNetworkModel) -> None:
-        self.feedback.pushInfo(tr("WNTR model created. Model contains:"))
-        self.feedback.pushInfo(str(wn.describe(level=0)))
-
-    def _ensure_wntr(self) -> None:
-        self._update_progress(Progression.CHECKING_DEPENDENCIES)
+    def _ensure_wntr(self, progress_tracker: ProgressTracker) -> None:
+        progress_tracker.update_progress(Progression.CHECKING_DEPENDENCIES)
 
         try:
             import wntr
 
             wntr_version = wntr.__version__
         except ImportError:
-            self._update_progress(Progression.INSTALLING_WNTR)
+            progress_tracker.update_progress(Progression.INSTALLING_WNTR)
             try:
                 wntr_version = WntrInstaller.install_wntr()
             except WntrInstallError as e:
                 raise QgsProcessingException(e) from e
 
-        self.feedback.pushDebugInfo("WNTR version: " + wntr_version)
+        return wntr_version
+        # feedback.pushDebugInfo("WNTR version: " + wntr_version)
 
-    def _setup_postprocessing(self, outputs: dict, group_name: str, *args, **kwargs):
+    def _setup_postprocessing(self, context: QgsProcessingContext, outputs: dict, group_name: str, *args, **kwargs):
         output_order: list = [
             ModelLayer.JUNCTIONS,
             ModelLayer.PIPES,
@@ -127,10 +99,10 @@ class WntrQgisProcessingBase(QgsProcessingAlgorithm):
         ]
 
         for layer_type, lyr_id in outputs.items():
-            if self.context.willLoadLayerOnCompletion(lyr_id):
+            if context.willLoadLayerOnCompletion(lyr_id):
                 self.post_processors[lyr_id] = LayerPostProcessor(layer_type, *args, **kwargs)
 
-                layer_details = self.context.layerToLoadOnCompletionDetails(lyr_id)
+                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
                 layer_details.setPostProcessor(self.post_processors[lyr_id])
                 layer_details.groupName = group_name
                 layer_details.layerSortKey = output_order.index(layer_type)
@@ -161,3 +133,30 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
 
         if self.make_editable:
             layer.startEditing()
+
+
+class ProgressTracker:
+    def __init__(self, feedback: QgsProcessingFeedback):
+        self.feedback = feedback
+        self.start_time = time.perf_counter()
+        self.last_time = self.start_time
+        self.last_progress: Progression | None = None
+
+    def update_progress(self, prog_status: Progression) -> None:
+        if self.feedback.isCanceled():
+            raise QgsProcessingException(tr("Execution of script cancelled by user"))
+
+        time_now = time.perf_counter()
+        elapsed_ms = (time_now - self.last_time) * 1000
+        if self.last_progress and SHOW_TIMING:
+            self.feedback.pushDebugInfo(f"{self.last_progress.friendly_name} took {elapsed_ms:.0f}ms")
+        self.last_time = time_now
+        self.last_progress = prog_status
+
+        self.feedback.setProgress(prog_status.value)
+        self.feedback.setProgressText(prog_status.friendly_name)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.feedback.pushDebugInfo(f"Exception: {exc_val}")
+        self.feedback.setProgress(100)

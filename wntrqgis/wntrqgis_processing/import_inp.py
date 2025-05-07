@@ -35,7 +35,7 @@ from wntrqgis.elements import (
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
 from wntrqgis.settings import SettingKey
-from wntrqgis.wntrqgis_processing.common import Progression, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
 
 
 class ImportInp(WntrQgisProcessingBase):
@@ -103,14 +103,13 @@ class ImportInp(WntrQgisProcessingBase):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        super().processAlgorithm(parameters, context, feedback)
+        progress = ProgressTracker(feedback)
 
-        # imports are here as they are slow, will break if wntr isn't installed, and only needed in processalgorithm()
-        self._ensure_wntr()
-
+        self._ensure_wntr(progress)
+        # only import wntr-using modules once we are sure wntr is installed.
         import wntr
 
-        self._update_progress(Progression.LOADING_INP_FILE)
+        progress.update_progress(Progression.LOADING_INP_FILE)
 
         input_file = self.parameterAsFile(parameters, self.INPUT, context)
 
@@ -123,7 +122,7 @@ class ImportInp(WntrQgisProcessingBase):
             msg = f"error reading .inp file: {e}"
             raise QgsProcessingException(msg) from e
 
-        self._describe_model(wn)
+        self._describe_model(wn, feedback)
 
         if parameters.get(self.UNITS) is not None:
             unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
@@ -143,7 +142,7 @@ class ImportInp(WntrQgisProcessingBase):
             SettingKey.MODEL_LAYERS: {},
         }
 
-        self._update_progress(Progression.CREATING_OUTPUTS)
+        progress.update_progress(Progression.CREATING_OUTPUTS)
 
         network_writer = Writer(wn, units=flow_unit.name)  # TODO: FlowUnits should be string that doesn't need 'name'
 
@@ -172,10 +171,10 @@ class ImportInp(WntrQgisProcessingBase):
             layers[layer] = outputs[layer.name]
             network_writer.write(layer, sink)
 
-        self._update_progress(Progression.FINISHED_PROCESSING)
+        progress.update_progress(Progression.FINISHED_PROCESSING)
 
         filename = Path(input_file).stem
 
-        self._setup_postprocessing(layers, tr("Model Layers ({filename})").format(filename=filename), False)
+        self._setup_postprocessing(context, layers, tr("Model Layers ({filename})").format(filename=filename), False)
 
         return outputs
