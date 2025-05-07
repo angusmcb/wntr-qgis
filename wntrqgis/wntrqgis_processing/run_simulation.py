@@ -29,6 +29,7 @@ from qgis.core import (
     QgsProcessingUtils,
     QgsProject,
 )
+from qgis.PyQt.QtCore import QCoreApplication, QThread
 from qgis.PyQt.QtGui import QIcon
 
 import wntrqgis
@@ -136,6 +137,44 @@ in other software.
             )
         )
 
+    def _get_flow_unit(self, parameters: dict[str, Any], context: QgsProcessingContext) -> FlowUnit:
+        """
+        Get the flow unit from the parameters.
+        """
+        flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
+        return list(FlowUnit)[flow_unit_index]
+
+    def _get_headloss_formula(self, parameters: dict[str, Any], context: QgsProcessingContext) -> HeadlossFormula:
+        """
+        Get the headloss formula from the parameters.
+        """
+        headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
+        return list(HeadlossFormula)[headloss_formula_index]
+
+    def _get_duration(self, parameters: dict[str, Any], context: QgsProcessingContext) -> float:
+        """
+        Get the simulation duration from the parameters.
+        """
+        duration = self.parameterAsDouble(parameters, self.DURATION, context)
+        if duration < 0:
+            raise QgsProcessingException(tr("Simulation duration must be greater than or equal to 0."))
+        return duration
+
+    def prepareAlgorithm(self, parameters, context, feedback):  # noqa: N802
+        if QThread.currentThread() == QCoreApplication.instance().thread() and hasattr(self, "_settings"):
+            project_settings = ProjectSettings()
+            layers = {
+                lyr.name: input_layer.id()
+                for lyr in ModelLayer
+                if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
+            }
+            project_settings.set(SettingKey.MODEL_LAYERS, layers)
+            project_settings.set(SettingKey.FLOW_UNITS, self._get_flow_unit(parameters, context))
+            project_settings.set(SettingKey.HEADLOSS_FORMULA, self._get_headloss_formula(parameters, context))
+            project_settings.set(SettingKey.SIMULATION_DURATION, self._get_duration(parameters, context))
+
+        return super().prepareAlgorithm(parameters, context, feedback)
+
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
@@ -154,31 +193,14 @@ in other software.
             # add to model order to be: options, patterns/cruves, nodes, then links
             wn = wntr.network.WaterNetworkModel()
 
-            flow_unit_index = self.parameterAsEnum(parameters, self.UNITS, context)
-            wq_flow_unit = list(FlowUnit)[flow_unit_index]
-            wn.options.hydraulic.inpfile_units = wq_flow_unit.name
+            flow_unit = self._get_flow_unit(parameters, context)
+            wn.options.hydraulic.inpfile_units = flow_unit.name
 
-            headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
-            headloss_formula = list(HeadlossFormula)[headloss_formula_index]
-            wn.options.hydraulic.headloss = headloss_formula.value
+            wn.options.hydraulic.headloss = self._get_headloss_formula(parameters, context).value
 
-            duration = self.parameterAsDouble(parameters, self.DURATION, context)
-            wn.options.time.duration = duration * 3600
+            wn.options.time.duration = self._get_duration(parameters, context) * 3600
 
             sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
-
-            layers_for_settings = {
-                lyr.name: input_layer.id()
-                for lyr in ModelLayer
-                if (input_layer := self.parameterAsVectorLayer(parameters, lyr.name, context))
-            }
-
-            self._settings = {
-                SettingKey.MODEL_LAYERS: layers_for_settings,
-                SettingKey.FLOW_UNITS: wq_flow_unit,
-                SettingKey.HEADLOSS_FORMULA: headloss_formula,
-                SettingKey.SIMULATION_DURATION: duration,
-            }
 
             try:
                 crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
@@ -186,8 +208,7 @@ in other software.
                 raise QgsProcessingException(tr("A junctions layer is required.")) from None
 
             try:
-                # network_model.add_features_to_network_model(sources, wn)
-                wntrqgis.from_qgis(sources, wq_flow_unit.name, wn=wn, project=context.project(), crs=crs)
+                wntrqgis.from_qgis(sources, flow_unit.name, wn=wn, project=context.project(), crs=crs)
                 check_network(wn)
             except NetworkModelError as e:
                 raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
@@ -213,7 +234,7 @@ in other software.
 
             progress.update_progress(Progression.CREATING_OUTPUTS)
 
-            result_writer = Writer(wn, sim_results, units=wq_flow_unit.name)
+            result_writer = Writer(wn, sim_results, units=flow_unit.name)
 
             layers = {}
 
