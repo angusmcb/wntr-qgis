@@ -23,23 +23,35 @@ if TYPE_CHECKING:  # pragma: no cover
     import wntr
 LOGGER = logging.getLogger("wntrqgis")
 
+SHOW_TIMING = False
+
 
 class Progression(Enum):
-    def __new__(cls, *args):
-        obj = object.__new__(cls)
-        obj._value_ = args[0]
-        return obj
+    CHECKING_DEPENDENCIES = 5
+    INSTALLING_WNTR = 15
+    PREPARING_MODEL = 25
+    RUNNING_SIMULATION = 40
+    CREATING_OUTPUTS = 70
+    FINISHED_PROCESSING = 95
+    LOADING_INP_FILE = 10
 
-    def __init__(self, *args):
-        self.friendly_name = args[1]
-
-    CHECKING_DEPENDENCIES = 5, tr("Checking dependencies")
-    INSTALLING_WNTR = 15, tr("Installing WNTR")
-    PREPARING_MODEL = 25, tr("Preparing model")
-    RUNNING_SIMULATION = 40, tr("Running simulation")
-    CREATING_OUTPUTS = 70, tr("Creating outputs")
-    FINISHED_PROCESSING = 95, tr("Finished processing")
-    LOADING_INP_FILE = 10, tr("Loading inp file")
+    @property
+    def friendly_name(self):
+        if self is Progression.CHECKING_DEPENDENCIES:
+            return tr("Checking dependencies")
+        if self is Progression.INSTALLING_WNTR:
+            return tr("Installing WNTR")
+        if self is Progression.PREPARING_MODEL:
+            return tr("Preparing model")
+        if self is Progression.RUNNING_SIMULATION:
+            return tr("Running simulation")
+        if self is Progression.CREATING_OUTPUTS:
+            return tr("Creating outputs")
+        if self is Progression.FINISHED_PROCESSING:
+            return tr("Finished processing")
+        if self is Progression.LOADING_INP_FILE:
+            return tr("Loading inp file")
+        raise ValueError
 
 
 class WntrQgisProcessingBase(QgsProcessingAlgorithm):
@@ -74,7 +86,7 @@ class WntrQgisProcessingBase(QgsProcessingAlgorithm):
 
         time_now = time.perf_counter()
         elapsed_ms = (time_now - self.last_time) * 1000
-        if self.last_progress:
+        if self.last_progress and SHOW_TIMING:
             self.feedback.pushDebugInfo(f"{self.last_progress.friendly_name} took {elapsed_ms:.0f}ms")
         self.last_time = time_now
         self.last_progress = prog_status
