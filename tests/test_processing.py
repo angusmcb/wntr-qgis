@@ -180,7 +180,7 @@ def test_run_logger(processing, import_alg, run_alg, import_alg_params, qgis_new
         {
             "RESULT_NODES": "TEMPORARY_OUTPUT",
             "RESULT_LINKS": "TEMPORARY_OUTPUT",
-            "OUTPUTINP": "TEMPORARY_OUTPUT",
+            "OUTPUT_INP": "TEMPORARY_OUTPUT",
             "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
             "DURATION": 0,
@@ -218,7 +218,7 @@ def test_alg_chain_inp_run(
         {
             "RESULT_NODES": "TEMPORARY_OUTPUT",
             "RESULT_LINKS": "TEMPORARY_OUTPUT",
-            "OUTPUTINP": "TEMPORARY_OUTPUT",
+            "OUTPUT_INP": "TEMPORARY_OUTPUT",
             "UNITS": 0,
             "HEADLOSS_FORMULA": 0,
             "DURATION": duration,
@@ -226,13 +226,13 @@ def test_alg_chain_inp_run(
         },
     )
 
-    expected_run_results = ["RESULT_NODES", "RESULT_LINKS", "OUTPUTINP"]
+    expected_run_results = ["RESULT_NODES", "RESULT_LINKS", "OUTPUT_INP"]
     assert all(outkey in expected_run_results for outkey in run_result)
 
     inputwn = wntr.network.read_inpfile(inputinp)
     inputresults = wntr.sim.EpanetSimulator(inputwn).run_sim()
 
-    wn = wntr.network.read_inpfile(run_result["OUTPUTINP"])
+    wn = wntr.network.read_inpfile(run_result["OUTPUT_INP"])
     outputresults = wntr.sim.EpanetSimulator(wn).run_sim()
 
     print("***Original results***")  # noqa
@@ -241,9 +241,9 @@ def test_alg_chain_inp_run(
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
-        assert all(
-            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
-        ), f" when testing {i}"
+        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)), (
+            f" when testing {i}"
+        )
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
             all(sublist)

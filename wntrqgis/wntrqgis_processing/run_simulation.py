@@ -53,7 +53,7 @@ class RunSimulation(WntrQgisProcessingBase):
     UNITS = "UNITS"
     DURATION = "DURATION"
     HEADLOSS_FORMULA = "HEADLOSS_FORMULA"
-    OUTPUTINP = "OUTPUTINP"
+    OUTPUT_INP = "OUTPUT_INP"
 
     def createInstance(self):  # noqa N802
         return RunSimulation()
@@ -133,7 +133,7 @@ in other software.
 
         self.addParameter(
             QgsProcessingParameterFileDestination(
-                self.OUTPUTINP, tr("Output .inp file"), optional=True, createByDefault=False
+                self.OUTPUT_INP, tr("Output .inp file"), optional=True, createByDefault=False
             )
         )
 
@@ -217,10 +217,10 @@ in other software.
 
             outputs: dict[str, str] = {}
 
-            inp_file = self.parameterAsFile(parameters, self.OUTPUTINP, context)
+            inp_file = self.parameterAsFile(parameters, self.OUTPUT_INP, context)
             if inp_file:
                 wntr.network.write_inpfile(wn, inp_file)
-                outputs[self.OUTPUTINP] = inp_file
+                outputs[self.OUTPUT_INP] = inp_file
                 feedback.pushInfo(".inp file written to: " + inp_file)
 
             progress.update_progress(Progression.RUNNING_SIMULATION)
