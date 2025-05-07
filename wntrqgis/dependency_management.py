@@ -68,7 +68,7 @@ class WntrInstaller:
                 check=False,
                 text=True,
                 capture_output=True,
-                timeout=30,
+                timeout=60,
                 **kwargs,
             )
         except TimeoutError:
