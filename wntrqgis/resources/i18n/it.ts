@@ -384,72 +384,72 @@
         <translation>Tasso di reazione</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="227"/>
+        <location filename="../../interface.py" line="228"/>
         <source>CRS {crs} is not valid.</source>
         <translation>CRS {crs} non è valido.</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="274"/>
+        <location filename="../../interface.py" line="275"/>
         <source>No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}</source>
         <translation>Nessuna unità specificata. Verrà utilizzato il valore specificato nell'oggetto WaterNetworkModel: {units_friendly_name}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="618"/>
+        <location filename="../../interface.py" line="619"/>
         <source>nearest node to snap to is too far ({matched_node_name}).</source>
         <translation>il nodo più vicino a cui agganciarsi è troppo lontano ({matched_node_name}).</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="632"/>
+        <location filename="../../interface.py" line="633"/>
         <source>All links must be single part lines</source>
         <translation>Tutti i collegamenti devono essere linee a parte singola</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="635"/>
+        <location filename="../../interface.py" line="636"/>
         <source>All links must have valid geometry</source>
         <translation>Tutti i collegamenti devono avere una geometria valida</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="645"/>
+        <location filename="../../interface.py" line="646"/>
         <source>couldn&apos;t snap: {exception}</source>
         <translation>impossibile agganciare: {exception}</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="649"/>
+        <location filename="../../interface.py" line="650"/>
         <source>connects to the same node on both ends ({start_node_name})</source>
         <translation>si collega allo stesso nodo su entrambe le estremità ({start_node_name})</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="806"/>
+        <location filename="../../interface.py" line="825"/>
         <source>Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead</source>
         <translation>Impossibile impostare la perdita di altezza quando wn è impostato. Imposta la perdita di altezza in wn.options.hydraulic.headloss</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="815"/>
+        <location filename="../../interface.py" line="834"/>
         <source>headloss must be set if wn is not set: possible values are: H-W, D-W, C-M</source>
         <translation>la perdita di altezza deve essere impostata se wn non è impostato: i valori possibili sono: H-W, D-W, C-M</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="843"/>
+        <location filename="../../interface.py" line="862"/>
         <source>&apos;{layer_name}&apos; is not a valid layer type.</source>
         <translation>'{layer_name}' non è un tipo di layer valido.</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="934"/>
+        <location filename="../../interface.py" line="953"/>
         <source>There are no nodes in the model</source>
         <translation>Non ci sono nodi nel modello</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="939"/>
+        <location filename="../../interface.py" line="958"/>
         <source>There are no links in the model</source>
         <translation>Non ci sono collegamenti nel modello</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1011"/>
+        <location filename="../../interface.py" line="1030"/>
         <source>Problem in column {column_name}: {exception}</source>
         <translation>Problema nella colonna {column_name}: {exception}</translation>
     </message>
     <message numerus="yes">
-        <location filename="../../interface.py" line="1027"/>
+        <location filename="../../interface.py" line="1046"/>
         <source>in nodes, %n feature(s) have no geometry</source>
         <translation>
             <numerusform>nei nodi, %n elemento(i) non hanno geometria</numerusform>
@@ -457,7 +457,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../interface.py" line="1040"/>
+        <location filename="../../interface.py" line="1059"/>
         <source>in links, %n feature(s) have no geometry</source>
         <translation>
             <numerusform>nei collegamenti, %n elemento(i) non hanno geometria</numerusform>
@@ -465,12 +465,12 @@
         </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1048"/>
+        <location filename="../../interface.py" line="1067"/>
         <source>problem snapping the feature {name}: {exception}</source>
         <translation>problema nell'agganciare l'elemento {name}: {exception}</translation>
     </message>
     <message numerus="yes">
-        <location filename="../../interface.py" line="1086"/>
+        <location filename="../../interface.py" line="1105"/>
         <source>%n pipe(s) have very different attribute length vs measured length. First five are: </source>
         <translation>
             <numerusform>%n tubo(i) hanno una lunghezza dell'attributo molto diversa rispetto alla lunghezza misurata. I primi cinque sono: </numerusform>
@@ -478,97 +478,82 @@
         </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1090"/>
+        <location filename="../../interface.py" line="1109"/>
         <source>{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)</source>
         <translation>{name} ({attribute_length:.0f} metri vs {calculated_length:.0f} metri)</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1129"/>
+        <location filename="../../interface.py" line="1148"/>
         <source>cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)</source>
         <translation>impossibile calcolare la lunghezza del tubo (probabilmente a causa di un problema con il sistema di riferimento delle coordinate selezionato)</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1216"/>
+        <location filename="../../interface.py" line="1260"/>
         <source>Duplicate names found: </source>
         <translation>Nomi duplicati trovati: </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1256"/>
+        <location filename="../../interface.py" line="1300"/>
         <source>At least one junction is necessary</source>
         <translation>È necessaria almeno una giunzione</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1259"/>
+        <location filename="../../interface.py" line="1303"/>
         <source>At least one tank or reservoir is required</source>
         <translation>È richiesto almeno un serbatoio o un serbatoio</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1262"/>
+        <location filename="../../interface.py" line="1306"/>
         <source>At least one link (pipe, pump or valve) is necessary</source>
         <translation>È necessario almeno un collegamento (tubo, pompa o valvola)</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1266"/>
+        <location filename="../../interface.py" line="1310"/>
         <source>the following nodes are not connected to any links: </source>
         <translation>i seguenti nodi non sono collegati a nessun collegamento: </translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1294"/>
-        <source>in {layer} problem reading {pattern_name} pattern ({exception}). Patterns should be of the form 1 2.0 3 4.0, where each numeric value is separated by one ore more spaces.</source>
-        <translation>nel {layer} problema nella lettura del modello {pattern_name} ({exception}). I modelli dovrebbero essere della forma 1 2.0 3 4.0, dove ogni valore numerico è separato da uno o più spazi.</translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1305"/>
+        <location filename="../../interface.py" line="1349"/>
         <source>pump head</source>
         <translation>testa della pompa</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1307"/>
+        <location filename="../../interface.py" line="1351"/>
         <source>pump efficiency</source>
         <translation>efficienza della pompa</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1309"/>
+        <location filename="../../interface.py" line="1353"/>
         <source>general purpose valve headloss</source>
         <translation>perdita di altezza della valvola multiuso</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1311"/>
+        <location filename="../../interface.py" line="1355"/>
         <source>tank volume</source>
         <translation>volume del serbatoio</translation>
     </message>
     <message>
-        <location filename="../../interface.py" line="1313"/>
-        <source>problem reading {curve_name} curve ({exception})Curves should be of the form [(1,2), (3,4)]</source>
-        <translation>problema nella lettura della curva {curve_name} ({exception})Le curve dovrebbero essere della forma [(1,2), (3,4)]</translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1322"/>
-        <source>error from WNTR. {exception}</source>
-        <translation>errore da WNTR. {exception}</translation>
-    </message>
-    <message>
-        <location filename="../../interface.py" line="1327"/>
+        <location filename="../../interface.py" line="1375"/>
         <source>{exception} is not a known set of units. Possible units are: </source>
         <translation>{exception} non è un insieme di unità conosciuto. Le unità possibili sono: </translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="86"/>
+        <location filename="../../plugin.py" line="87"/>
         <source>Water Network Tools for Resilience</source>
         <translation>Strumenti per la rete idrica per la resilienza</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="197"/>
+        <location filename="../../plugin.py" line="195"/>
         <source>Create Template Memory Layers</source>
         <translation>Crea livelli di memoria modello</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="205"/>
+        <location filename="../../plugin.py" line="203"/>
         <source>Create Template Geopackage</source>
         <translation>Crea Geopackage modello</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="225"/>
+        <location filename="../../plugin.py" line="222"/>
         <source>Load from .inp file</source>
         <translation>Carica da file .inp</translation>
     </message>
@@ -578,32 +563,32 @@
         <translation>Esegui simulazione</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="240"/>
+        <location filename="../../plugin.py" line="237"/>
         <source>Change layers...</source>
         <translation>Cambia livelli...</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/settings.py" line="87"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="106"/>
         <source>Headloss Formula</source>
         <translation>Formula di perdita di altezza</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/settings.py" line="75"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="95"/>
         <source>Units</source>
         <translation>Unità</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="285"/>
+        <location filename="../../plugin.py" line="282"/>
         <source>Duration (hours)</source>
         <translation>Durata (ore)</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="290"/>
+        <location filename="../../plugin.py" line="287"/>
         <source>Single period simulation</source>
         <translation>Simulazione a periodo singolo</translation>
     </message>
     <message numerus="yes">
-        <location filename="../../plugin.py" line="297"/>
+        <location filename="../../plugin.py" line="294"/>
         <source>%n hour(s)</source>
         <translation>
             <numerusform>%n ora(e)</numerusform>
@@ -611,127 +596,127 @@
         </translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="380"/>
+        <location filename="../../plugin.py" line="375"/>
         <source>Load Example</source>
         <translation>Carica esempio</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="35"/>
+        <location filename="../../wntrqgis_processing/common.py" line="37"/>
         <source>Installing WNTR</source>
         <translation>Installazione di WNTR</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="368"/>
+        <location filename="../../plugin.py" line="363"/>
         <source>WNTR QGIS installed successfully</source>
         <translation>WNTR QGIS installato con successo</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="368"/>
+        <location filename="../../plugin.py" line="363"/>
         <source>WNTR QGIS upgraded successfully</source>
         <translation>WNTR QGIS aggiornato con successo</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="374"/>
+        <location filename="../../plugin.py" line="369"/>
         <source>Load an example to try me out</source>
         <translation>Carica un esempio per provarmi</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="445"/>
+        <location filename="../../plugin.py" line="403"/>
         <source>%n hours</source>
         <translation>%n ore</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="494"/>
+        <location filename="../../plugin.py" line="452"/>
         <source>Error</source>
         <translation>Errore</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="509"/>
+        <location filename="../../plugin.py" line="469"/>
         <source>Success</source>
         <translation>Successo</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="528"/>
+        <location filename="../../plugin.py" line="488"/>
         <source>Choose Input File</source>
         <translation>Scegli file di input</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="528"/>
+        <location filename="../../plugin.py" line="488"/>
         <source>EPANET INP File</source>
         <translation>File INP di EPANET</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="542"/>
+        <location filename="../../plugin.py" line="502"/>
         <source>Loaded .inp file</source>
         <translation>File .inp caricato</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="564"/>
+        <location filename="../../plugin.py" line="524"/>
         <source>Example loaded with Open Street Map background</source>
         <translation>Esempio caricato con sfondo Open Street Map</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="594"/>
+        <location filename="../../plugin.py" line="554"/>
         <source>Analysed using units &apos;{units}&apos; and headloss formula &apos;{headloss_formula}&apos;</source>
         <translation>Analizzato utilizzando unità '{units}' e formula di perdita di altezza '{headloss_formula}'</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="606"/>
+        <location filename="../../plugin.py" line="566"/>
         <source>Save Geopackage</source>
         <translation>Salva Geopackage</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="606"/>
+        <location filename="../../plugin.py" line="566"/>
         <source>Geopackage</source>
         <translation>Geopackage</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="34"/>
+        <location filename="../../wntrqgis_processing/common.py" line="36"/>
         <source>Checking dependencies</source>
         <translation>Verifica delle dipendenze</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="36"/>
+        <location filename="../../wntrqgis_processing/common.py" line="38"/>
         <source>Preparing model</source>
         <translation>Preparazione del modello</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="37"/>
+        <location filename="../../wntrqgis_processing/common.py" line="39"/>
         <source>Running simulation</source>
         <translation>Esecuzione della simulazione</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="38"/>
+        <location filename="../../wntrqgis_processing/common.py" line="40"/>
         <source>Creating outputs</source>
         <translation>Creazione degli output</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="39"/>
+        <location filename="../../wntrqgis_processing/common.py" line="41"/>
         <source>Finished processing</source>
         <translation>Elaborazione completata</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="40"/>
+        <location filename="../../wntrqgis_processing/common.py" line="42"/>
         <source>Loading inp file</source>
         <translation>Caricamento del file inp</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="63"/>
+        <location filename="../../wntrqgis_processing/common.py" line="73"/>
         <source>Execution of script cancelled by user</source>
         <translation>Esecuzione dello script annullata dall'utente</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="76"/>
+        <location filename="../../wntrqgis_processing/common.py" line="86"/>
         <source>WNTR model created. Model contains:</source>
         <translation>Modello WNTR creato. Il modello contiene:</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="30"/>
+        <location filename="../../wntrqgis_processing/empty_model.py" line="29"/>
         <source>Create Template Layers</source>
         <translation>Crea livelli modello</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="31"/>
+        <location filename="../../wntrqgis_processing/empty_model.py" line="30"/>
         <source>
         This will create a set of &apos;template&apos; layers, which you can use for building your model.
         You do not need to create or use all layers if not required for your model.
@@ -742,37 +727,37 @@
         </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="77"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="76"/>
         <source>Coordinate Reference System (CRS)</source>
         <translation>Sistema di riferimento delle coordinate (CRS)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="58"/>
+        <location filename="../../wntrqgis_processing/empty_model.py" line="57"/>
         <source>Create Fields for Water Quality Analysis</source>
         <translation>Crea campi per l'analisi della qualità dell'acqua</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="59"/>
+        <location filename="../../wntrqgis_processing/empty_model.py" line="58"/>
         <source>Create Fields for Pressure Driven Analysis</source>
         <translation>Crea campi per l'analisi guidata dalla pressione</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="60"/>
+        <location filename="../../wntrqgis_processing/empty_model.py" line="59"/>
         <source>Create Fields for Energy Analysis</source>
         <translation>Crea campi per l'analisi energetica</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="107"/>
+        <location filename="../../wntrqgis_processing/empty_model.py" line="106"/>
         <source>Model Layers</source>
         <translation>Livelli del modello</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="54"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="53"/>
         <source>Import from Epanet INP file</source>
         <translation>Importa da file INP di Epanet</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="57"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="56"/>
         <source>
             Import all junctions, tanks, reservoirs, pipes, pumps and valves from an EPANET inp file.
             This will also save selected options from the .inp file.
@@ -785,35 +770,22 @@
             </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="68"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="67"/>
         <source>Epanet Input File (.inp)</source>
         <translation>File di input di Epanet (.inp)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="81"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="80"/>
         <source>Units to to convert to (leave blank to use .inp file units)</source>
         <translation>Unità da convertire (lasciare vuoto per utilizzare le unità del file .inp)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="178"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="179"/>
         <source>Model Layers ({filename})</source>
         <translation>Livelli del modello ({filename})</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="66"/>
-        <source>
-            This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps),             combine them with the chosen options, and run a simulation on WNTR.
-            The output files are a layer of &apos;nodes&apos; (junctions, tanks, reservoirs) and             &apos;links&apos; (pipes, valves, pumps).
-            Optionally, you can also output an EPANET &apos;.inp&apos; file which can be run / viewed             in other software.
-            </source>
-        <translation>
-            Questo prenderà tutti i livelli del modello (giunzioni, serbatoi, serbatoi, tubi, valvole, pompe),             li combinerà con le opzioni scelte e eseguirà una simulazione su WNTR.
-            I file di output sono un livello di 'nodi' (giunzioni, serbatoi, serbatoi) e             'collegamenti' (tubi, valvole, pompe).
-            Facoltativamente, puoi anche generare un file EPANET '.inp' che può essere eseguito / visualizzato             in altri software.
-            </translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/settings.py" line="101"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="119"/>
         <source>Simulation duration in hours (or 0 for single period)</source>
         <translation>Durata della simulazione in ore (o 0 per periodo singolo)</translation>
     </message>
@@ -833,42 +805,92 @@
         <translation>File di output .inp</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="194"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="195"/>
         <source>A junctions layer is required.</source>
         <translation>È necessario un livello di giunzioni.</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="245"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="246"/>
         <source>Simulation Results ({finish_time})</source>
         <translation>Risultati della simulazione ({finish_time})</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/settings.py" line="48"/>
-        <source>Settings</source>
-        <translation>Impostazioni</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/settings.py" line="51"/>
-        <source>
-            The settings you configure here will be used when using the &apos;run&apos; button.
-            </source>
-        <translation>
-            Le impostazioni configurate qui verranno utilizzate quando si utilizza il pulsante 'esegui'.
-            </translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="201"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="202"/>
         <source>Error preparing model: {exception}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="220"/>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="221"/>
         <source>Epanet error: {exception}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="134"/>
+        <location filename="../../wntrqgis_processing/import_inp.py" line="133"/>
         <source>Will output with the following units: {flow_unit}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../dependency_management.py" line="100"/>
+        <source>Couldn&apos;t fetch and install WNTR. {exception}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1188"/>
+        <source>{valve_type} must be set for all valves</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1200"/>
+        <source>{valve_type} must be one of the following values: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1338"/>
+        <source>in {layer} problem reading {pattern_type}: {pattern_string} Patterns should be a string of numeric values separated by a space, or a list of numeric values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1357"/>
+        <source>problem reading {curve_name} curve &quot;{curve_string}&quot;. Curves should be of the form: (1, 2), (3.6, 4.7)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../interface.py" line="1366"/>
+        <source>error from WNTR. {exception_name}: {exception}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="609"/>
+        <source>OpenStreetMap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../wntrqgis_processing/run_simulation.py" line="66"/>
+        <source>
+This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), combine them with the chosen options, and run a simulation on WNTR.
+The output files are a layer of &apos;nodes&apos; (junctions, tanks, reservoirs) and &apos;links&apos; (pipes, valves, pumps).
+Optionally, you can also output an EPANET &apos;.inp&apos; file which can be run / viewed in other software.
+            </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../dependency_management.py" line="105"/>
+        <source>Missing necessary python packages {missing_deps}. Please see help for how to fix this</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../dependency_management.py" line="74"/>
+        <source>Took too long to fetch and install.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../dependency_management.py" line="77"/>
+        <source>Couldn&apos;t find Python</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../dependency_management.py" line="114"/>
+        <source>Fetching WNTR is already in progress. Please wait and try again.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
