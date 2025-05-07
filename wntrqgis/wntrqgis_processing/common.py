@@ -1,5 +1,5 @@
 from __future__ import annotations  # noqa
-from typing import ClassVar, TYPE_CHECKING
+from typing import ClassVar, TYPE_CHECKING, cast
 from enum import Enum
 import logging
 
@@ -10,6 +10,7 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsProcessingContext,
     QgsProcessingAlgorithm,
+    QgsVectorLayer,
 )
 
 from qgis.PyQt.QtCore import QCoreApplication, QThread
@@ -123,6 +124,8 @@ class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         self.is_model_layer = is_model_layer
 
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
+        layer = cast(QgsVectorLayer, layer)
+
         style(layer, self.layer_type, self.style_theme)
 
         if self.is_model_layer:
