@@ -161,7 +161,7 @@ in other software.
         return duration
 
     def prepareAlgorithm(self, parameters, context, feedback):  # noqa: N802
-        if QThread.currentThread() == QCoreApplication.instance().thread() and hasattr(self, "_settings"):
+        if QThread.currentThread() == QCoreApplication.instance().thread():
             project_settings = ProjectSettings()
             layers = {
                 lyr.name: input_layer.id()
