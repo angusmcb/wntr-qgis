@@ -27,7 +27,6 @@ from qgis.core import (
 from qgis.PyQt.QtGui import QIcon
 
 from wntrqgis.elements import (
-    # FieldGroup,
     FlowUnit,
     HeadlossFormula,
     ModelLayer,
@@ -116,10 +115,10 @@ class ImportInp(WntrQgisProcessingBase):
         try:
             wn: wntr.network.WaterNetworkModel = wntr.network.read_inpfile(input_file)
         except FileNotFoundError as e:
-            msg = f".inp file does not exist ({input_file})"
+            msg = tr(".inp file does not exist ({input_file})").format(input_file=input_file)
             raise QgsProcessingException(msg) from e
         except wntr.epanet.exceptions.EpanetException as e:
-            msg = f"error reading .inp file: {e}"
+            msg = tr("error reading .inp file: {e}").format(e=e)
             raise QgsProcessingException(msg) from e
 
         self._describe_model(wn, feedback)
@@ -173,8 +172,8 @@ class ImportInp(WntrQgisProcessingBase):
 
         progress.update_progress(Progression.FINISHED_PROCESSING)
 
-        filename = Path(input_file).stem
+        group_name = tr("Model Layers ({filename})").format(filename=Path(input_file).stem)
 
-        self._setup_postprocessing(context, layers, tr("Model Layers ({filename})").format(filename=filename), False)
+        self._setup_postprocessing(context, layers, group_name, False)
 
         return outputs
