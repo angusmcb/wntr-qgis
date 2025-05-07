@@ -606,7 +606,8 @@ except ModuleNotFoundError:
     def load_osm(self):
         root = QgsProject.instance().layerTreeRoot()
         tms = "type=xyz&url=https://tile.openstreetmap.org/{z}/{x}/{y}.png&zmax=19&zmin=0"
-        layer = QgsRasterLayer(tms, "Open Street Map", "wms")
+        title = tr("OpenStreetMap")
+        layer = QgsRasterLayer(tms, title, "wms")
         layer.setOpacity(0.5)
         QgsProject.instance().addMapLayer(layer, False)
         root.insertChildNode(len(root.children()), QgsLayerTreeLayer(layer))
