@@ -97,7 +97,21 @@ def test_alg_template_layers(processing, qgis_new_project, template_alg, templat
     assert all(outkey in model_layers for outkey in result)
 
 
-def test_alg_template_layers_water_quality(processing, qgis_new_project, template_alg, template_alg_params):
+def test_template_layers_no_extra_fields(processing, template_alg, template_alg_params):
+    result = processing.run(template_alg, template_alg_params)
+
+    assert all(outkey in model_layers for outkey in result)
+
+    fields = [field.name() for field in result["JUNCTIONS"].fields()]
+    assert "required_pressure" not in fields
+    assert "minimum_pressure" not in fields
+    fields = [field.name() for field in result["TANKS"].fields()]
+    assert "initial_quality" not in fields
+    fields = [field.name() for field in result["PUMPS"].fields()]
+    assert "energy_price" not in fields
+
+
+def test_alg_template_layers_water_quality(processing, template_alg, template_alg_params):
     template_alg_params["WATER_QUALITY_ANALYSIS"] = True
 
     result = processing.run(template_alg, template_alg_params)
@@ -241,9 +255,9 @@ def test_alg_chain_inp_run(
     print(outputresults.link["headloss"])  # noqa
 
     for i in ["demand", "head", "pressure"]:
-        assert all(all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)), (
-            f" when testing {i}"
-        )
+        assert all(
+            all(sublist) for sublist in np.isclose(inputresults.node[i], outputresults.node[i], rtol=0.005)
+        ), f" when testing {i}"
     for i in ["flowrate", "headloss", "velocity"]:
         assert all(
             all(sublist)
