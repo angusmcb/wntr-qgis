@@ -15,7 +15,7 @@ import logging
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, ClassVar  # noqa F401
+from typing import Any, Literal, cast
 
 from qgis.core import (
     QgsProcessingContext,
@@ -234,7 +234,11 @@ in other software.
 
             progress.update_progress(Progression.CREATING_OUTPUTS)
 
-            result_writer = Writer(wn, sim_results, units=flow_unit.name)
+            flow_unit_literal = cast(
+                Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"], flow_unit.name
+            )
+
+            result_writer = Writer(wn, sim_results, units=flow_unit_literal)
 
             layers = {}
 
