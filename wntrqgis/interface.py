@@ -1081,6 +1081,14 @@ class _FromGis:
 
     def _process_pipe_length(self, pipe_df: pd.DataFrame) -> pd.Series:
         calculated_lengths: pd.Series = pipe_df.loc[:, "geometry"].map(self._get_length).astype("float")
+        if calculated_lengths.isna().any():
+            msg = tr(
+                "cannot calculate length of %n pipe(s) (probably due to a problem with the selected coordinate reference system)",  # noqa: E501
+                "",
+                calculated_lengths.isna().sum(),
+            )
+            raise NetworkModelError(msg)
+
         attribute_lengths = pipe_df.loc[:, "length"]
 
         has_attr_length = attribute_lengths.notna()
@@ -1111,7 +1119,7 @@ class _FromGis:
                     tr("{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)").format_map, axis=1
                 )
             )
-            warnings.warn(msg, stacklevel=1)
+            logger.warning(msg)
 
         return attribute_lengths.fillna(calculated_lengths)
 
@@ -1144,11 +1152,6 @@ class _FromGis:
         if self._measurer.lengthUnits() != QGIS_DISTANCE_UNIT_METERS:
             length = self._measurer.convertLengthMeasurement(length, QGIS_DISTANCE_UNIT_METERS)
 
-        if math.isnan(length):
-            msg = tr(
-                "cannot calculate length of pipe (probably due to a problem with the selected coordinate reference system)"  # noqa: E501
-            )
-            raise RuntimeError(msg)
         return length
 
     def _do_node_patterns_curves(self, node_df: pd.DataFrame) -> pd.DataFrame:

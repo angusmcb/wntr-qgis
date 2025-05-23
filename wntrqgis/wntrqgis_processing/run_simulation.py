@@ -189,7 +189,7 @@ in other software.
 
         progress.update_progress(Progression.PREPARING_MODEL)
 
-        with logger_to_feedback("wntr", feedback):
+        with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
             # add to model order to be: options, patterns/cruves, nodes, then links
             wn = wntr.network.WaterNetworkModel()
 

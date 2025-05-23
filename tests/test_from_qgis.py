@@ -497,7 +497,7 @@ def test_measure_feet(simple_layers):
     assert wn.get_link("P1").length == pytest.approx(5.0 / 3.2808, 0.01)
 
 
-def test_prioritise_length_attribute():
+def test_prioritise_length_attribute(caplog):
     junction_layer = layer("point", [("name", str), ("base_demand", float)])
     add_point(junction_layer, (1, 1), ["J1", 1])
     add_point(junction_layer, (4, 5), ["J2"])
@@ -506,9 +506,12 @@ def test_prioritise_length_attribute():
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P2", 100])
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
-    warn_message = r"1 pipe\(s\) have very different attribute length vs measured length. First five are: P2 \(5 metres vs 100 metres\)"  # noqa: E501
-    with pytest.warns(UserWarning, match=warn_message):
-        wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+
+    warn_message = (
+        "1 pipe(s) have very different attribute length vs measured length. First five are: P2 (5 metres vs 100 metres)"
+    )
+    assert warn_message in caplog.messages
 
     assert wn.get_link("P1").length == 5
     assert wn.get_link("P2").length == 100
