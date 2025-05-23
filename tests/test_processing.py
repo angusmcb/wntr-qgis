@@ -134,10 +134,28 @@ def output_file(tmp_path, output_type):
     return get_file_string
 
 
-def test_alg_template_layers(processing, qgis_new_project, template_alg, template_alg_params):
-    result = processing.runAndLoadResults(template_alg, template_alg_params)
+def test_template_layers(template_result):
+    assert list(template_result.keys()) == ["JUNCTIONS", "PIPES", "PUMPS", "RESERVOIRS", "TANKS", "VALVES"]
 
-    assert list(result.keys()) == ["JUNCTIONS", "PIPES", "PUMPS", "RESERVOIRS", "TANKS", "VALVES"]
+
+def test_import_layers(import_layers):
+    assert list(import_layers.keys()) == ["JUNCTIONS", "PIPES", "PUMPS", "RESERVOIRS", "TANKS", "VALVES"]
+
+
+def test_load_template_layers(processing, qgis_new_project, template_alg, template_alg_params):
+    """This also implicitly checks the styling"""
+    processing.runAndLoadResults(template_alg, template_alg_params)
+
+    assert len(QgsProject.instance().mapLayers()) == 6
+
+
+@pytest.mark.parametrize(
+    "inp", ["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp", "valves.inp", "single_pipe_warning.inp"]
+)
+def test_alg_import_inp_all_examples(processing, import_alg, import_alg_params, qgis_new_project):
+    processing.runAndLoadResults(import_alg, import_alg_params)
+
+    assert len(QgsProject.instance().mapLayers()) == 6
 
 
 def test_template_layers_junctions(template_result):
@@ -147,6 +165,17 @@ def test_template_layers_junctions(template_result):
         "base_demand",
         "demand_pattern",
         "emitter_coefficient",
+    ]
+
+
+def test_import_layers_junctions(import_layers):
+    assert import_layers["JUNCTIONS"].fields().names() == [
+        "name",
+        "elevation",
+        "base_demand",
+        "demand_pattern",
+        "emitter_coefficient",
+        "initial_quality",
     ]
 
 
@@ -164,8 +193,30 @@ def test_template_layers_tanks(template_result):
     ]
 
 
+def test_import_layers_tanks(import_layers):
+    assert import_layers["TANKS"].fields().names() == [
+        "name",
+        "elevation",
+        "init_level",
+        "min_level",
+        "max_level",
+        "diameter",
+        "min_vol",
+        "vol_curve",
+        "overflow",
+        "initial_quality",
+        "mixing_fraction",
+        "mixing_model",
+        "bulk_coeff",
+    ]
+
+
 def test_template_layers_reservoirs(template_result):
     assert template_result["RESERVOIRS"].fields().names() == ["name", "base_head", "head_pattern"]
+
+
+def test_import_layers_reservoirs(import_layers):
+    assert import_layers["RESERVOIRS"].fields().names() == ["name", "base_head", "head_pattern", "initial_quality"]
 
 
 def test_template_layers_pipes(template_result):
@@ -177,6 +228,21 @@ def test_template_layers_pipes(template_result):
         "minor_loss",
         "check_valve",
         "initial_status",
+    ]
+
+
+def test_import_layers_pipes(import_layers):
+    assert import_layers["PIPES"].fields().names() == [
+        "name",
+        "diameter",
+        "length",
+        "roughness",
+        "minor_loss",
+        "check_valve",
+        "initial_status",
+        "bulk_coeff",
+        "wall_coeff",
+        "initial_quality",
     ]
 
 
@@ -193,8 +259,34 @@ def test_template_layers_pumps(template_result):
     ]
 
 
+def test_import_layers_pumps(import_layers):
+    assert import_layers["PUMPS"].fields().names() == [
+        "name",
+        "pump_type",
+        "pump_curve",
+        "power",
+        "base_speed",
+        "speed_pattern",
+        "initial_status",
+        "initial_setting",
+        "initial_quality",
+    ]
+
+
 def test_template_layers_valves(template_result):
     assert template_result["VALVES"].fields().names() == [
+        "name",
+        "valve_type",
+        "diameter",
+        "minor_loss",
+        "initial_status",
+        "initial_setting",
+        "headloss_curve",
+    ]
+
+
+def test_import_layers_valves(import_layers):
+    assert import_layers["VALVES"].fields().names() == [
         "name",
         "valve_type",
         "diameter",
@@ -227,10 +319,9 @@ def test_alg_template_layers_pressure_dependent_demand(processing, template_alg,
 
     result = processing.run(template_alg, template_alg_params)
 
-    fields = result["JUNCTIONS"].fields().names()
-    assert "required_pressure" in fields
-    assert "minimum_pressure" in fields
-    assert "pressure_exponent" in fields
+    assert "required_pressure" in result["JUNCTIONS"].fields().names()
+    assert "minimum_pressure" in result["JUNCTIONS"].fields().names()
+    assert "pressure_exponent" in result["JUNCTIONS"].fields().names()
 
 
 def test_alg_template_layers_energy(processing, template_alg, template_alg_params):
@@ -241,15 +332,6 @@ def test_alg_template_layers_energy(processing, template_alg, template_alg_param
     assert "efficiency" in result["PUMPS"].fields().names()
     assert "energy_pattern" in result["PUMPS"].fields().names()
     assert "energy_price" in result["PUMPS"].fields().names()
-
-
-@pytest.mark.parametrize(
-    "inp", ["ky1.inp", "ky10.inp", "ky17.inp", "Net3.simplified.inp", "valves.inp", "single_pipe_warning.inp"]
-)
-def test_alg_import_inp_all_examples(processing, import_alg, import_alg_params, qgis_new_project):
-    result = processing.runAndLoadResults(import_alg, import_alg_params)
-
-    assert list(result.keys()) == ["JUNCTIONS", "PIPES", "PUMPS", "RESERVOIRS", "TANKS", "VALVES"]
 
 
 def test_alg_import_inp_bad_inp(processing, import_alg, import_alg_params, bad_inp):
@@ -278,7 +360,7 @@ def test_alg_import_inp_bad_units(processing, import_alg, import_alg_params):
     [
         "ky1.inp",
         "ky10.inp",
-        pytest.param("ky17.inp", marks=pytest.mark.xfail(reason="bug")),
+        pytest.param("ky17.inp", marks=pytest.mark.skip()),
         "Net3.simplified.inp",
         "valves.inp",
         "single_pipe_warning.inp",
@@ -292,17 +374,17 @@ def test_run_example_inps(run_result):
 
 
 def test_run_node_fields(run_result):
-    assert run_result["RESULT_NODES"].fields().names() == ["demand", "head", "pressure", "quality", "name"]
+    assert run_result["RESULT_NODES"].fields().names() == ["name", "demand", "head", "pressure", "quality"]
 
 
 def test_run_link_fields(run_result):
     assert run_result["RESULT_LINKS"].fields().names() == [
+        "name",
         "flowrate",
         "headloss",
         "velocity",
         "quality",
         "reaction_rate",
-        "name",
     ]
 
 

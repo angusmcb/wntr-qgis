@@ -351,9 +351,14 @@ class Writer:
         else:
             layer_df = self._model_dfs.get(layer, pd.DataFrame())
 
-        field_names = layer_df.columns.to_list()
+        field_names = ["name"]  # get this as first column
         field_names.extend(field.name for field in self.fields if field in layer.wq_fields())
+        field_names.extend(layer_df.columns.to_list())
         field_names = list(dict.fromkeys(field_names))  # de-duplicate
+
+        for ignore_key in ["node_type", "link_type", "leak", "leak_area", "leak_discharge_coeff"]:
+            if ignore_key in field_names:
+                field_names.remove(ignore_key)
 
         layer_df = layer_df.convert_dtypes(convert_integer=False)
         dtypes = layer_df.dtypes
@@ -508,8 +513,7 @@ class Writer:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
 
                 if "efficiency" in df:
-                    df["efficiency_curve"] = df["efficiency"].apply(lambda x: str(x["points"]))
-                    df.drop(columns="efficiency", inplace=True)  # noqa: PD002
+                    df["efficiency"] = df["efficiency"].apply(lambda x: curves.get(x["name"]))
 
             elif lyr is ModelLayer.VALVES:
                 p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"

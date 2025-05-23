@@ -217,9 +217,9 @@ def test_efficiency_curve(wn):
     wn.add_pump("PUMP1", "J1", "J2")
     wn.links["PUMP1"].efficiency = wn.curves["C1"]
 
-    layers = wntrqgis.to_qgis(wn)
+    layers = wntrqgis.to_qgis(wn, units="LPS")
 
-    check_values(layers["PUMPS"], "efficiency_curve", ["[(0, 0), (10, 0.5), (20, 1)]"])
+    check_values(layers["PUMPS"], "efficiency", ["[(0.0, 0), (10000.0, 0.5), (20000.0, 1)]"])
 
 
 def test_valve_active(wn):

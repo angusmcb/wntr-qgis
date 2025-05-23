@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-addopts = "--doctest-glob='*.rst' --ignore=wntrqgis/packages --doctest-modules"
+addopts = "--doctest-glob='*.rst' --ignore=wntrqgis/packages --doctest-modules -vv"
 testpaths = ['tests/','docs/','wntrqgis/']
 filterwarnings = [
     'ignore: .*pkg_resources',
