@@ -242,7 +242,6 @@ def test_import_layers_pipes(import_layers):
         "initial_status",
         "bulk_coeff",
         "wall_coeff",
-        "initial_quality",
     ]
 
 
@@ -269,7 +268,6 @@ def test_import_layers_pumps(import_layers):
         "speed_pattern",
         "initial_status",
         "initial_setting",
-        "initial_quality",
     ]
 
 

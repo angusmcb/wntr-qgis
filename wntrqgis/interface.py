@@ -356,7 +356,7 @@ class Writer:
         field_names.extend(layer_df.columns.to_list())
         field_names = list(dict.fromkeys(field_names))  # de-duplicate
 
-        for ignore_key in ["node_type", "link_type", "leak", "leak_area", "leak_discharge_coeff"]:
+        for ignore_key in ["node_type", "link_type"]:
             if ignore_key in field_names:
                 field_names.remove(ignore_key)
 
@@ -448,7 +448,13 @@ class Writer:
         if len(df_nodes) > 0:
             df_nodes = df_nodes.set_index("name", drop=False)
             df_nodes = df_nodes.drop(
-                columns=["coordinates", "demand_timeseries_list"],
+                columns=[
+                    "coordinates",
+                    "demand_timeseries_list",
+                    "leak",
+                    "leak_area",
+                    "leak_discharge_coeff",
+                ],
                 errors="ignore",
             )
             dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"].dropna(axis=1, how="all")
@@ -459,7 +465,7 @@ class Writer:
         if len(df_links) > 0:
             df_links = df_links.set_index("name", drop=False)
             df_links = df_links.drop(
-                columns=["start_node_name", "end_node_name", "vertices"],
+                columns=["start_node_name", "end_node_name", "vertices", "initial_quality"],
                 errors="ignore",
             )
             dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"].dropna(axis=1, how="all")
