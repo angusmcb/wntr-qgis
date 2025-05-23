@@ -40,7 +40,7 @@ def check_values(layer, field_name, expected_values):
     :raises AssertionError: If the field values do not match the expected values.
     """
     assert layer.isValid(), "Layer is not valid."
-    assert layer.fields().indexFromName(field_name) != -1, f"Field '{field_name}' does not exist in the layer."
+    assert layer.fields()[field_name], f"Field '{field_name}' does not exist in the layer."
 
     actual_values = [feature[field_name] for feature in layer.getFeatures()]
 
@@ -155,3 +155,118 @@ def test_no_crs(wn):
     assert isinstance(layers, dict)
     assert "JUNCTIONS" in layers
     assert layers["JUNCTIONS"].crs().isValid() is False
+
+
+def test_demand_pattern(wn):
+    wn.add_pattern("P1", [0.5, 1.0, 1.5])
+    wn.add_junction("J3", base_demand=0.01, demand_pattern="P1")
+
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["JUNCTIONS"], "demand_pattern", [NULL, NULL, "0.5 1.0 1.5"])
+
+
+def test_head_pattern(wn):
+    wn.add_pattern("H1", [10, 20, 30])
+    wn.add_reservoir("R2", base_head=10, head_pattern="H1")
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["RESERVOIRS"], "head_pattern", [NULL, "10.0 20.0 30.0"])
+
+
+def test_vol_curve(wn):
+    wn.add_curve("C1", "VOLUME", [(0, 0), (10, 10), (20, 20)])
+    wn.add_tank("T1", vol_curve="C1")
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(
+        layers["TANKS"],
+        "vol_curve",
+        ["[(0.0, 0.0), (32.808398950131235, 353.14666721488584), (65.61679790026247, 706.2933344297717)]"],
+    )
+
+
+def test_pump_curve(wn):
+    wn.add_curve("C1", "HEAD", [(0, 0), (10, 10), (20, 20)])
+    wn.add_pump("PUMP1", "J1", "J2", pump_type="head", pump_parameter="C1")
+    layers = wntrqgis.to_qgis(wn, units="SI")
+
+    check_values(layers["PUMPS"], "pump_curve", ["[(0.0, 0), (10.0, 10), (20.0, 20)]"])
+
+
+def test_speed_pattern(wn):
+    wn.add_pattern("S1", [0.5, 1.0, 1.5])
+    wn.add_pump("PUMP1", "J1", "J2", pattern="S1")
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["PUMPS"], "speed_pattern", ["0.5 1.0 1.5"])
+
+
+def test_energy_pattern(wn):
+    wn.add_pattern("E1", [0.5, 1.0, 1.5])
+    wn.add_pump("PUMP1", "J1", "J2")
+    wn.links["PUMP1"].energy_pattern = "E1"
+
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["PUMPS"], "energy_pattern", ["0.5 1.0 1.5"])
+
+
+def test_efficiency_curve(wn):
+    wn.add_curve("C1", "EFFICIENCY", [(0, 0), (10, 0.5), (20, 1)])
+    wn.add_pump("PUMP1", "J1", "J2")
+    wn.links["PUMP1"].efficiency = wn.curves["C1"]
+
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["PUMPS"], "efficiency_curve", ["[(0, 0), (10, 0.5), (20, 1)]"])
+
+
+def test_valve_active(wn):
+    wn.add_valve("v1", "J1", "J2")
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["VALVES"], "initial_status", ["Active"])
+
+
+@pytest.mark.parametrize("valve_type", ["PRV", "PSV", "PBV"])
+def test_p_valve_setting(wn, valve_type):
+    wn.add_valve("v1", "J1", "J2", valve_type=valve_type, initial_setting=10)
+
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["VALVES"], "initial_setting", [14.21588])
+
+
+def test_flow_valve_setting(wn):
+    wn.add_valve("v1", "J1", "J2", valve_type="FCV", initial_setting=10)
+
+    layers = wntrqgis.to_qgis(wn, units="CMH")
+
+    check_values(layers["VALVES"], "initial_setting", [10.0 * 3600])
+
+
+def test_gpv_curve(wn):
+    wn.add_curve("C1", "HEADLOSS", [(0, 0), (10, 10), (20, 20)])
+    wn.add_valve("v1", "J1", "J2", valve_type="GPV", initial_setting="C1")
+
+    layers = wntrqgis.to_qgis(wn, units="lps")
+
+    check_values(layers["VALVES"], "headloss_curve", ["[(0.0, 0), (10000.0, 10), (20000.0, 20)]"])
+
+
+def test_tcv_setting(wn):
+    wn.add_valve("v1", "J1", "J2", valve_type="TCV", initial_setting=10)
+
+    layers = wntrqgis.to_qgis(wn)
+
+    check_values(layers["VALVES"], "initial_setting", [10.0])
+
+
+def test_unit_warning(wn, caplog):
+    wntrqgis.to_qgis(wn)
+
+    expected_warning = (
+        "No units specified. Will use the value specified in WaterNetworkModel object: Gallons per Minute"
+    )
+    assert expected_warning in caplog.messages

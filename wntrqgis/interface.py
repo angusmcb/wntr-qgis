@@ -271,7 +271,7 @@ class Writer:
     ) -> None:
         if not units:
             units = wn.options.hydraulic.inpfile_units
-            units_friendly_name = FlowUnit[units].value
+            units_friendly_name = FlowUnit[units].friendly_name
             logger.warning(
                 tr(
                     "No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}"  # noqa: E501
@@ -506,6 +506,10 @@ class Writer:
                 # 'energy pattern' is not called energy pattern name!
                 if "energy_pattern" in df:
                     df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
+
+                if "efficiency" in df:
+                    df["efficiency_curve"] = df["efficiency"].apply(lambda x: str(x["points"]))
+                    df.drop(columns="efficiency", inplace=True)  # noqa: PD002
 
             elif lyr is ModelLayer.VALVES:
                 p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
