@@ -26,6 +26,7 @@ def patch_iface(qgis_app, qgis_iface):
     qgis_iface.layerTreeView = Mock()
     qgis_iface.layerTreeView.return_value.indicators.return_value = []
     qgis_iface.addToolBarWidget = Mock()
+    qgis_iface.messageBar = Mock()
 
 
 @pytest.fixture(autouse=True, scope="session")

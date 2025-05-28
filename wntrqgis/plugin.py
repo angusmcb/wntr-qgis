@@ -449,7 +449,11 @@ except ModuleNotFoundError:
             nonlocal algorithm
             if not successful:
                 iface.messageBar().pushMessage(
-                    tr("Error"), feedback.errors[0], feedback.textLog(), level=Qgis.MessageLevel.Critical, duration=0
+                    title=tr("Error"),
+                    text=feedback.errors[0],
+                    showMore=feedback.textLog(),
+                    level=Qgis.MessageLevel.Critical,
+                    duration=0,
                 )
 
                 QgsApplication.messageLog().logMessage(
