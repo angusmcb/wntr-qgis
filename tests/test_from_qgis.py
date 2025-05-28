@@ -876,6 +876,38 @@ def test_curve_error2():
         wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
 
 
+def test_curve_empty_string():
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    tank_layer = layer("point", [("name", str), ("vol_curve", str)])
+    add_point(tank_layer, (4, 5), ["T1", ""])
+
+    pipe_layer = layer("linestring", [("name", str)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
+
+    pattern_layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+    assert wn.nodes["T1"].vol_curve_name is None
+
+
+def test_vol_curve():
+    junction_layer = layer("point", [("name", str)])
+    add_point(junction_layer, (1, 1), ["J1"])
+    tank_layer = layer("point", [("name", str), ("vol_curve", str)])
+    add_point(tank_layer, (4, 5), ["T1", "[(0,0),(10,100)]"])
+
+    pipe_layer = layer("linestring", [("name", str)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
+
+    pattern_layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+
+    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+
+    assert wn.nodes["T1"].vol_curve_name == "1"
+    assert wn.curves["1"].points == [(0.0, 0.0), (10.0, 100.0)]
+
+
 def test_valve_headloss_curve():
     junction_layer = layer("point", [("name", str)])
     add_point(junction_layer, (1, 1), ["J1"])
@@ -1186,3 +1218,116 @@ def test_with_no_valve_type_column(valve_layers):
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
         wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+
+
+def test_pump_with_no_pump_type(simple_layers):
+    pump_layer = layer("linestring", [("name", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1"])
+    simple_layers.update({"PUMPS": pump_layer})
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="pump_type"):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
+@pytest.mark.parametrize("pump_type", ["not_a_type", None, 1, 1.2])
+def test_pump_with_wrong_pump_type(simple_layers, pump_type):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", pump_type)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", pump_type])
+    simple_layers.update({"PUMPS": pump_layer})
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="pump_type"):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
+def test_power_pump(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10.1])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    wn = wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+    assert wn.get_link("PUMP1").pump_type == "POWER"
+    assert wn.get_link("PUMP1").power == 10.1
+
+
+def test_head_pump(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "HEAD", "[(0.0, 200.5),(1.0,50)]"])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    wn = wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+    assert wn.get_link("PUMP1").pump_type == "HEAD"
+    assert wn.get_link("PUMP1").get_pump_curve().points == [(0.0, 200.5), (1.0, 50)]
+
+
+def test_head_pump_empty_curve(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "HEAD", ""])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    with pytest.raises(wntrqgis.interface.PumpCurveMissingError):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
+def test_head_pump_no_curve(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "HEAD"])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    with pytest.raises(wntrqgis.interface.PumpCurveMissingError):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
+def test_head_pump_conversion(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "HEAD", "[(0.0, 10),(1000.0,50)]"])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    wn = wntrqgis.from_qgis(simple_layers, "GPM", "H-W")
+
+    assert wn.get_link("PUMP1").pump_type == "HEAD"
+    assert wn.get_link("PUMP1").get_pump_curve().points == [(0.0, 3.048), (0.0630901964, 15.24)]
+
+
+def test_pump_mixed_types(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("pump_curve", str)])
+
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10.1, None])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP2", "HEAD", None, "[(0.0, 200.5),(1.0,50)]"])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    wn = wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+    assert wn.get_link("PUMP1").pump_type == "POWER"
+    assert wn.get_link("PUMP2").pump_type == "HEAD"
+
+    assert wn.get_link("PUMP1").power == 10.1
+    assert wn.get_link("PUMP2").get_pump_curve().points == [(0.0, 200.5), (1.0, 50)]
+
+
+def test_power_pump_with_no_power(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER"])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    with pytest.raises(wntrqgis.interface.PumpPowerError):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
+@pytest.mark.parametrize("power", ["not_a_number"])
+def test_power_pump_with_wrong_power_type(simple_layers, power):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", power)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", power])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match=str(power)):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
+@pytest.mark.parametrize("power", [0, 0.0, -1])
+def test_power_pump_with_wrong_power_value(simple_layers, power):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", power)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", power])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    with pytest.raises(wntrqgis.interface.PumpPowerError):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")

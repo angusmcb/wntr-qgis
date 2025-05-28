@@ -44,6 +44,7 @@ from wntrqgis.elements import (
     HeadlossFormula,
     ModelField,
     ModelLayer,
+    PumpTypes,
     ResultField,
     ResultLayer,
     ValveType,
@@ -739,6 +740,9 @@ class _Curves:
         HEADLOSS = "HEADLOSS"
 
     def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
+        if curve_string == "":
+            return None
+
         try:
             curve_points_input: list = ast.literal_eval(curve_string)
         except Exception:  # noqa: BLE001
@@ -1233,6 +1237,36 @@ class _FromGis:
                 gpvs = link_df["valve_type"].str.upper() == "GPV"
                 link_df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(link_df.loc[gpvs, "headloss_curve"])
 
+        if any(link_df["link_type"] == "Pump") and "pump_type" not in link_df.columns:
+            raise PumpTypeError
+
+        if "pump_type" in link_df.columns:
+            try:
+                link_df.loc[link_df["link_type"] == "Pump", "pump_type"] = link_df.loc[
+                    link_df["link_type"] == "Pump", "pump_type"
+                ].str.upper()
+                assert (  # noqa: S101
+                    link_df.loc[link_df["link_type"] == "Pump", "pump_type"].isin(PumpTypes._member_names_).all()
+                )
+            except (AssertionError, AttributeError):
+                raise PumpTypeError from None
+
+            if not link_df.loc[link_df["pump_type"] == PumpTypes.POWER.name].empty:
+                if "power" not in link_df:
+                    raise PumpPowerError
+                if link_df.loc[link_df["pump_type"] == PumpTypes.POWER.name, "power"].isna().any():
+                    raise PumpPowerError
+                if (link_df.loc[link_df["pump_type"] == PumpTypes.POWER.name, "power"] <= 0).any():
+                    raise PumpPowerError
+
+            if not link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name].empty:
+                if "pump_curve" not in link_df:
+                    raise PumpCurveMissingError
+                if link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve"].isna().any():
+                    raise PumpCurveMissingError
+                if (link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve"] == "").any():
+                    raise PumpCurveMissingError
+
         if "pump_curve" in link_df:
             link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
 
@@ -1392,4 +1426,35 @@ class UnitError(NetworkModelError, ValueError):
         super().__init__(
             tr("{exception} is not a known set of units. Possible units are: ").format(exception=exception)
             + ", ".join(FlowUnit._member_names_)
+        )
+
+
+class PumpError(NetworkModelError):
+    pass
+
+
+class PumpTypeError(PumpError):
+    def __init__(self):
+        super().__init__(
+            tr(
+                "Pump type ({pump_type}) must be set for all pumps and must be one of the following values: {possible_values}"
+            ).format(pump_type=ModelField.PUMP_TYPE.name.lower(), possible_values=", ".join(PumpTypes._member_names_))
+        )
+
+
+class PumpCurveMissingError(PumpError):
+    def __init__(self):
+        super().__init__(
+            tr("{pump_curve_name} ({pump_curve}) must be set for all pumps of type HEAD").format(
+                pump_curve_name=ModelField.PUMP_CURVE.friendly_name, pump_curve=ModelField.PUMP_CURVE.name.lower()
+            )
+        )
+
+
+class PumpPowerError(PumpError):
+    def __init__(self):
+        super().__init__(
+            tr("{pump_power_name} ({pump_power}) must be set for all pumps of type POWER").format(
+                pump_power_name=ModelField.POWER.friendly_name, pump_power=ModelField.POWER.name.lower()
+            )
         )
