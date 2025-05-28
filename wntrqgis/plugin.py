@@ -707,6 +707,6 @@ class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
 
     @pyqtSlot(QgsLayerTreeLayer)
     def remove_from_layer(self, layer):
-        with contextlib.suppress(RuntimeError | TypeError):  # if layer is already deleted
+        with contextlib.suppress(RuntimeError, TypeError):  # if layer is already deleted
             iface.layerTreeView().removeIndicator(layer, self)
             layer.destroyed.disconnect(self.search_new_layer)
