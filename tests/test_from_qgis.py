@@ -181,13 +181,14 @@ def test_no_nodes():
 def test_wntr_error():
     all_layers = {
         "JUNCTIONS": layer("point", [("name", str)]),
-        "PUMPS": layer("linestring", [("name", str), ("pump_type", str)]),
+        "PIPES": layer("linestring", [("name", str)]),
     }
+    name_with_spaces = "this name has spaces"
     add_point(all_layers["JUNCTIONS"], (1, 1), ["J1"])
     add_point(all_layers["JUNCTIONS"], (2, 2), ["J2"])
-    add_line(all_layers["PUMPS"], [(1, 1), (2, 2)], ["P1", "NOT_A_PUMP_TYPE"])
+    add_line(all_layers["PIPES"], [(1, 1), (2, 2)], [name_with_spaces])
 
-    with pytest.raises(wntrqgis.interface.WntrError, match="pump_parameter"):
+    with pytest.raises(wntrqgis.interface.WntrError, match="name must be"):
         wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
 
