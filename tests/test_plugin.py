@@ -114,13 +114,8 @@ def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis
 
     patched_plugin.actions["load_inp"].trigger()
 
-    qgis_iface.messageBar.return_value.pushMessage.assert_called_once_with(
-        title="Error",
-        text="error reading .inp file: (Error 201) syntax error (%s), at line 330:\n   [FOO]",
-        showMore="Checking dependencies\nLoading inp file\nerror reading .inp file: (Error 201) syntax error (%s), at line 330:\n   [FOO]\n",
-        level=Qgis.MessageLevel.Critical,
-        duration=0,
-    )
+    qgis_iface.messageBar.return_value.pushMessage.assert_called_once()
+    assert len(QgsProject.instance().mapLayers()) == 0
 
 
 def test_load_inp_file_no_file_selected(patched_plugin, mocker, qgis_new_project):

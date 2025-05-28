@@ -1437,7 +1437,7 @@ class PumpTypeError(PumpError):
     def __init__(self):
         super().__init__(
             tr(
-                "Pump type ({pump_type}) must be set for all pumps and must be one of the following values: {possible_values}"
+                "Pump type ({pump_type}) must be set for all pumps and must be one of the following values: {possible_values}"  # noqa: E501
             ).format(pump_type=ModelField.PUMP_TYPE.name.lower(), possible_values=", ".join(PumpTypes._member_names_))
         )
 
