@@ -13,7 +13,6 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsLayerTreeLayer,
     QgsLayerTreeNode,
-    QgsMessageLog,
     QgsProcessingAlgRunnerTask,
     QgsProcessingContext,
     QgsProcessingFeedback,
@@ -450,11 +449,13 @@ except ModuleNotFoundError:
             nonlocal algorithm
             if not successful:
                 iface.messageBar().pushMessage(
-                    tr("Error"), feedback.errors[0], level=Qgis.MessageLevel.Critical, duration=0
+                    tr("Error"), feedback.errors[0], feedback.textLog(), level=Qgis.MessageLevel.Critical, duration=0
                 )
 
-                QgsMessageLog.logMessage(
-                    "Task finished unsucessfully\n" + feedback.htmlLog(), MESSAGE_CATEGORY, Qgis.MessageLevel.Warning
+                QgsApplication.messageLog().logMessage(
+                    feedback.errors[0] + "\n" + feedback.textLog(),
+                    MESSAGE_CATEGORY,
+                    Qgis.MessageLevel.Critical,
                 )
                 iface.statusBarIface().clearMessage()
                 return
@@ -466,11 +467,14 @@ except ModuleNotFoundError:
             if on_finish:
                 on_finish()
             if success_message:
+                level = Qgis.MessageLevel.Warning if feedback.warnings else Qgis.MessageLevel.Success
+                title = tr("Analysed with Warnings") if feedback.warnings else tr("Success")
                 iface.messageBar().pushMessage(
-                    tr("Success"),
-                    success_message,
-                    level=Qgis.MessageLevel.Success,
-                    duration=5,
+                    title=title,
+                    text=success_message,
+                    showMore=feedback.textLog(),
+                    level=level,
+                    duration=0,
                 )
 
         task = QgsProcessingAlgRunnerTask(algorithm, parameters, context, feedback)
@@ -616,6 +620,7 @@ except ModuleNotFoundError:
 class WqProcessingFeedback(QgsProcessingFeedback):
     def __init__(self, logFeedback: bool = True):  # noqa
         self.errors: list[str] = []
+        self.warnings: list[str] = []
         super().__init__(logFeedback)
 
     def setProgressText(self, text: str | None):  # noqa N802
@@ -624,9 +629,16 @@ class WqProcessingFeedback(QgsProcessingFeedback):
         super().setProgressText(text)
 
     def reportError(self, error: str | None, fatalError: bool = False):  # noqa N802
-        if not error:
-            return
-        self.errors.append(error)
+        if error:
+            self.errors.append(error)
+
+        super().reportError(error, fatalError)
+
+    def pushWarning(self, warning: str | None):  # noqa N802
+        if warning:
+            self.warnings.append(warning)
+
+        super().pushWarning(warning)
 
 
 def import_wntr(task: QgsTask):  # noqa: ARG001
