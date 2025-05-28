@@ -108,7 +108,13 @@ def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
 
     assert len(QgsProject.instance().mapLayers()) == 6
 
-    assert qgis_iface.messageBar().get_messages(Qgis.MessageLevel.Success)[-1].startswith("Success:Loaded .inp file")
+    qgis_iface.messageBar.return_value.pushMessage.assert_called_with(
+        title="Success",
+        text="Loaded .inp file",
+        showMore=ANY,
+        level=Qgis.MessageLevel.Success,
+        duration=ANY,
+    )
 
 
 def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis_new_project):
