@@ -5,7 +5,7 @@ import types
 from typing import Any
 
 import pytest
-from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
 import wntrqgis
 
@@ -81,10 +81,10 @@ def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: l
 
 @pytest.fixture
 def simple_layers():
-    junction_layer = layer("point", [("name", str), ("base_demand", float)])
-    add_point(junction_layer, (1, 1), ["J1", 1])
-    tank_layer = layer("point", [("name", str)])
-    add_point(tank_layer, (4, 5), ["T1"])
+    junction_layer = layer("point", [("name", str), ("elevation", float), ("base_demand", float)])
+    add_point(junction_layer, (1, 1), ["J1", 0.0, 1])
+    tank_layer = layer("point", [("name", str), ("elevation", float)])
+    add_point(tank_layer, (4, 5), ["T1", 1.0])
     pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
@@ -92,15 +92,15 @@ def simple_layers():
 
 @pytest.fixture
 def all_layers():
-    junction_layer = layer("Point", [])
-    add_point(junction_layer, (1, 1))
-    add_point(junction_layer, (2, 2))
+    junction_layer = layer("Point", [("elevation", float)])
+    add_point(junction_layer, (1, 1), [0])
+    add_point(junction_layer, (2, 2), [1.0])
 
-    tank_layer = layer("Point", [])
-    add_point(tank_layer, (3, 3))
+    tank_layer = layer("Point", [("elevation", float)])
+    add_point(tank_layer, (3, 3), [0])
 
-    reservoir_layer = layer("Point", [])
-    add_point(reservoir_layer, (4, 4))
+    reservoir_layer = layer("Point", [("base_head", float)])
+    add_point(reservoir_layer, (4, 4), [5.0])
 
     pipe_layer = layer("LineString", [])
     add_line(pipe_layer, [(1, 1), (4, 4)])
@@ -178,18 +178,12 @@ def test_no_nodes():
         wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
 
-def test_wntr_error():
-    all_layers = {
-        "JUNCTIONS": layer("point", [("name", str)]),
-        "PIPES": layer("linestring", [("name", str)]),
-    }
+def test_wntr_error(simple_layers):
     name_with_spaces = "this name has spaces"
-    add_point(all_layers["JUNCTIONS"], (1, 1), ["J1"])
-    add_point(all_layers["JUNCTIONS"], (2, 2), ["J2"])
-    add_line(all_layers["PIPES"], [(1, 1), (2, 2)], [name_with_spaces])
+    add_line(simple_layers["PIPES"], [(1, 1), (4, 5)], [name_with_spaces, 100])
 
     with pytest.raises(wntrqgis.interface.WntrError, match="name must be"):
-        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.mark.skip("Can't find out how to make an infinite line")
@@ -307,19 +301,19 @@ def test_duplicate_names():
 
 
 def test_name_generation_with_conflicts():
-    junctions = layer("point", [("name", str)])
-    add_point(junctions, (1, 1), [""])
-    add_point(junctions, (2, 2), ["1"])
-    add_point(junctions, (3, 3), [""])
+    junctions = layer("point", [("name", str), ("elevation", float)])
+    add_point(junctions, (1, 1), ["", 1])
+    add_point(junctions, (2, 2), ["1", 1])
+    add_point(junctions, (3, 3), ["", 1])
 
-    tanks = layer("point", [("name", str)])
-    add_point(tanks, (5, 1), ["xx"])
-    add_point(tanks, (6, 2), ["0"])
-    add_point(tanks, (7, 3))
+    tanks = layer("point", [("name", str), ("elevation", float)])
+    add_point(tanks, (5, 1), ["xx", 1])
+    add_point(tanks, (6, 2), ["0", 1])
+    add_point(tanks, (7, 3), [None, 1])
 
-    reservoirs = layer("point")
-    add_point(reservoirs, (8, 1))
-    add_point(reservoirs, (9, 2))
+    reservoirs = layer("point", [("base_head", float)])
+    add_point(reservoirs, (8, 1), [1])
+    add_point(reservoirs, (9, 2), [1])
 
     pipes = layer("linestring", [("name", str)])
     add_line(pipes, [(1, 1), (2, 2)], ["1"])
@@ -373,10 +367,11 @@ def test_custom_attributes():
             ("custom_int", int),
             ("custom_float", float),
             ("custom_bool", bool),
+            ("elevation", float),
         ],
     )
-    add_point(junction_layer, (1, 1), ["J1", 1, "xx", 2, 2.5, True])
-    add_point(junction_layer, (2, 2), ["J2", 2, "yy", 1000000000, 7.2, False])
+    add_point(junction_layer, (1, 1), ["J1", 1, "xx", 2, 2.5, True, 1.0])
+    add_point(junction_layer, (2, 2), ["J2", 2, "yy", 1000000000, 7.2, False, 1.0])
 
     pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
     add_line(pipe_layer, [(1, 1), (2, 2)], ["P1", 100])
@@ -398,10 +393,10 @@ def test_custom_attributes():
 
 @pytest.fixture
 def layers_that_snap():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (0, 0), ["J1"])
-    tank_layer = layer("point", [("name", str)])
-    add_point(tank_layer, (3000, 4000), ["T1"])
+    junction_layer = layer("point", [("name", str), ("elevation", float)])
+    add_point(junction_layer, (0, 0), ["J1", 0.0])
+    tank_layer = layer("point", [("name", str), ("elevation", float)])
+    add_point(tank_layer, (3000, 4000), ["T1", 100.0])
     pipe_layer = layer("linestring", [("name", str)])
     add_line(pipe_layer, [(1, 1), (2800, 3800)], ["P1"])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
@@ -417,10 +412,10 @@ def test_snap_nodes(layers_that_snap):
 
 @pytest.fixture
 def mixed_crs_layers():
-    junction_layer = layer("point", [("name", str)], "EPSG:4326")
-    add_point(junction_layer, (-83, 38), ["J1"])
-    tank_layer = layer("point", [("name", str)], "EPSG:32616")
-    add_point(tank_layer, (844219, 4230929), ["T1"])
+    junction_layer = layer("point", [("name", str), ("elevation", float)], "EPSG:4326")
+    add_point(junction_layer, (-83, 38), ["J1", 0.0])
+    tank_layer = layer("point", [("name", str), ("elevation", float)], "EPSG:32616")
+    add_point(tank_layer, (844219, 4230929), ["T1", 100.0])
     pipe_layer = layer("linestring", [("name", str), ("roughness", float)], "EPSG:3089")
     add_line(pipe_layer, [(5713511, 3899366), (5691228, 3957214)], ["P1", 100])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
@@ -443,21 +438,6 @@ def test_snap_nodes_mixed_crs_with_crs_specified(mixed_crs_layers, crs):
 def test_snap_nodes_mixed_crs_length(mixed_crs_layers):
     wn = wntrqgis.from_qgis(mixed_crs_layers, "LPS", "H-W")
     assert wn.get_link("P1").length == pytest.approx(19569, 0.01)
-
-
-def test_snap_nodes_mixed_crs_simple():
-    junction_layer = layer("point", [("name", str)], "EPSG:4326")
-    add_point(junction_layer, (-83, 38), ["J1"])
-    tank_layer = layer("point", [("name", str)], "EPSG:4326")
-    add_point(tank_layer, (-84, 39), ["T1"])
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)], "EPSG:3857")
-    add_line(pipe_layer, [(-9239517, 4579425), (-9350837, 4721671)], ["P1", 100])
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
-    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
-
-    assert "P1" in wn.pipe_name_list
-    assert wn.get_link("P1").start_node_name == "J1"
-    assert wn.get_link("P1").end_node_name == "T1"
 
 
 def test_snap_length(layers_that_snap):
@@ -498,16 +478,13 @@ def test_measure_feet(simple_layers):
     assert wn.get_link("P1").length == pytest.approx(5.0 / 3.2808, 0.01)
 
 
-def test_prioritise_length_attribute(caplog):
-    junction_layer = layer("point", [("name", str), ("base_demand", float)])
-    add_point(junction_layer, (1, 1), ["J1", 1])
-    add_point(junction_layer, (4, 5), ["J2"])
+def test_prioritise_length_attribute(simple_layers, caplog):
     pipe_layer = layer("linestring", [("name", str), ("length", float)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P2", 100])
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+    simple_layers["PIPES"] = pipe_layer
 
-    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
     warn_message = (
         "1 pipe(s) have very different attribute length vs measured length. First five are: P2 (5 metres vs 100 metres)"
@@ -519,32 +496,32 @@ def test_prioritise_length_attribute(caplog):
 
 
 @pytest.mark.parametrize(
-    ("bool_attr", "expected_result", "field_type"),
+    ("bool_attr", "expected_result"),
     [
-        (1, True, int),
-        (0, False, int),
-        (True, True, bool),
-        (False, False, bool),
-        ("True", True, str),
-        ("False", False, str),
-        ("1", True, str),
-        ("0", False, str),
-        (1.0, True, float),
-        (0.0, False, float),
-        ("1.0", True, str),
-        ("0.0", False, str),
-        (NULL, False, float),
+        (1, True),
+        (0, False),
+        (True, True),
+        (False, False),
+        ("True", True),
+        ("False", False),
+        ("1", True),
+        ("0", False),
+        (1.0, True),
+        (0.0, False),
+        ("1.0", True),
+        ("0.0", False),
+        (None, False),
     ],
 )
-def test_boolean_attributes(bool_attr, expected_result, field_type):
+def test_boolean_attributes(bool_attr, expected_result):
     if bool_attr in ["True", "False"]:
         pytest.skip("String True/False Boolean attributes are not supported in WNTR yet")
 
-    junction_layer = layer("point", [("name", str), ("base_demand", float)])
+    junction_layer = layer("point", [("name", str), ("elevation", float)])
     add_point(junction_layer, (1, 1), ["J1", 1])
-    tank_layer = layer("point", [("name", str), ("overflow", field_type)])
-    add_point(tank_layer, (4, 5), ["T1", bool_attr])
-    pipe_layer = layer("linestring", [("name", str), ("check_valve", field_type)])
+    tank_layer = layer("point", [("name", str), ("elevation", float), ("overflow", bool_attr)])
+    add_point(tank_layer, (4, 5), ["T1", 1.0, bool_attr])
+    pipe_layer = layer("linestring", [("name", str), ("check_valve", bool_attr)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", bool_attr])
 
     layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
@@ -618,41 +595,33 @@ def expected_pattern():
 
 
 @pytest.fixture
-def demand_pattern_layers(pattern):
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", pattern)])
-    add_point(junction_layer, (1, 1), ["J1", 1, pattern])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
+def demand_pattern_layers(pattern, simple_layers):
+    junctions = layer(
+        "point", [("name", str), ("elevation", float), ("base_demand", float), ("demand_pattern", pattern)]
+    )
+    add_point(junctions, (1, 1), ["J1", 1, 1, pattern])
 
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
+    simple_layers["JUNCTIONS"] = junctions
 
-    return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-
-@pytest.fixture
-def head_pattern_layers(pattern):
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str), ("head_pattern", pattern)])
-    add_point(reservoir_layer, (4, 5), ["R1", pattern])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10])
-
-    return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+    return simple_layers
 
 
 @pytest.fixture
-def pump_energy_pattern_layers(pattern):
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
+def head_pattern_layers(pattern, simple_layers):
+    reservoir_layer = layer("point", [("name", str), ("base_head", float), ("head_pattern", pattern)])
+    add_point(reservoir_layer, (5, 5), ["R1", 1.0, pattern])
+    simple_layers["RESERVOIRS"] = reservoir_layer
+    return simple_layers
 
+
+@pytest.fixture
+def pump_energy_pattern_layers(pattern, simple_layers):
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("energy_pattern", pattern)])
     add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, pattern])
-    return {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+
+    simple_layers["PUMPS"] = pump_layer
+
+    return simple_layers
 
 
 def test_demand_pattern(demand_pattern_layers, expected_pattern):
@@ -677,32 +646,29 @@ def test_energy_pattern(pump_energy_pattern_layers, expected_pattern):
     assert list(wn.patterns["2"].multipliers) == expected_pattern
 
 
-def test_speed_pattern():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
+def test_speed_pattern(simple_layers):
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("speed_pattern", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "5 4 3 2 1 1"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10, "5 4 3 2 1 1"])
+    simple_layers["PUMPS"] = pump_layer
 
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
-    assert wn.get_link("P1").speed_pattern_name == "2"
+    assert wn.get_link("PUMP1").speed_pattern_name == "2"
     assert list(wn.patterns["2"].multipliers) == [5.0, 4.0, 3.0, 2.0, 1.0, 1.0]
 
 
 def test_lots_of_patterns():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("demand_pattern", str)])
-    add_point(junction_layer, (1, 1), ["J1", 1, "1 0 2.5"])
-    add_point(junction_layer, (2, 2), ["J2", 1, "1 0 2.5"])
-    add_point(junction_layer, (3, 3), ["J3", 1, "1 0 3.0"])
-    add_point(junction_layer, (3, 3), ["J4", 1, ""])
+    junction_layer = layer(
+        "point", [("name", str), ("elevation", float), ("base_demand", float), ("demand_pattern", str)]
+    )
+    add_point(junction_layer, (1, 1), ["J1", 1, 1, "1 0 2.5"])
+    add_point(junction_layer, (2, 2), ["J2", 1, 1, "1 0 2.5"])
+    add_point(junction_layer, (3, 3), ["J3", 1, 1, "1 0 3.0"])
+    add_point(junction_layer, (3, 3), ["J4", 1, 1, ""])
 
-    reservoir_layer = layer("point", [("name", str), ("head_pattern", str)])
-    add_point(reservoir_layer, (4, 5), ["R1", "2 0 200.5"])
-    add_point(reservoir_layer, (5, 6), ["R2"])
+    reservoir_layer = layer("point", [("name", str), ("base_head", float), ("head_pattern", str)])
+    add_point(reservoir_layer, (4, 5), ["R1", 1, "2 0 200.5"])
+    add_point(reservoir_layer, (5, 6), ["R2", 1])
 
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("speed_pattern", str)])
     add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "5 4 3 2 1 1"])
@@ -779,7 +745,7 @@ def test_pattern_list_values(pattern, demand_pattern_layers):
 
 @pytest.mark.parametrize("pattern", [[1, 0, -1, 100]])
 def test_two_list_pattern(pattern, demand_pattern_layers):
-    add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1, pattern])
+    add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1, 1, pattern])
 
     wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
@@ -789,7 +755,7 @@ def test_two_list_pattern(pattern, demand_pattern_layers):
 
 
 def test_pattern_plus_empty(demand_pattern_layers, expected_pattern):
-    add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1])
+    add_point(demand_pattern_layers["JUNCTIONS"], (1, 2), ["J2", 1, 1])
 
     wn = wntrqgis.from_qgis(demand_pattern_layers, "LPS", "H-W")
 
@@ -800,169 +766,123 @@ def test_pattern_plus_empty(demand_pattern_layers, expected_pattern):
     assert list(wn.patterns["2"].multipliers) == expected_pattern
 
 
-def test_head_curve_no_conversion():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "HEAD", "[(0.0, 200.5),(1.0,50)]"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "SI", "H-W")
-
-    assert wn.get_link("P1").pump_curve_name == "1"
-    assert wn.curves["1"].points == [(0.0, 200.5), (1.0, 50)]
+@pytest.fixture
+def curve_string():
+    return "[(0.0, 200.5),(20.0,50)]"
 
 
-def test_head_curve_conversion():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "HEAD", "[(0.0, 200.5),(1.0,50)]"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-
-    assert wn.get_link("P1").pump_curve_name == "1"
-    assert wn.curves["1"].points == [(0.0, 200.5), (0.001, 50)]
+@pytest.fixture
+def pump_head_curve_layers(simple_layers, curve_string):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", curve_string)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "HEAD", curve_string])
+    simple_layers["PUMPS"] = pump_layer
+    return simple_layers
 
 
-def test_head_curve_conversion_feet():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "HEAD", "[(0.0, 10),(1.0,100.0)]"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "CFS", "H-W")
-
-    assert wn.get_link("P1").pump_curve_name == "1"
-    assert wn.curves["1"].points == [(0.0, 3.048), (0.0283168466, 30.48)]
+@pytest.fixture
+def tank_vol_curve_layers(simple_layers, curve_string):
+    tank_layer = layer(
+        "point", [("name", str), ("elevation", float), ("max_level", float), ("vol_curve", curve_string)]
+    )
+    add_point(tank_layer, (4, 5), ["T1", 1, 20, curve_string])
+    simple_layers["TANKS"] = tank_layer
+    return simple_layers
 
 
-def test_curve_error():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "HEAD", "[(0.0, 200.5),(1.0,x)]"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    with pytest.raises(wntrqgis.interface.CurveError, match="problem reading pump head curve"):
-        wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
+@pytest.fixture
+def valve_headloss_curve_layers(simple_layers, curve_string):
+    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("headloss_curve", curve_string)])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "GPV", curve_string])
+    simple_layers["VALVES"] = valve_layer
+    return simple_layers
 
 
-def test_curve_error2():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("pump_curve", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "HEAD", "assert False"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
-
-    with pytest.raises(wntrqgis.interface.CurveError, match="problem reading pump head curve"):
-        wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-
-
-def test_curve_empty_string():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    tank_layer = layer("point", [("name", str), ("vol_curve", str)])
-    add_point(tank_layer, (4, 5), ["T1", ""])
-
-    pipe_layer = layer("linestring", [("name", str)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
-
-    pattern_layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-    assert wn.nodes["T1"].vol_curve_name is None
-
-
-def test_vol_curve():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    tank_layer = layer("point", [("name", str), ("vol_curve", str)])
-    add_point(tank_layer, (4, 5), ["T1", "[(0,0),(10,100)]"])
-
-    pipe_layer = layer("linestring", [("name", str)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
-
-    pattern_layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
-
-    wn = wntrqgis.from_qgis(pattern_layers, "LPS", "H-W")
-
-    assert wn.nodes["T1"].vol_curve_name == "1"
-    assert wn.curves["1"].points == [(0.0, 0.0), (10.0, 100.0)]
-
-
-def test_valve_headloss_curve():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("headloss_curve", str)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "GPV", "[(0.0, 200.5),(1.0,50)]"])
-    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer, "RESERVOIRS": reservoir_layer}
-
-    wn = wntrqgis.from_qgis(layers, "CFS", "H-W")
-
-    assert wn.get_link("V1").headloss_curve_name == "1"
-    assert wn.curves["1"].points == [(0.0, 61.1124), (0.0283168466, 15.24)]
-
-
-def test_headloss_curve_error():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("headloss_curve", str)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "GPV", "[(0.0, 200.5),xx 0,50)]"])
-    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer, "RESERVOIRS": reservoir_layer}
-
-    with pytest.raises(wntrqgis.interface.CurveError, match="problem reading general purpose valve headloss curve"):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+@pytest.fixture
+def pump_efficiency_curve_layers(simple_layers, curve_string):
+    pump_layer = layer(
+        "linestring", [("name", str), ("pump_type", str), ("power", float), ("efficiency", curve_string)]
+    )
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10, curve_string])
+    simple_layers["PUMPS"] = pump_layer
+    return simple_layers
 
 
 @pytest.mark.parametrize(
     "curve_string",
     [
-        "[(0.0,100),(10.0,1000),(20,10000.0)]",
-        "(0.0,100),(10.0,1000),(20,10000.0)",
-        "[0.0,100],('10.0','1000'),('20','10000.0')",
+        "[(0.0, 200.5),(20.0,50)]",
+        "(0.0, 200.5),(20.0,50)",
+        "[[0.0, 200.5],[20.0,50]]",
+        "(0.0, 200.5),[20.0,50]",
+        "(0.0, 200.5)    ,(20.0,50)  ",
+        "(0., 200.5),(20.0,50)",
+        "('0.0', 200.5), (20.0,50)",
     ],
 )
-def test_volume_curve(curve_string):
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    tank_layer = layer("point", [("name", str), ("max_level", float), ("vol_curve", str)])
-    add_point(tank_layer, (4, 5), ["T1", 20, "[(0.0,100),(10.0,1000),(20,10000.0)]"])
-    pipe_layer = layer("linestring", [("name", str)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
-    layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
+class TestCurveNoConversion:
+    def test_head_curve(self, pump_head_curve_layers):
+        wn = wntrqgis.from_qgis(pump_head_curve_layers, "SI", "H-W")
 
-    wn = wntrqgis.from_qgis(layers, "CFS", "H-W")
+        assert wn.get_link("PUMP1").pump_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50)]
 
-    assert wn.get_node("T1").vol_curve_name == "1"
-    assert wn.curves["1"].points == [
-        (0.0, 2.8316846592000005),
-        (3.048, 28.316846592000005),
-        (6.096, 283.16846592),
-    ]
+    def test_volume_curve(self, tank_vol_curve_layers):
+        wn = wntrqgis.from_qgis(tank_vol_curve_layers, "SI", "H-W")
+
+        assert wn.get_node("T1").vol_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50)]
+
+    def test_valve_headloss_curve(self, valve_headloss_curve_layers):
+        wn = wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
+
+        assert wn.get_link("V1").headloss_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50)]
+
+    @pytest.mark.skip("Efficiency curve bug in wntr")
+    def test_pump_efficiency_curve(self, pump_efficiency_curve_layers):
+        wn = wntrqgis.from_qgis(pump_efficiency_curve_layers, "SI", "H-W")
+
+        assert wn.get_link("PUMP1").efficiencey.multipliers == "1"
+
+
+class TestCurveMetricConversion:
+    def test_head_curve(self, pump_head_curve_layers):
+        wn = wntrqgis.from_qgis(pump_head_curve_layers, "LPS", "H-W")
+
+        assert wn.get_link("PUMP1").pump_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 200.5), (0.02, 50)]
+
+    def test_volume_curve(self, tank_vol_curve_layers):
+        wn = wntrqgis.from_qgis(tank_vol_curve_layers, "LPS", "H-W")
+
+        assert wn.get_node("T1").vol_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50.0)]
+
+    def test_valve_headloss_curve(self, valve_headloss_curve_layers):
+        wn = wntrqgis.from_qgis(valve_headloss_curve_layers, "LPS", "H-W")
+
+        assert wn.get_link("V1").headloss_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 200.5), (0.02, 50.0)]
+
+
+class TestCurveImperialConversion:
+    def test_head_curve(self, pump_head_curve_layers):
+        wn = wntrqgis.from_qgis(pump_head_curve_layers, "GPM", "H-W")
+
+        assert wn.get_link("PUMP1").pump_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 61.1124), (0.0012618039280000001, 15.24)]
+
+    def test_volume_curve(self, tank_vol_curve_layers):
+        wn = wntrqgis.from_qgis(tank_vol_curve_layers, "GPM", "H-W")
+
+        assert wn.get_node("T1").vol_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 5.677527741696001), (6.096, 1.4158423296000002)]
+
+    def test_valve_headloss_curve(self, valve_headloss_curve_layers):
+        wn = wntrqgis.from_qgis(valve_headloss_curve_layers, "GPM", "H-W")
+
+        assert wn.get_link("V1").headloss_curve_name == "1"
+        assert wn.curves["1"].points == [(0.0, 61.1124), (0.0012618039280000001, 15.24)]
 
 
 @pytest.mark.parametrize(
@@ -978,6 +898,7 @@ def test_volume_curve(curve_string):
         "(1,2) (20, 2)",
         "assert False",
         "dict()",
+        "list()",
         1,
         1.0,
         0.0,
@@ -985,33 +906,34 @@ def test_volume_curve(curve_string):
         False,
     ],
 )
-def test_volume_curve_error(curve_string):
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    tank_layer = layer("point", [("name", str), ("max_level", float), ("vol_curve", type(curve_string))])
-    add_point(tank_layer, (4, 5), ["T1", 20, curve_string])
-    pipe_layer = layer("linestring", [("name", str)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
-    layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
+class TestCurveError:
+    def test_tank_volume(self, tank_vol_curve_layers, curve_string):
+        with pytest.raises(wntrqgis.interface.CurveError, match=re.escape(str(curve_string))):
+            wntrqgis.from_qgis(tank_vol_curve_layers, "LPS", "H-W")
 
-    with pytest.raises(wntrqgis.interface.CurveError, match=re.escape(str(curve_string))):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+    def test_pump_head(self, pump_head_curve_layers, curve_string):
+        with pytest.raises(wntrqgis.interface.CurveError, match=re.escape(str(curve_string))):
+            wntrqgis.from_qgis(pump_head_curve_layers, "LPS", "H-W")
+
+    def test_valve_headloss_curve(self, valve_headloss_curve_layers, curve_string):
+        with pytest.raises(wntrqgis.interface.CurveError, match=re.escape(str(curve_string))):
+            wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
 
 
-@pytest.mark.skip("Efficiency curve bug in wntr")
-def test_efficiency_curve():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
+@pytest.mark.parametrize("curve_string", [None, "", "  "])
+class TestCurveEmpty:
+    def test_tank_volume(self, tank_vol_curve_layers):
+        wn = wntrqgis.from_qgis(tank_vol_curve_layers, "LPS", "H-W")
 
-    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("efficiency", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, "[(1.0, 2.0)]"])
-    pattern_layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+        assert wn.nodes["T1"].vol_curve_name is None
 
-    wn = wntrqgis.from_qgis(pattern_layers, "CFS", "H-W")
+    def test_pump_head(self, pump_head_curve_layers):
+        with pytest.raises(wntrqgis.interface.PumpCurveMissingError):
+            wntrqgis.from_qgis(pump_head_curve_layers, "SI", "H-W")
 
-    assert wn.get_link("P1").efficiencey.multipliers == "1"
+    def test_valve_headloss_curve(self, valve_headloss_curve_layers):
+        with pytest.raises(wntrqgis.interface.GpvMissingCurveError):
+            wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
 
 
 def test_null_geometry_point():
@@ -1045,54 +967,41 @@ def test_null_geometry_link():
 
 @pytest.mark.parametrize(
     ("initial_status", "expected_status"),
-    [("OPEN", "Opened"), ("Open", "Opened"), ("CLOSED", "Closed"), ("Closed", "Closed"), (None, "Opened")],
+    [("OPEN", "Open"), ("Open", "Open"), ("CLOSED", "Closed"), ("Closed", "Closed"), (None, "Open")],
 )
-def test_initial_status_pump(initial_status, expected_status):
-    import wntr
-
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    reservoir_layer = layer("point", [("name", str)])
-    add_point(reservoir_layer, (4, 5), ["R1"])
-
+def test_initial_status_pump(simple_layers, initial_status, expected_status):
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("initial_status", str)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, initial_status])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10, initial_status])
+    simple_layers["PUMPS"] = pump_layer
 
-    layers = {"JUNCTIONS": junction_layer, "PUMPS": pump_layer, "RESERVOIRS": reservoir_layer}
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
-    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
-    assert wn.get_link("P1").initial_status == wntr.network.base.LinkStatus[expected_status]
+    assert wn.get_link("PUMP1").initial_status.name == expected_status
 
 
 @pytest.mark.parametrize(
-    ("initial_status", "expected_status"), [("OPEN", "Opened"), ("CLOSED", "Closed"), (None, "Opened")]
+    ("initial_status", "expected_status"), [("OPEN", "Open"), ("CLOSED", "Closed"), (None, "Open")]
 )
-def test_initial_status_pipe(initial_status, expected_status):
-    import wntr
-
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (4, 5), ["J2"])
-
+def test_initial_status_pipe(simple_layers, initial_status, expected_status):
     pipe_layer = layer("linestring", [("name", str), ("initial_status", str)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", initial_status])
+    simple_layers["PIPES"] = pipe_layer
 
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
-    wn = wntrqgis.from_qgis(layers, "LPS", "H-W")
-    assert wn.get_link("P1").initial_status == wntr.network.base.LinkStatus[expected_status]
+    assert wn.get_link("P1").initial_status.name == expected_status
 
 
 @pytest.mark.parametrize(
     ("initial_status", "expected_status"),
-    [("OPEN", "Opened"), ("CLOSED", "Closed"), ("ACTIVE", "Active"), (None, "Active")],
+    [("OPEN", "Open"), ("CLOSED", "Closed"), ("ACTIVE", "Active"), (None, "Active")],
 )
 def test_initial_status_valve(initial_status, expected_status):
     import wntr
 
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (4, 5), ["J2"])
+    junction_layer = layer("point", [("name", str), ("elevation", float)])
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    add_point(junction_layer, (4, 5), ["J2", 1])
 
     valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", str)])
     add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
@@ -1103,35 +1012,25 @@ def test_initial_status_valve(initial_status, expected_status):
     assert wn.get_link("V1").initial_status == wntr.network.base.LinkStatus[expected_status]
 
 
-def test_inital_status_string_error():
+def test_inital_status_string_error(simple_layers):
     initial_status = "NOT_A_STATUS"
-
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (4, 5), ["J2"])
 
     valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", initial_status)])
     add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
-
-    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
+    simple_layers["VALVES"] = valve_layer
 
     with pytest.raises(wntrqgis.interface.WntrError, match=initial_status):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("initial_status", [1.0, True, False])
-def test_inital_status_type_error(initial_status):
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (4, 5), ["J2"])
-
+def test_inital_status_type_error(simple_layers, initial_status):
     valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", initial_status)])
     add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
-
-    layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
+    simple_layers["VALVES"] = valve_layer
 
     with pytest.raises(wntrqgis.interface.WntrError, match="initial_status"):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.fixture
@@ -1146,9 +1045,9 @@ def initial_setting():
 
 @pytest.fixture
 def valve_layers(valve_type, initial_setting):
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (4, 5), ["J2"])
+    junction_layer = layer("point", [("name", str), ("elevation", float)])
+    add_point(junction_layer, (1, 1), ["J1", 100])
+    add_point(junction_layer, (4, 5), ["J2", 0])
 
     valve_layer = layer(
         "linestring",
@@ -1201,13 +1100,13 @@ def test_pressure_valve_initial_setting_conversion_valves_bad_values(valve_layer
 
 @pytest.mark.parametrize("valve_type", [None])
 def test_valve_type_not_specified(valve_layers):
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
+    with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
         wntrqgis.from_qgis(valve_layers, "SI", "H-W")
 
 
 @pytest.mark.parametrize("valve_type", ["not_a_valve_type"])
 def test_valve_type_wrong_type(valve_layers):
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
+    with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
         wntrqgis.from_qgis(valve_layers, "SI", "H-W")
 
 

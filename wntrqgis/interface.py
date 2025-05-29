@@ -740,7 +740,7 @@ class _Curves:
         HEADLOSS = "HEADLOSS"
 
     def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
-        if curve_string == "":
+        if isinstance(curve_string, str) and curve_string.strip() == "":
             return None
 
         try:
@@ -988,8 +988,6 @@ class _FromGis:
         node_df = self._convert_dataframe(node_df, ModelLayer.TANKS)  # hack as I know tanks is needed for diameter
         link_df = self._convert_dataframe(link_df)
 
-        node_df = self._add_minimum_node_cols(node_df)
-
         node_df = self._process_node_geometry(node_df)
         link_df = self._process_link_geometry(link_df)
 
@@ -1206,8 +1204,7 @@ class _FromGis:
 
     def _do_link_patterns_curves(self, link_df: pd.DataFrame) -> pd.DataFrame:
         if any(link_df["link_type"] == "Valve") and "valve_type" not in link_df.columns:
-            msg = tr("{valve_type} must be set for all valves").format(valve_type="valve_type")
-            raise NetworkModelError(msg)
+            raise ValveTypeError from None
 
         if "valve_type" in link_df.columns:
             try:
@@ -1218,10 +1215,7 @@ class _FromGis:
                     .all()
                 )
             except (AssertionError, AttributeError):
-                msg = tr("{valve_type} must be one of the following values: ").format(
-                    valve_type="valve_type"
-                ) + " ".join(ValveType._member_names_)
-                raise NetworkModelError(msg) from None
+                raise ValveTypeError from None
 
             if "initial_setting" in link_df:
                 pressure_valves = link_df["valve_type"].str.upper().isin(["PRV", "PSV", "PBV"])
@@ -1233,9 +1227,15 @@ class _FromGis:
                 link_df.loc[fcvs, "initial_setting"] = link_df.loc[fcvs, "initial_setting"].apply(
                     self._converter.to_si, field=wntr.epanet.HydParam.Flow
                 )
-            if "headloss_curve" in link_df:
-                gpvs = link_df["valve_type"].str.upper() == "GPV"
+            gpvs = link_df["valve_type"].str.upper() == "GPV"
+            if gpvs.any():
+                if "headloss_curve" not in link_df.columns:
+                    raise GpvMissingCurveError
+
                 link_df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(link_df.loc[gpvs, "headloss_curve"])
+
+                if (link_df.loc[gpvs, "headloss_curve_name"].isna()).any():
+                    raise GpvMissingCurveError
 
         if any(link_df["link_type"] == "Pump") and "pump_type" not in link_df.columns:
             raise PumpTypeError
@@ -1264,11 +1264,11 @@ class _FromGis:
                     raise PumpCurveMissingError
                 if link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve"].isna().any():
                     raise PumpCurveMissingError
-                if (link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve"] == "").any():
-                    raise PumpCurveMissingError
 
-        if "pump_curve" in link_df:
-            link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
+                link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
+
+                if (link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve_name"].isna()).any():
+                    raise PumpCurveMissingError
 
         if "speed_pattern" in link_df:
             link_df["speed_pattern_name"] = self.patterns.add_all(
@@ -1284,17 +1284,6 @@ class _FromGis:
             columns=["headloss_curve", "pump_curve", "speed_pattern"],
             errors="ignore",
         )
-
-    def _add_minimum_node_cols(self, node_df: pd.DataFrame) -> pd.DataFrame:
-        if "elevation" not in node_df:
-            node_df["elevation"] = 0.0
-        node_df["elevation"] = node_df["elevation"].fillna(0.0)
-
-        if "base_head" not in node_df:
-            node_df["base_head"] = 0.0
-        node_df["base_head"] = node_df["base_head"].fillna(0.0)
-
-        return node_df
 
     def _check_for_duplicate_names(self, df: pd.DataFrame) -> None:
         """Check for duplicate 'name' entries in the dataframe.
@@ -1426,6 +1415,29 @@ class UnitError(NetworkModelError, ValueError):
         super().__init__(
             tr("{exception} is not a known set of units. Possible units are: ").format(exception=exception)
             + ", ".join(FlowUnit._member_names_)
+        )
+
+
+class ValveError(NetworkModelError):
+    pass
+
+
+class ValveTypeError(ValveError):
+    def __init__(self):
+        super().__init__(
+            tr(
+                "Valve type ({valve_type}) must be set for all valves and must be one of the following values: {possible_values}"  # noqa: E501
+            ).format(valve_type=ModelField.VALVE_TYPE.name.lower(), possible_values=", ".join(ValveType._member_names_))
+        )
+
+
+class GpvMissingCurveError(ValveError):
+    def __init__(self):
+        super().__init__(
+            tr("{headloss_curve_name} ({headloss_curve}) must be set for all valves of type GPV").format(
+                headloss_curve_name=ModelField.HEADLOSS_CURVE.friendly_name,
+                headloss_curve=ModelField.HEADLOSS_CURVE.name.lower(),
+            )
         )
 
 
