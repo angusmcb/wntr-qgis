@@ -199,6 +199,23 @@ class ModelLayer(_AbstractLayer):
     VALVES = "VALVES"
 
     @property
+    def field_type(self):
+        if self is ModelLayer.JUNCTIONS:
+            return "Junction"
+        if self is ModelLayer.RESERVOIRS:
+            return "Reservoir"
+        if self is ModelLayer.TANKS:
+            return "Tank"
+        if self is ModelLayer.PIPES:
+            return "Pipe"
+        if self is ModelLayer.PUMPS:
+            return "Pump"
+        if self is ModelLayer.VALVES:
+            return "Valve"
+        msg = "Unknown model layer type"
+        raise ValueError(msg)
+
+    @property
     def friendly_name(self):
         if self is ModelLayer.JUNCTIONS:
             return tr("Junctions")
@@ -362,7 +379,7 @@ class ModelField(_AbstractField):
     """All recognised fields that could be in a model layer"""
 
     NAME = "name", str, FieldGroup.BASE
-    ELEVATION = "elevation", float, FieldGroup.BASE
+    ELEVATION = "elevation", float, FieldGroup.BASE | FieldGroup.REQUIRED
     BASE_DEMAND = "base_demand", float, FieldGroup.BASE
     DEMAND_PATTERN = "demand_pattern", PatternType, FieldGroup.BASE
     EMITTER_COEFFICIENT = "emitter_coefficient", float, FieldGroup.BASE
@@ -374,7 +391,7 @@ class ModelField(_AbstractField):
     MIN_VOL = "min_vol", float, FieldGroup.BASE
     VOL_CURVE = "vol_curve", CurveType, FieldGroup.BASE
     OVERFLOW = "overflow", bool, FieldGroup.BASE
-    BASE_HEAD = "base_head", float, FieldGroup.BASE
+    BASE_HEAD = "base_head", float, FieldGroup.BASE | FieldGroup.REQUIRED
     HEAD_PATTERN = "head_pattern", PatternType, FieldGroup.BASE
     LENGTH = "length", float, FieldGroup.BASE
     ROUGHNESS = "roughness", float, FieldGroup.BASE | FieldGroup.REQUIRED

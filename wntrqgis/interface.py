@@ -1171,6 +1171,17 @@ class _FromGis:
         return length
 
     def _do_node_patterns_curves(self, node_df: pd.DataFrame) -> pd.DataFrame:
+        for layer in [ModelLayer.JUNCTIONS, ModelLayer.TANKS, ModelLayer.RESERVOIRS]:
+            layer_items = node_df["node_type"] == layer.field_type
+            if layer_items.any():
+                for field in layer.wq_fields():
+                    if not field.field_group & FieldGroup.REQUIRED:
+                        continue
+                    if field.value not in node_df:
+                        raise RequiredFieldError(layer, field)
+                    if node_df.loc[layer_items, field.value].isna().any():
+                        raise RequiredFieldError(layer, field)
+
         node_df["demand_pattern_name"] = self.patterns.add_all(
             node_df.get("demand_pattern"), ModelLayer.JUNCTIONS, ModelField.DEMAND_PATTERN
         )
@@ -1203,16 +1214,15 @@ class _FromGis:
         )
 
     def _do_link_patterns_curves(self, link_df: pd.DataFrame) -> pd.DataFrame:
-        if any(link_df["link_type"] == "Valve") and "valve_type" not in link_df.columns:
+        valves = link_df["link_type"] == "Valve"
+
+        if valves.any() and "valve_type" not in link_df.columns:
             raise ValveTypeError from None
 
-        if "valve_type" in link_df.columns:
+        if valves.any():
             try:
                 assert (  # noqa: S101
-                    link_df.loc[link_df["link_type"] == "Valve", "valve_type"]
-                    .str.upper()
-                    .isin(ValveType._member_names_)
-                    .all()
+                    link_df.loc[valves, "valve_type"].str.upper().isin(ValveType._member_names_).all()
                 )
             except (AssertionError, AttributeError):
                 raise ValveTypeError from None
@@ -1229,7 +1239,7 @@ class _FromGis:
                 )
             gpvs = link_df["valve_type"].str.upper() == "GPV"
             if gpvs.any():
-                if "headloss_curve" not in link_df.columns:
+                if "headloss_curve" not in link_df:
                     raise GpvMissingCurveError
 
                 link_df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(link_df.loc[gpvs, "headloss_curve"])
@@ -1279,6 +1289,17 @@ class _FromGis:
             link_df["energy_pattern"] = self.patterns.add_all(
                 link_df.get("energy_pattern"), ModelLayer.PUMPS, ModelField.ENERGY_PATTERN
             )
+
+        for layer in [ModelLayer.PIPES, ModelLayer.VALVES, ModelLayer.PUMPS]:
+            layer_items = link_df["link_type"] == layer.field_type
+            if layer_items.any():
+                for field in layer.wq_fields():
+                    if not field.field_group & FieldGroup.REQUIRED:
+                        continue
+                    if field.value not in link_df:
+                        raise RequiredFieldError(layer, field)
+                    if link_df.loc[layer_items, field.value].isna().any():
+                        raise RequiredFieldError(layer, field)
 
         return link_df.drop(
             columns=["headloss_curve", "pump_curve", "speed_pattern"],
@@ -1418,11 +1439,15 @@ class UnitError(NetworkModelError, ValueError):
         )
 
 
+class GenericRequiredFieldError(NetworkModelError):
+    pass
+
+
 class ValveError(NetworkModelError):
     pass
 
 
-class ValveTypeError(ValveError):
+class ValveTypeError(ValveError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr(
@@ -1431,7 +1456,7 @@ class ValveTypeError(ValveError):
         )
 
 
-class GpvMissingCurveError(ValveError):
+class GpvMissingCurveError(ValveError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr("{headloss_curve_name} ({headloss_curve}) must be set for all valves of type GPV").format(
@@ -1441,11 +1466,22 @@ class GpvMissingCurveError(ValveError):
         )
 
 
+class RequiredFieldError(GenericRequiredFieldError):
+    """Raised when a required parameter is missing from the model."""
+
+    def __init__(self, layer: ModelLayer, field: ModelField):
+        super().__init__(
+            tr("In {layer_type}, all elements must have {field_name} '{field_id}'").format(
+                layer_type=layer.friendly_name, field_name=field.friendly_name, field_id=field.name.lower()
+            )
+        )
+
+
 class PumpError(NetworkModelError):
     pass
 
 
-class PumpTypeError(PumpError):
+class PumpTypeError(PumpError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr(
@@ -1454,7 +1490,7 @@ class PumpTypeError(PumpError):
         )
 
 
-class PumpCurveMissingError(PumpError):
+class PumpCurveMissingError(PumpError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr("{pump_curve_name} ({pump_curve}) must be set for all pumps of type HEAD").format(
@@ -1463,7 +1499,7 @@ class PumpCurveMissingError(PumpError):
         )
 
 
-class PumpPowerError(PumpError):
+class PumpPowerError(PumpError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr("{pump_power_name} ({pump_power}) must be set for all pumps of type POWER").format(

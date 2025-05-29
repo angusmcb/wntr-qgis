@@ -80,36 +80,51 @@ def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: l
 
 
 @pytest.fixture
-def simple_layers():
+def simple_layers() -> dict[str, QgsVectorLayer]:
     junction_layer = layer("point", [("name", str), ("elevation", float), ("base_demand", float)])
     add_point(junction_layer, (1, 1), ["J1", 0.0, 1])
-    tank_layer = layer("point", [("name", str), ("elevation", float)])
-    add_point(tank_layer, (4, 5), ["T1", 1.0])
+    tank_layer = layer(
+        "point",
+        [
+            ("name", str),
+            ("elevation", float),
+            ("min_level", float),
+            ("max_level", float),
+            ("init_level", float),
+            ("diameter", float),
+        ],
+    )
+    add_point(tank_layer, (4, 5), ["T1", 1.0, 0, 1, 0.1, 5.0])
     pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
 @pytest.fixture
-def all_layers():
+def all_layers() -> dict[str, QgsVectorLayer]:
     junction_layer = layer("Point", [("elevation", float)])
     add_point(junction_layer, (1, 1), [0])
     add_point(junction_layer, (2, 2), [1.0])
 
-    tank_layer = layer("Point", [("elevation", float)])
-    add_point(tank_layer, (3, 3), [0])
+    tank_layer = layer(
+        "point",
+        [("elevation", float), ("min_level", float), ("max_level", float), ("init_level", float), ("diameter", float)],
+    )
+    add_point(tank_layer, (3, 3), [0, 0, 1, 0.5, 5.0])
 
     reservoir_layer = layer("Point", [("base_head", float)])
     add_point(reservoir_layer, (4, 4), [5.0])
 
-    pipe_layer = layer("LineString", [])
-    add_line(pipe_layer, [(1, 1), (4, 4)])
+    pipe_layer = layer("LineString", [("diameter", float), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (4, 4)], [0.1, 100])
 
-    pump_layer = layer("LineString", [("pump_type", str), ("power", float)])
+    pump_layer = layer("LineString", [("pump_type", str), ("power", float), ("pump_curve", str)])
     add_line(pump_layer, [(2, 2), (3, 3)], ["power", 10])
+    add_line(pump_layer, [(2, 2), (3, 3)], ["head", None, "(0,0), (1, 1)"])
 
-    valve_layer = layer("LineString", [("valve_type", str)])
-    add_line(valve_layer, [(1, 1), (2, 2)], ["PRV"])
+    valve_layer = layer("LineString", [("diameter", float), ("valve_type", str), ("headloss_curve", str)])
+    add_line(valve_layer, [(1, 1), (2, 2)], [1, "PRV"])
+    add_line(valve_layer, [(2, 2), (3, 3)], [1, "GPV", "[(0,0), (1, 1)]"])
 
     return {
         "JUNCTIONS": junction_layer,
@@ -149,7 +164,37 @@ def test_minimum_attributes(all_layers):
     assert "3" in wn.reservoir_name_list
     assert "1" in wn.pipe_name_list
     assert "2" in wn.pump_name_list
-    assert "3" in wn.valve_name_list
+    assert "3" in wn.pump_name_list
+    assert "4" in wn.valve_name_list
+    assert "5" in wn.valve_name_list
+
+
+@pytest.mark.parametrize(
+    ("layer_name", "field"),
+    [
+        ("JUNCTIONS", "elevation"),
+        ("TANKS", "elevation"),
+        ("TANKS", "min_level"),
+        ("TANKS", "max_level"),
+        ("TANKS", "init_level"),
+        ("TANKS", "diameter"),
+        ("RESERVOIRS", "base_head"),
+        ("PIPES", "diameter"),
+        ("PIPES", "roughness"),
+        ("PUMPS", "pump_type"),
+        ("PUMPS", "power"),
+        ("PUMPS", "pump_curve"),
+        ("VALVES", "valve_type"),
+        ("VALVES", "headloss_curve"),
+        ("VALVES", "diameter"),
+    ],
+)
+def test_check_all_minimum_attributes_required(all_layers, layer_name, field):
+    all_layers[layer_name].dataProvider().deleteAttributes([all_layers[layer_name].fields().indexFromName(field)])
+    all_layers[layer_name].updateFields()
+
+    with pytest.raises(wntrqgis.interface.GenericRequiredFieldError):
+        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
 
 
 def test_no_pipes(all_layers):
@@ -395,11 +440,10 @@ def test_custom_attributes():
 def layers_that_snap():
     junction_layer = layer("point", [("name", str), ("elevation", float)])
     add_point(junction_layer, (0, 0), ["J1", 0.0])
-    tank_layer = layer("point", [("name", str), ("elevation", float)])
-    add_point(tank_layer, (3000, 4000), ["T1", 100.0])
+    add_point(junction_layer, (3000, 4000), ["J2", 100.0])
     pipe_layer = layer("linestring", [("name", str)])
     add_line(pipe_layer, [(1, 1), (2800, 3800)], ["P1"])
-    return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+    return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
 
 def test_snap_nodes(layers_that_snap):
@@ -407,15 +451,26 @@ def test_snap_nodes(layers_that_snap):
 
     assert "P1" in wn.pipe_name_list
     assert wn.get_link("P1").start_node_name == "J1"
-    assert wn.get_link("P1").end_node_name == "T1"
+    assert wn.get_link("P1").end_node_name == "J2"
 
 
 @pytest.fixture
 def mixed_crs_layers():
     junction_layer = layer("point", [("name", str), ("elevation", float)], "EPSG:4326")
     add_point(junction_layer, (-83, 38), ["J1", 0.0])
-    tank_layer = layer("point", [("name", str), ("elevation", float)], "EPSG:32616")
-    add_point(tank_layer, (844219, 4230929), ["T1", 100.0])
+    tank_layer = layer(
+        "point",
+        [
+            ("name", str),
+            ("elevation", float),
+            ("min_level", float),
+            ("max_level", float),
+            ("init_level", float),
+            ("diameter", float),
+        ],
+        "EPSG:32616",
+    )
+    add_point(tank_layer, (844219, 4230929), ["T1", 100.0, 0, 1, 0.5, 1.0])
     pipe_layer = layer("linestring", [("name", str), ("roughness", float)], "EPSG:3089")
     add_line(pipe_layer, [(5713511, 3899366), (5691228, 3957214)], ["P1", 100])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
@@ -519,8 +574,19 @@ def test_boolean_attributes(bool_attr, expected_result):
 
     junction_layer = layer("point", [("name", str), ("elevation", float)])
     add_point(junction_layer, (1, 1), ["J1", 1])
-    tank_layer = layer("point", [("name", str), ("elevation", float), ("overflow", bool_attr)])
-    add_point(tank_layer, (4, 5), ["T1", 1.0, bool_attr])
+    tank_layer = layer(
+        "point",
+        [
+            ("name", str),
+            ("elevation", float),
+            ("min_level", float),
+            ("max_level", float),
+            ("init_level", float),
+            ("diameter", float),
+            ("overflow", bool_attr),
+        ],
+    )
+    add_point(tank_layer, (4, 5), ["T1", 1.0, 0, 1, 0.5, 5, bool_attr])
     pipe_layer = layer("linestring", [("name", str), ("check_valve", bool_attr)])
     add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", bool_attr])
 
