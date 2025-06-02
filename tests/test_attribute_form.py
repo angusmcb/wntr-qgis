@@ -78,6 +78,9 @@ def test_creates_valid_model(qgis_bot: QgisBot, template_layers):
 
     wn2 = from_qgis(template_layers, units="LPS", headloss="H-W")
 
+    assert wn2.num_nodes == 4
+    assert wn2.num_links == 3
+
     import wntr
 
     sim = wntr.sim.EpanetSimulator(wn2)
