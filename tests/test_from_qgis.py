@@ -95,8 +95,8 @@ def simple_layers() -> dict[str, QgsVectorLayer]:
         ],
     )
     add_point(tank_layer, (4, 5), ["T1", 1.0, 0, 1, 0.1, 5.0])
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float), ("diameter", float)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100, 10])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
@@ -225,7 +225,7 @@ def test_no_nodes():
 
 def test_wntr_error(simple_layers):
     name_with_spaces = "this name has spaces"
-    add_line(simple_layers["PIPES"], [(1, 1), (4, 5)], [name_with_spaces, 100])
+    add_line(simple_layers["PIPES"], [(1, 1), (4, 5)], [name_with_spaces, 100, 5])
 
     with pytest.raises(wntrqgis.interface.WntrError, match="name must be"):
         wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
@@ -351,18 +351,28 @@ def test_name_generation_with_conflicts():
     add_point(junctions, (2, 2), ["1", 1])
     add_point(junctions, (3, 3), ["", 1])
 
-    tanks = layer("point", [("name", str), ("elevation", float)])
-    add_point(tanks, (5, 1), ["xx", 1])
-    add_point(tanks, (6, 2), ["0", 1])
-    add_point(tanks, (7, 3), [None, 1])
+    tanks = layer(
+        "point",
+        [
+            ("name", str),
+            ("elevation", float),
+            ("min_level", float),
+            ("max_level", float),
+            ("init_level", float),
+            ("diameter", float),
+        ],
+    )
+    add_point(tanks, (5, 1), ["xx", 1, 1, 1, 1, 1])
+    add_point(tanks, (6, 2), ["0", 1, 1, 1, 1, 1])
+    add_point(tanks, (7, 3), [None, 1, 1, 1, 1, 1])
 
     reservoirs = layer("point", [("base_head", float)])
     add_point(reservoirs, (8, 1), [1])
     add_point(reservoirs, (9, 2), [1])
 
-    pipes = layer("linestring", [("name", str)])
-    add_line(pipes, [(1, 1), (2, 2)], ["1"])
-    add_line(pipes, [(2, 2), (3, 3)], [""])  # Conflict: same name as the first pipe
+    pipes = layer("linestring", [("name", str), ("roughness", float), ("diameter", float)])
+    add_line(pipes, [(1, 1), (2, 2)], ["1", 1, 1])
+    add_line(pipes, [(2, 2), (3, 3)], ["", 1, 1])  # Conflict: same name as the first pipe
 
     layers = {"JUNCTIONS": junctions, "TANKS": tanks, "RESERVOIRS": reservoirs, "PIPES": pipes}
 
@@ -418,8 +428,8 @@ def test_custom_attributes():
     add_point(junction_layer, (1, 1), ["J1", 1, "xx", 2, 2.5, True, 1.0])
     add_point(junction_layer, (2, 2), ["J2", 2, "yy", 1000000000, 7.2, False, 1.0])
 
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (2, 2)], ["P1", 100])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float), ("diameter", float)])
+    add_line(pipe_layer, [(1, 1), (2, 2)], ["P1", 100, 5])
 
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
@@ -441,8 +451,8 @@ def layers_that_snap():
     junction_layer = layer("point", [("name", str), ("elevation", float)])
     add_point(junction_layer, (0, 0), ["J1", 0.0])
     add_point(junction_layer, (3000, 4000), ["J2", 100.0])
-    pipe_layer = layer("linestring", [("name", str)])
-    add_line(pipe_layer, [(1, 1), (2800, 3800)], ["P1"])
+    pipe_layer = layer("linestring", [("name", str), ("roughness", float), ("diameter", float)])
+    add_line(pipe_layer, [(1, 1), (2800, 3800)], ["P1", 100, 10])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
 
@@ -471,8 +481,8 @@ def mixed_crs_layers():
         "EPSG:32616",
     )
     add_point(tank_layer, (844219, 4230929), ["T1", 100.0, 0, 1, 0.5, 1.0])
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)], "EPSG:3089")
-    add_line(pipe_layer, [(5713511, 3899366), (5691228, 3957214)], ["P1", 100])
+    pipe_layer = layer("linestring", [("name", str), ("diameter", float), ("roughness", float)], "EPSG:3089")
+    add_line(pipe_layer, [(5713511, 3899366), (5691228, 3957214)], ["P1", 1, 100])
     return {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
 
 
@@ -534,9 +544,9 @@ def test_measure_feet(simple_layers):
 
 
 def test_prioritise_length_attribute(simple_layers, caplog):
-    pipe_layer = layer("linestring", [("name", str), ("length", float)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1"])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P2", 100])
+    pipe_layer = layer("linestring", [("name", str), ("diameter", float), ("roughness", float), ("length", float)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 1, 1])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P2", 1, 1, 100])
     simple_layers["PIPES"] = pipe_layer
 
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
@@ -587,8 +597,10 @@ def test_boolean_attributes(bool_attr, expected_result):
         ],
     )
     add_point(tank_layer, (4, 5), ["T1", 1.0, 0, 1, 0.5, 5, bool_attr])
-    pipe_layer = layer("linestring", [("name", str), ("check_valve", bool_attr)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", bool_attr])
+    pipe_layer = layer(
+        "linestring", [("name", str), ("diameter", float), ("roughness", float), ("check_valve", bool_attr)]
+    )
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 1, 1, bool_attr])
 
     layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
 
@@ -618,10 +630,22 @@ def test_float_attributes(float_attr, expected_result, field_type):
     junction_layer = layer("point", [("name", str), ("elevation", field_type), ("pressure_exponent", field_type)])
     add_point(junction_layer, (1, 1), ["J1", float_attr, float_attr])
     # additionally check that 'elevation' can accept mixed types
-    tank_layer = layer("point", [("name", str), ("diameter", field_type), ("elevation", float)])
-    add_point(tank_layer, (4, 5), ["T1", float_attr, 865.0])
-    pipe_layer = layer("linestring", [("name", str), ("length", field_type), ("diameter", field_type)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr, float_attr])
+    tank_layer = layer(
+        "point",
+        [
+            ("name", str),
+            ("diameter", float),
+            ("elevation", float),
+            ("min_level", float),
+            ("max_level", float),
+            ("init_level", float),
+        ],
+    )
+    add_point(tank_layer, (4, 5), ["T1", float_attr, 865.0, float_attr, float_attr, float_attr])
+    pipe_layer = layer(
+        "linestring", [("name", str), ("length", field_type), ("diameter", field_type), ("roughness", field_type)]
+    )
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr, float_attr, float_attr])
 
     layers = {"JUNCTIONS": junction_layer, "TANKS": tank_layer, "PIPES": pipe_layer}
 
@@ -848,17 +872,28 @@ def pump_head_curve_layers(simple_layers, curve_string):
 @pytest.fixture
 def tank_vol_curve_layers(simple_layers, curve_string):
     tank_layer = layer(
-        "point", [("name", str), ("elevation", float), ("max_level", float), ("vol_curve", curve_string)]
+        "point",
+        [
+            ("name", str),
+            ("elevation", float),
+            ("diameter", float),
+            ("max_level", float),
+            ("min_level", float),
+            ("init_level", float),
+            ("vol_curve", curve_string),
+        ],
     )
-    add_point(tank_layer, (4, 5), ["T1", 1, 20, curve_string])
+    add_point(tank_layer, (4, 5), ["T1", 1, 20, 1, 1, 1, curve_string])
     simple_layers["TANKS"] = tank_layer
     return simple_layers
 
 
 @pytest.fixture
 def valve_headloss_curve_layers(simple_layers, curve_string):
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("headloss_curve", curve_string)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "GPV", curve_string])
+    valve_layer = layer(
+        "linestring", [("name", str), ("valve_type", str), ("diameter", float), ("headloss_curve", curve_string)]
+    )
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "GPV", 1, curve_string])
     simple_layers["VALVES"] = valve_layer
     return simple_layers
 
@@ -1049,8 +1084,10 @@ def test_initial_status_pump(simple_layers, initial_status, expected_status):
     ("initial_status", "expected_status"), [("OPEN", "Open"), ("CLOSED", "Closed"), (None, "Open")]
 )
 def test_initial_status_pipe(simple_layers, initial_status, expected_status):
-    pipe_layer = layer("linestring", [("name", str), ("initial_status", str)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", initial_status])
+    pipe_layer = layer(
+        "linestring", [("name", str), ("diameter", float), ("roughness", float), ("initial_status", str)]
+    )
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 1, 1, initial_status])
     simple_layers["PIPES"] = pipe_layer
 
     wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
@@ -1069,8 +1106,10 @@ def test_initial_status_valve(initial_status, expected_status):
     add_point(junction_layer, (1, 1), ["J1", 1])
     add_point(junction_layer, (4, 5), ["J2", 1])
 
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", str)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
+    valve_layer = layer(
+        "linestring", [("name", str), ("diameter", float), ("valve_type", str), ("initial_status", str)]
+    )
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", initial_status])
 
     layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
 
@@ -1081,8 +1120,10 @@ def test_initial_status_valve(initial_status, expected_status):
 def test_inital_status_string_error(simple_layers):
     initial_status = "NOT_A_STATUS"
 
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", initial_status)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
+    valve_layer = layer(
+        "linestring", [("name", str), ("diameter", float), ("valve_type", str), ("initial_status", initial_status)]
+    )
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", initial_status])
     simple_layers["VALVES"] = valve_layer
 
     with pytest.raises(wntrqgis.interface.WntrError, match=initial_status):
@@ -1091,8 +1132,10 @@ def test_inital_status_string_error(simple_layers):
 
 @pytest.mark.parametrize("initial_status", [1.0, True, False])
 def test_inital_status_type_error(simple_layers, initial_status):
-    valve_layer = layer("linestring", [("name", str), ("valve_type", str), ("initial_status", initial_status)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", "PRV", initial_status])
+    valve_layer = layer(
+        "linestring", [("name", str), ("diameter", float), ("valve_type", str), ("initial_status", initial_status)]
+    )
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", initial_status])
     simple_layers["VALVES"] = valve_layer
 
     with pytest.raises(wntrqgis.interface.WntrError, match="initial_status"):
@@ -1117,13 +1160,9 @@ def valve_layers(valve_type, initial_setting):
 
     valve_layer = layer(
         "linestring",
-        [
-            ("name", str),
-            ("valve_type", valve_type),
-            ("initial_setting", initial_setting),
-        ],
+        [("name", str), ("valve_type", valve_type), ("initial_setting", initial_setting), ("diameter", float)],
     )
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", valve_type, initial_setting])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", valve_type, initial_setting, 10])
 
     return {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
 
