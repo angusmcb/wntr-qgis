@@ -5,9 +5,11 @@ from typing import Any, Literal
 
 from qgis.core import (
     Qgis,
+    QgsAbstractVectorLayerLabeling,
     QgsClassificationQuantile,
     QgsDefaultValue,
     QgsEditorWidgetSetup,
+    QgsFeatureRenderer,
     QgsField,
     QgsGraduatedSymbolRenderer,
     QgsLineSymbol,
@@ -19,6 +21,7 @@ from qgis.core import (
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
     QgsStyle,
+    QgsSymbol,
     QgsVectorLayer,
     QgsVectorLayerSimpleLabeling,
     QgsVectorLayerTemporalProperties,
@@ -26,27 +29,45 @@ from qgis.core import (
 
 from wntrqgis.elements import (
     CurveType,
+    Field,
     FieldGroup,
     InitialStatus,
-    ModelField,
     ModelLayer,
     PatternType,
-    ResultField,
     ResultLayer,
     _AbstractValueMap,
 )
 
 
 def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Literal["extended"] | None = None):
-    styler = _LayerStyler(layer_type, theme)
-    styler.style_layer(layer)
+    styler = _LayerStyler(layer, layer_type, theme)
+
+    layer.setRenderer(styler.layer_renderer)
+    layer.setLabeling(styler.labeling)
+    styler.setup_extended_period()
+
+    _setup_fields(layer, layer_type)
 
 
-class _FieldStyles:
-    def __init__(self, field_type: ModelField | ResultField, layer_type: ModelLayer | ResultLayer):
+def _setup_fields(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
+    field: QgsField
+    for i, field in enumerate(layer.fields()):
+        try:
+            field_styler = _FieldStyler(Field(field.name().lower()), layer_type)
+        except ValueError:
+            continue
+        layer.setEditorWidgetSetup(i, field_styler.editor_widget)
+        layer.setDefaultValueDefinition(i, field_styler.default_value)
+        layer.setFieldAlias(i, field_styler.alias)
+        layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
+
+
+class _FieldStyler:
+    def __init__(self, field_type: Field, layer_type: ModelLayer | ResultLayer):
         self.field_type = field_type
         self.layer_type = layer_type
 
+    @property
     def editor_widget(self) -> QgsEditorWidgetSetup:
         # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
         python_type_class = self.field_type.python_type
@@ -83,18 +104,18 @@ class _FieldStyles:
     def default_value(self) -> QgsDefaultValue:
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
 
-        if self.field_type is ModelField.ROUGHNESS:
+        if self.field_type is Field.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
 
-        if self.field_type is ModelField.DIAMETER and (
+        if self.field_type is Field.DIAMETER and (
             self.layer_type is ModelLayer.PIPES or self.layer_type is ModelLayer.VALVES
         ):
             return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
 
-        if self.field_type in [ModelField.MINOR_LOSS]:
+        if self.field_type in [Field.MINOR_LOSS]:
             return QgsDefaultValue("0.0")
 
-        if self.field_type is ModelField.BASE_SPEED:
+        if self.field_type is Field.BASE_SPEED:
             return QgsDefaultValue("1.0")
 
         if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
@@ -117,56 +138,58 @@ class _FieldStyles:
 
     @property
     def constraint_expression(self) -> str | None:
-        if self.field_type is ModelField.NAME:
+        if self.field_type is Field.NAME:
             return "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')"
-        if self.field_type is ModelField.DIAMETER:
+        if self.field_type is Field.DIAMETER:
             return "diameter > 0"
-        if self.field_type is ModelField.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "minor_loss >= 0"
-        if self.field_type is ModelField.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+        if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
             return "base_speed > 0"
         return None
 
     @property
     def constraint_description(self) -> str | None:
-        if self.field_type is ModelField.NAME:
+        if self.field_type is Field.NAME:
             return "Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"
-        if self.field_type is ModelField.DIAMETER:
+        if self.field_type is Field.DIAMETER:
             return "Diameter must be greater than 0"
-        if self.field_type is ModelField.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "Minor loss must be greater than or equal to 0"
-        if self.field_type is ModelField.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+        if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
             return "Base speed must be greater than 0"
         return None
 
 
 class _LayerStyler:
-    def __init__(self, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
+    def __init__(self, layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
+        self.layer = layer
         self.layer_type = layer_type
         self.theme = theme
 
-    def style_layer(self, layer: QgsVectorLayer):
+    def setup_extended_period(self) -> None:
+        if isinstance(self.layer_type, ResultLayer) and self.theme == "extended":
+            temporal_properties: QgsVectorLayerTemporalProperties = self.layer.temporalProperties()
+            temporal_properties.setIsActive(True)
+            temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
+
+    @property
+    def labeling(self) -> QgsAbstractVectorLayerLabeling | None:
+        if self.layer_type is ResultLayer.LINKS:
+            label_settings = QgsPalLayerSettings()
+            label_settings.drawLabels = False
+            label_settings.fieldName = "flowrate"
+            label_settings.decimals = 1
+            label_settings.formatNumbers = True
+            return QgsVectorLayerSimpleLabeling(label_settings)
+
+        return None
+
+    @property
+    def layer_renderer(self) -> QgsFeatureRenderer:
         if isinstance(self.layer_type, ModelLayer):
-            self._style_model_layer(layer)
-        if isinstance(self.layer_type, ResultLayer):
-            self._style_result_layer(layer)
+            return QgsSingleSymbolRenderer(self._symbol)
 
-    def _style_model_layer(self, layer: QgsVectorLayer):
-        renderer = QgsSingleSymbolRenderer(self._symbol)
-        layer.setRenderer(renderer)
-
-        field: QgsField
-        for i, field in enumerate(layer.fields()):
-            try:
-                field_styler = _FieldStyles(ModelField(field.name()), self.layer_type)
-            except ValueError:
-                continue
-            layer.setEditorWidgetSetup(i, field_styler.editor_widget())
-            layer.setDefaultValueDefinition(i, field_styler.default_value)
-            layer.setFieldAlias(i, field_styler.alias)
-            layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
-
-    def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is ResultLayer.NODES:
             attribute_expression = 'wntr_result_at_current_time("pressure")' if self.theme == "extended" else "pressure"
         else:
@@ -180,29 +203,16 @@ class _LayerStyler:
         classification_method.setLabelTrimTrailingZeroes(False)
         renderer.setClassificationMethod(classification_method)
 
-        renderer.updateClasses(layer, 5)
+        renderer.updateClasses(self.layer, 5)
 
         color_ramp = QgsStyle().defaultStyle().colorRamp("Spectral")
         color_ramp.invert()
         renderer.updateColorRamp(color_ramp)
 
-        layer.setRenderer(renderer)
-
-        if self.theme == "extended":
-            temporal_properties: QgsVectorLayerTemporalProperties = layer.temporalProperties()
-            temporal_properties.setIsActive(True)
-            temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
-
-        label_settings = QgsPalLayerSettings()
-        label_settings.drawLabels = False
-        label_settings.fieldName = "flowrate"
-        label_settings.decimals = 1
-        label_settings.formatNumbers = True
-
-        layer.setLabeling(QgsVectorLayerSimpleLabeling(label_settings))
+        return renderer
 
     @property
-    def _symbol(self):
+    def _symbol(self) -> QgsSymbol:
         if self.layer_type is ModelLayer.JUNCTIONS:
             return QgsMarkerSymbol.createSimple(CIRCLE | WHITE_FILL | HAIRLINE_STROKE | JUNCTION_SIZE)
 
@@ -223,14 +233,14 @@ class _LayerStyler:
             # creating using nomral __init__ with list crashes 3.34
             valve_marker = QgsMarkerSymbol.createSimple(left_triangle.properties())  # left_triangle, right_triangle])
             valve_marker.appendSymbolLayer(right_triangle)
-            return self._line_with_marker(background_line, valve_marker)
+            return _line_with_marker(background_line, valve_marker)
 
         if self.layer_type is ModelLayer.PUMPS:
             pump_body = QgsSimpleMarkerSymbolLayer.create(CIRCLE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_outlet = QgsSimpleMarkerSymbolLayer.create(OUTLET_SQUARE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_marker = QgsMarkerSymbol.createSimple(pump_body.properties())
             pump_marker.appendSymbolLayer(pump_outlet)
-            return self._line_with_marker(background_line, pump_marker)
+            return _line_with_marker(background_line, pump_marker)
 
         if self.layer_type is ResultLayer.NODES:
             return QgsMarkerSymbol.createSimple(CIRCLE | NO_STROKE | NODE_SIZE)
@@ -243,17 +253,17 @@ class _LayerStyler:
 
             exp = QgsProperty.fromExpression(f"if( {flowrate_field} <0,180,0)")
             arrow.setDataDefinedAngle(exp)
-            return self._line_with_marker(line, arrow)
+            return _line_with_marker(line, arrow)
 
         raise KeyError  # pragma: no cover
 
-    def _line_with_marker(self, background_line, marker):
-        marker_line = QgsMarkerLineSymbolLayer.create(CENTRAL_PLACEMENT)
-        marker_line.setSubSymbol(marker)
-        combined_symbol = QgsLineSymbol.createSimple(background_line.properties())
-        # combined_symbol.appendSymbolLayer(background_line)
-        combined_symbol.appendSymbolLayer(marker_line)
-        return combined_symbol
+
+def _line_with_marker(background_line: QgsLineSymbol, marker: QgsMarkerSymbol) -> QgsLineSymbol:
+    marker_line = QgsMarkerLineSymbolLayer.create(CENTRAL_PLACEMENT)
+    marker_line.setSubSymbol(marker)
+    combined_symbol = QgsLineSymbol.createSimple(background_line.properties())
+    combined_symbol.appendSymbolLayer(marker_line)
+    return combined_symbol
 
 
 # USE THE FOLLOWING TO DISCOVER WHAT PROPERTIES ARE AVAILABLE:
