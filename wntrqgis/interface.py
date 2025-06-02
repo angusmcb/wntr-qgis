@@ -386,8 +386,8 @@ class Writer:
                     QgsField(
                         f.lower(),
                         self._get_qgs_field_type(list),
-                        subType=self._get_qgs_field_type(dtype),
-                        len=10 if pd.api.types.is_float_dtype(dtype) else 0,
+                        subType=self._get_qgs_field_type(float),
+                        len=10 if pd.api.types.is_float_dtype(float) else 0,
                         prec=precision,
                     )
                 )
