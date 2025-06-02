@@ -20,11 +20,6 @@ def wn():
 
 
 @pytest.fixture
-def qgis_project():
-    return QgsProject.instance()
-
-
-@pytest.fixture
 def qgs_layer():
     return QgsVectorLayer("Point", "test_layer", "memory")
 
