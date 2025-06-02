@@ -254,7 +254,6 @@ def test_template_layers_pumps(template_result):
         "base_speed",
         "speed_pattern",
         "initial_status",
-        "initial_setting",
     ]
 
 
@@ -267,7 +266,6 @@ def test_import_layers_pumps(import_layers):
         "base_speed",
         "speed_pattern",
         "initial_status",
-        "initial_setting",
     ]
 
 
