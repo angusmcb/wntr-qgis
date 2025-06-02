@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "enum_tools.autoenum",
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.googleanalytics",
 ]
 
 templates_path = ["_templates"]
@@ -103,6 +104,8 @@ sys.path.insert(0, os.path.abspath(".."))
 autodoc_type_aliases = {"Iterable": "Iterable", "ArrayLike": "ArrayLike"}
 # add_module_names = False
 autodoc_member_order = "bysource"
+
+googleanalytics_id = "G-EXG3JYMMHK"
 
 
 def generate_attributes_table(_):
