@@ -59,7 +59,7 @@ def _setup_fields(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
         layer.setEditorWidgetSetup(i, field_styler.editor_widget)
         layer.setDefaultValueDefinition(i, field_styler.default_value)
         layer.setFieldAlias(i, field_styler.alias)
-        layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
+        layer.setConstraintExpression(i, *field_styler.constraint)
 
 
 class _FieldStyler:
@@ -137,28 +137,24 @@ class _FieldStyler:
         return self.field_type.friendly_name
 
     @property
-    def constraint_expression(self) -> str | None:
-        if self.field_type is Field.NAME:
-            return "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')"
-        if self.field_type is Field.DIAMETER:
-            return "diameter > 0"
-        if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
-            return "minor_loss >= 0"
-        if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
-            return "base_speed > 0"
-        return None
+    def constraint(self) -> tuple[str | None]:
+        """Returns field constraint. Either:
+        tuple of constraint expression and description for the field
+        None, None if no constraint is needed.
+        """
 
-    @property
-    def constraint_description(self) -> str | None:
         if self.field_type is Field.NAME:
-            return "Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"
-        if self.field_type is Field.DIAMETER:
-            return "Diameter must be greater than 0"
+            return (
+                "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')",
+                "Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces",
+            )
+        if self.field_type is Field.DIAMETER and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+            return "diameter > 0", "Diameter must be greater than 0"
         if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
-            return "Minor loss must be greater than or equal to 0"
+            return "minor_loss >= 0", "Minor loss must be greater than or equal to 0"
         if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
-            return "Base speed must be greater than 0"
-        return None
+            return "base_speed > 0", "Base speed must be greater than 0"
+        return None, None
 
 
 class _LayerStyler:
