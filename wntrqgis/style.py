@@ -150,6 +150,11 @@ class _FieldStyler:
             )
         if self.field_type is Field.DIAMETER and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "diameter > 0", "Diameter must be greater than 0"
+        if self.field_type is Field.ROUGHNESS:
+            return "roughness > 0", "Roughness must be greater than 0"
+        if self.field_type is Field.LENGTH:
+            return "length is NULL  OR  length > 0", "Length must be empty/NULL (will be calculated) or greater than 0"
+
         if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "minor_loss >= 0", "Minor loss must be greater than or equal to 0"
         if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
