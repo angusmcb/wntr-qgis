@@ -464,7 +464,7 @@ class Field(Enum):
         if self is Field.ROUGHNESS:
             return tr("Roughness")
         if self is Field.MINOR_LOSS:
-            return tr("Minor Loss")
+            return tr("Minor Loss Coefficient")
         if self is Field.CHECK_VALVE:
             return tr("Check Valve")
         if self is Field.PUMP_TYPE:
