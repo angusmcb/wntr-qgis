@@ -39,13 +39,12 @@ from qgis.PyQt.QtCore import QMetaType, QVariant
 import wntrqgis.style
 from wntrqgis.elements import (
     ElementFamily,
+    Field,
     FieldGroup,
     FlowUnit,
     HeadlossFormula,
-    ModelField,
     ModelLayer,
     PumpTypes,
-    ResultField,
     ResultLayer,
     ValveType,
     _AbstractValueMap,
@@ -113,7 +112,7 @@ class _Converter:
     def to_si(
         self,
         value: float | ArrayLike | dict,
-        field: ModelField | ResultField | wntr.epanet.HydParam | wntr.epanet.QualParam,
+        field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
         if isinstance(field, (wntr.epanet.HydParam, wntr.epanet.QualParam)):
@@ -131,7 +130,7 @@ class _Converter:
     def from_si(
         self,
         value: float | ArrayLike | dict,
-        field: ModelField | ResultField | wntr.epanet.HydParam | wntr.epanet.QualParam,
+        field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
         if isinstance(field, (wntr.epanet.HydParam, wntr.epanet.QualParam)):
@@ -147,51 +146,51 @@ class _Converter:
         )
 
     def _get_wntr_conversion_param(
-        self, field: ModelField | ResultField, layer: ModelLayer | ResultLayer | None = None
+        self, field: Field, layer: ModelLayer | ResultLayer | None = None
     ) -> wntr.epanet.QualParam | wntr.epanet.HydParam:
         QualParam = wntr.epanet.QualParam  # noqa
         HydParam = wntr.epanet.HydParam  # noqa
-        if field is ModelField.ELEVATION:
+        if field is Field.ELEVATION:
             return HydParam.Elevation
-        if field is ModelField.BASE_DEMAND or field is ResultField.DEMAND:
+        if field is Field.BASE_DEMAND or field is Field.DEMAND:
             return HydParam.Demand
-        if field is ModelField.EMITTER_COEFFICIENT:
+        if field is Field.EMITTER_COEFFICIENT:
             return HydParam.EmitterCoeff
-        if field in [ModelField.INITIAL_QUALITY, ResultField.QUALITY]:
+        if field in [Field.INITIAL_QUALITY, Field.QUALITY]:
             return QualParam.Quality
-        if field in [ModelField.MINIMUM_PRESSURE, ModelField.REQUIRED_PRESSURE, ResultField.PRESSURE]:
+        if field in [Field.MINIMUM_PRESSURE, Field.REQUIRED_PRESSURE, Field.PRESSURE]:
             return HydParam.Pressure
         if field in [
-            ModelField.INIT_LEVEL,
-            ModelField.MIN_LEVEL,
-            ModelField.MAX_LEVEL,
-            ModelField.BASE_HEAD,
-            ResultField.HEAD,
+            Field.INIT_LEVEL,
+            Field.MIN_LEVEL,
+            Field.MAX_LEVEL,
+            Field.BASE_HEAD,
+            Field.HEAD,
         ]:
             return HydParam.HydraulicHead
-        if field is ModelField.DIAMETER and layer is ModelLayer.TANKS:
+        if field is Field.DIAMETER and layer is ModelLayer.TANKS:
             return HydParam.TankDiameter
-        if field is ModelField.DIAMETER:
+        if field is Field.DIAMETER:
             return HydParam.PipeDiameter
-        if field is ModelField.MIN_VOL:
+        if field is Field.MIN_VOL:
             return HydParam.Volume
-        if field is ModelField.BULK_COEFF:
+        if field is Field.BULK_COEFF:
             return QualParam.BulkReactionCoeff
-        if field is ModelField.LENGTH:
+        if field is Field.LENGTH:
             return HydParam.Length
-        if field is ModelField.ROUGHNESS:
+        if field is Field.ROUGHNESS:
             return HydParam.RoughnessCoeff
-        if field is ModelField.WALL_COEFF:
+        if field is Field.WALL_COEFF:
             return QualParam.WallReactionCoeff
-        if field is ModelField.POWER:
+        if field is Field.POWER:
             return HydParam.Power
-        if field is ResultField.FLOWRATE:
+        if field is Field.FLOWRATE:
             return HydParam.Flow
-        if field is ResultField.HEADLOSS:
+        if field is Field.HEADLOSS:
             if layer is ModelLayer.PIPES:
                 return HydParam.HeadLoss
             return HydParam.HydraulicHead
-        if field is ResultField.VELOCITY:
+        if field is Field.VELOCITY:
             return HydParam.Velocity
         msg = f"no param found for {field}"
         raise ValueError(msg)
@@ -298,17 +297,17 @@ class Writer:
 
         field_group = FieldGroup.BASE | _get_field_groups(wn)
 
-        self.fields: list[ModelField | ResultField]
+        self.fields: list[Field]
         """A list of field names to be written
 
         * The default set of fields will depend on ``wn`` and ``results``
         * When writing only those fields related to the layer bei_ng written will be used.
         """
         if results:
-            self.fields = [ModelField.NAME]
-            self.fields.extend([field for field in ResultField if field.field_group & field_group])
+            self.fields = [Field.NAME]
+            self.fields.extend([field for field in Field if field.field_group & field_group])
         else:
-            self.fields = [field for field in ModelField if field.field_group & field_group]
+            self.fields = [field for field in Field if field.field_group & field_group]
 
     def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
         """As the WNTR simulation result do not contain any geometry information it is necessary to load them
@@ -368,15 +367,15 @@ class Writer:
 
         for f in field_names:
             try:
-                dtype = ModelField[f.upper()].python_type
+                dtype = Field[f.upper()].python_type
             except KeyError:
                 try:
-                    dtype = ResultField[f.upper()].python_type
+                    dtype = Field[f.upper()].python_type
                 except KeyError:
                     dtype = dtypes[f]
 
             f = cast(str, f)
-            is_result_field = f.upper() in ResultField._member_names_
+            is_result_field = f.upper() in Field._member_names_
 
             if is_result_field:
                 dtype = float
@@ -537,7 +536,7 @@ class Writer:
 
             for fieldname in df.select_dtypes(include=[np.floating]):
                 try:
-                    field = ModelField[str(fieldname).upper()]
+                    field = Field[str(fieldname).upper()]
                 except KeyError:
                     continue
                 converted_array = self._converter.from_si(df[fieldname].to_numpy(), field, lyr)
@@ -570,10 +569,10 @@ class Writer:
 
         return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
 
-    def _convert_result_df(self, df: pd.DataFrame, field: ResultField) -> pd.DataFrame:
+    def _convert_result_df(self, df: pd.DataFrame, field: Field) -> pd.DataFrame:
         "Convert a results dataframe, taking special care with 'headloss' which for pipes doubles as 'unit headloss'"
         converted_df: pd.DataFrame
-        if field is ResultField.HEADLOSS:
+        if field is Field.HEADLOSS:
             converted_df = df
             type_series = self._types[ResultLayer.LINKS].reindex(converted_df.columns)
 
@@ -704,7 +703,7 @@ class _Patterns:
         self._next_pattern_name += 1
         return name
 
-    def add_all(self, pattern_series: pd.Series | Any, layer: ModelLayer, pattern_type: ModelField) -> pd.Series | None:
+    def add_all(self, pattern_series: pd.Series | Any, layer: ModelLayer, pattern_type: Field) -> pd.Series | None:
         if not isinstance(pattern_series, pd.Series):
             return None
         # try:
@@ -941,7 +940,7 @@ class _FromGis:
         node_dfs: list[pd.DataFrame] = []
         link_dfs: list[pd.DataFrame] = []
 
-        shapefile_name_map = {wq_field.name[:10].lower(): wq_field.name.lower() for wq_field in ModelField}
+        shapefile_name_map = {wq_field.name[:10].lower(): wq_field.name.lower() for wq_field in Field}
 
         for model_layer in ModelLayer:
             source = feature_sources.get(model_layer)
@@ -1033,7 +1032,7 @@ class _FromGis:
           (wntr doesn't accept floats for bool)"""
         for column_name in source_df.columns:
             try:
-                expected_type = ModelField[column_name.upper()].python_type
+                expected_type = Field[column_name.upper()].python_type
             except KeyError:
                 continue
 
@@ -1050,7 +1049,7 @@ class _FromGis:
     def _convert_dataframe(self, source_df: pd.DataFrame, layer: ModelLayer | None = None) -> pd.DataFrame:
         for fieldname in source_df.select_dtypes(include=[np.number]):
             try:
-                field = ModelField[str(fieldname).upper()]
+                field = Field[str(fieldname).upper()]
             except KeyError:
                 continue
             source_df[fieldname] = self._converter.to_si(source_df[fieldname].to_numpy(), field, layer)
@@ -1183,7 +1182,7 @@ class _FromGis:
                         raise RequiredFieldError(layer, field)
 
         node_df["demand_pattern_name"] = self.patterns.add_all(
-            node_df.get("demand_pattern"), ModelLayer.JUNCTIONS, ModelField.DEMAND_PATTERN
+            node_df.get("demand_pattern"), ModelLayer.JUNCTIONS, Field.DEMAND_PATTERN
         )
 
         if "base_demand" in node_df.columns:
@@ -1205,7 +1204,7 @@ class _FromGis:
         # reservoir head pattern
         if "head_pattern" in node_df:
             node_df["head_pattern_name"] = self.patterns.add_all(
-                node_df.get("head_pattern"), ModelLayer.RESERVOIRS, ModelField.HEAD_PATTERN
+                node_df.get("head_pattern"), ModelLayer.RESERVOIRS, Field.HEAD_PATTERN
             )
 
         return node_df.drop(
@@ -1282,12 +1281,12 @@ class _FromGis:
 
         if "speed_pattern" in link_df:
             link_df["speed_pattern_name"] = self.patterns.add_all(
-                link_df.get("speed_pattern"), ModelLayer.PUMPS, ModelField.SPEED_PATTERN
+                link_df.get("speed_pattern"), ModelLayer.PUMPS, Field.SPEED_PATTERN
             )
 
         if "energy_pattern" in link_df:
             link_df["energy_pattern"] = self.patterns.add_all(
-                link_df.get("energy_pattern"), ModelLayer.PUMPS, ModelField.ENERGY_PATTERN
+                link_df.get("energy_pattern"), ModelLayer.PUMPS, Field.ENERGY_PATTERN
             )
 
         for layer in [ModelLayer.PIPES, ModelLayer.VALVES, ModelLayer.PUMPS]:
@@ -1395,7 +1394,7 @@ class NetworkModelError(Exception):
 
 
 class PatternError(NetworkModelError, ValueError):
-    def __init__(self, pattern_string, layer: ModelLayer, pattern_type: ModelField):
+    def __init__(self, pattern_string, layer: ModelLayer, pattern_type: Field):
         super().__init__(
             tr(
                 "in {layer} problem reading {pattern_type}: {pattern_string} Patterns should be a string of numeric values separated by a space, or a list of numeric values."  # noqa: E501
@@ -1452,7 +1451,7 @@ class ValveTypeError(ValveError, GenericRequiredFieldError):
         super().__init__(
             tr(
                 "Valve type ({valve_type}) must be set for all valves and must be one of the following values: {possible_values}"  # noqa: E501
-            ).format(valve_type=ModelField.VALVE_TYPE.name.lower(), possible_values=", ".join(ValveType._member_names_))
+            ).format(valve_type=Field.VALVE_TYPE.name.lower(), possible_values=", ".join(ValveType._member_names_))
         )
 
 
@@ -1460,8 +1459,8 @@ class GpvMissingCurveError(ValveError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr("{headloss_curve_name} ({headloss_curve}) must be set for all valves of type GPV").format(
-                headloss_curve_name=ModelField.HEADLOSS_CURVE.friendly_name,
-                headloss_curve=ModelField.HEADLOSS_CURVE.name.lower(),
+                headloss_curve_name=Field.HEADLOSS_CURVE.friendly_name,
+                headloss_curve=Field.HEADLOSS_CURVE.name.lower(),
             )
         )
 
@@ -1469,7 +1468,7 @@ class GpvMissingCurveError(ValveError, GenericRequiredFieldError):
 class RequiredFieldError(GenericRequiredFieldError):
     """Raised when a required parameter is missing from the model."""
 
-    def __init__(self, layer: ModelLayer, field: ModelField):
+    def __init__(self, layer: ModelLayer, field: Field):
         super().__init__(
             tr("In {layer_type}, all elements must have {field_name} '{field_id}'").format(
                 layer_type=layer.friendly_name, field_name=field.friendly_name, field_id=field.name.lower()
@@ -1486,7 +1485,7 @@ class PumpTypeError(PumpError, GenericRequiredFieldError):
         super().__init__(
             tr(
                 "Pump type ({pump_type}) must be set for all pumps and must be one of the following values: {possible_values}"  # noqa: E501
-            ).format(pump_type=ModelField.PUMP_TYPE.name.lower(), possible_values=", ".join(PumpTypes._member_names_))
+            ).format(pump_type=Field.PUMP_TYPE.name.lower(), possible_values=", ".join(PumpTypes._member_names_))
         )
 
 
@@ -1494,7 +1493,7 @@ class PumpCurveMissingError(PumpError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr("{pump_curve_name} ({pump_curve}) must be set for all pumps of type HEAD").format(
-                pump_curve_name=ModelField.PUMP_CURVE.friendly_name, pump_curve=ModelField.PUMP_CURVE.name.lower()
+                pump_curve_name=Field.PUMP_CURVE.friendly_name, pump_curve=Field.PUMP_CURVE.name.lower()
             )
         )
 
@@ -1503,6 +1502,6 @@ class PumpPowerError(PumpError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
             tr("{pump_power_name} ({pump_power}) must be set for all pumps of type POWER").format(
-                pump_power_name=ModelField.POWER.friendly_name, pump_power=ModelField.POWER.name.lower()
+                pump_power_name=Field.POWER.friendly_name, pump_power=Field.POWER.name.lower()
             )
         )

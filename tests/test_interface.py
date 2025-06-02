@@ -41,25 +41,25 @@ def test_converter_init():
 
 def test_converter_to_si():
     converter = _Converter("CFS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.to_si(1.0, wntrqgis.elements.ModelField.ELEVATION)
+    value = converter.to_si(1.0, wntrqgis.elements.Field.ELEVATION)
     assert value == 0.3048
 
 
 def test_converter_from_si():
     converter = _Converter("CFS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.from_si(0.3048, wntrqgis.elements.ModelField.ELEVATION)
+    value = converter.from_si(0.3048, wntrqgis.elements.Field.ELEVATION)
     assert value == 1.0
 
 
 def test_converter_to_si_darcy_weisbach():
     converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.DARCY_WEISBACH)
-    value = converter.to_si(1, wntrqgis.elements.ModelField.ROUGHNESS)
+    value = converter.to_si(1, wntrqgis.elements.Field.ROUGHNESS)
     assert value == 0.001
 
 
 def test_converter_to_si_hazen_williams():
     converter = _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.to_si(1, wntrqgis.elements.ModelField.ROUGHNESS)
+    value = converter.to_si(1, wntrqgis.elements.Field.ROUGHNESS)
     assert value == 1
 
 

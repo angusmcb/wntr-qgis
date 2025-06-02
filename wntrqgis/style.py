@@ -26,12 +26,11 @@ from qgis.core import (
 
 from wntrqgis.elements import (
     CurveType,
+    Field,
     FieldGroup,
     InitialStatus,
-    ModelField,
     ModelLayer,
     PatternType,
-    ResultField,
     ResultLayer,
     _AbstractValueMap,
 )
@@ -43,7 +42,7 @@ def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Li
 
 
 class _FieldStyles:
-    def __init__(self, field_type: ModelField | ResultField, layer_type: ModelLayer | ResultLayer):
+    def __init__(self, field_type: Field, layer_type: ModelLayer | ResultLayer):
         self.field_type = field_type
         self.layer_type = layer_type
 
@@ -83,18 +82,18 @@ class _FieldStyles:
     def default_value(self) -> QgsDefaultValue:
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
 
-        if self.field_type is ModelField.ROUGHNESS:
+        if self.field_type is Field.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
 
-        if self.field_type is ModelField.DIAMETER and (
+        if self.field_type is Field.DIAMETER and (
             self.layer_type is ModelLayer.PIPES or self.layer_type is ModelLayer.VALVES
         ):
             return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
 
-        if self.field_type in [ModelField.MINOR_LOSS]:
+        if self.field_type in [Field.MINOR_LOSS]:
             return QgsDefaultValue("0.0")
 
-        if self.field_type is ModelField.BASE_SPEED:
+        if self.field_type is Field.BASE_SPEED:
             return QgsDefaultValue("1.0")
 
         if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
@@ -117,25 +116,25 @@ class _FieldStyles:
 
     @property
     def constraint_expression(self) -> str | None:
-        if self.field_type is ModelField.NAME:
+        if self.field_type is Field.NAME:
             return "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')"
-        if self.field_type is ModelField.DIAMETER:
+        if self.field_type is Field.DIAMETER:
             return "diameter > 0"
-        if self.field_type is ModelField.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "minor_loss >= 0"
-        if self.field_type is ModelField.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+        if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
             return "base_speed > 0"
         return None
 
     @property
     def constraint_description(self) -> str | None:
-        if self.field_type is ModelField.NAME:
+        if self.field_type is Field.NAME:
             return "Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"
-        if self.field_type is ModelField.DIAMETER:
+        if self.field_type is Field.DIAMETER:
             return "Diameter must be greater than 0"
-        if self.field_type is ModelField.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "Minor loss must be greater than or equal to 0"
-        if self.field_type is ModelField.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+        if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
             return "Base speed must be greater than 0"
         return None
 
@@ -158,7 +157,7 @@ class _LayerStyler:
         field: QgsField
         for i, field in enumerate(layer.fields()):
             try:
-                field_styler = _FieldStyles(ModelField(field.name()), self.layer_type)
+                field_styler = _FieldStyles(Field(field.name()), self.layer_type)
             except ValueError:
                 continue
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())

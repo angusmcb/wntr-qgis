@@ -248,73 +248,73 @@ class ModelLayer(_AbstractLayer):
             else [QgsProcessing.TypeVectorLine]
         )
 
-    def wq_fields(self) -> list[ModelField]:
+    def wq_fields(self) -> list[Field]:
         """Mapping of fields associated with each layer"""
 
         field_dict = {
             ModelLayer.JUNCTIONS: [
-                ModelField.NAME,
-                ModelField.ELEVATION,
-                ModelField.BASE_DEMAND,
-                ModelField.DEMAND_PATTERN,
-                ModelField.EMITTER_COEFFICIENT,
-                ModelField.INITIAL_QUALITY,
-                ModelField.MINIMUM_PRESSURE,
-                ModelField.REQUIRED_PRESSURE,
-                ModelField.PRESSURE_EXPONENT,
+                Field.NAME,
+                Field.ELEVATION,
+                Field.BASE_DEMAND,
+                Field.DEMAND_PATTERN,
+                Field.EMITTER_COEFFICIENT,
+                Field.INITIAL_QUALITY,
+                Field.MINIMUM_PRESSURE,
+                Field.REQUIRED_PRESSURE,
+                Field.PRESSURE_EXPONENT,
             ],
             ModelLayer.TANKS: [
-                ModelField.NAME,
-                ModelField.ELEVATION,
-                ModelField.INIT_LEVEL,
-                ModelField.MIN_LEVEL,
-                ModelField.MAX_LEVEL,
-                ModelField.DIAMETER,
-                ModelField.MIN_VOL,
-                ModelField.VOL_CURVE,
-                ModelField.OVERFLOW,
-                ModelField.INITIAL_QUALITY,
-                ModelField.MIXING_FRACTION,
-                ModelField.MIXING_MODEL,
-                ModelField.BULK_COEFF,
+                Field.NAME,
+                Field.ELEVATION,
+                Field.INIT_LEVEL,
+                Field.MIN_LEVEL,
+                Field.MAX_LEVEL,
+                Field.DIAMETER,
+                Field.MIN_VOL,
+                Field.VOL_CURVE,
+                Field.OVERFLOW,
+                Field.INITIAL_QUALITY,
+                Field.MIXING_FRACTION,
+                Field.MIXING_MODEL,
+                Field.BULK_COEFF,
             ],
             ModelLayer.RESERVOIRS: [
-                ModelField.NAME,
-                ModelField.BASE_HEAD,
-                ModelField.HEAD_PATTERN,
-                ModelField.INITIAL_QUALITY,
+                Field.NAME,
+                Field.BASE_HEAD,
+                Field.HEAD_PATTERN,
+                Field.INITIAL_QUALITY,
             ],
             ModelLayer.PIPES: [
-                ModelField.NAME,
-                ModelField.LENGTH,
-                ModelField.DIAMETER,
-                ModelField.ROUGHNESS,
-                ModelField.MINOR_LOSS,
-                ModelField.INITIAL_STATUS,
-                ModelField.CHECK_VALVE,
-                ModelField.BULK_COEFF,
-                ModelField.WALL_COEFF,
+                Field.NAME,
+                Field.LENGTH,
+                Field.DIAMETER,
+                Field.ROUGHNESS,
+                Field.MINOR_LOSS,
+                Field.INITIAL_STATUS,
+                Field.CHECK_VALVE,
+                Field.BULK_COEFF,
+                Field.WALL_COEFF,
             ],
             ModelLayer.PUMPS: [
-                ModelField.NAME,
-                ModelField.PUMP_TYPE,
-                ModelField.PUMP_CURVE,
-                ModelField.POWER,
-                ModelField.BASE_SPEED,
-                ModelField.SPEED_PATTERN,
-                ModelField.INITIAL_STATUS,
-                ModelField.EFFICIENCY,
-                ModelField.ENERGY_PATTERN,
-                ModelField.ENERGY_PRICE,
+                Field.NAME,
+                Field.PUMP_TYPE,
+                Field.PUMP_CURVE,
+                Field.POWER,
+                Field.BASE_SPEED,
+                Field.SPEED_PATTERN,
+                Field.INITIAL_STATUS,
+                Field.EFFICIENCY,
+                Field.ENERGY_PATTERN,
+                Field.ENERGY_PRICE,
             ],
             ModelLayer.VALVES: [
-                ModelField.NAME,
-                ModelField.DIAMETER,
-                ModelField.VALVE_TYPE,
-                ModelField.MINOR_LOSS,
-                ModelField.INITIAL_STATUS,
-                ModelField.INITIAL_SETTING,
-                ModelField.HEADLOSS_CURVE,
+                Field.NAME,
+                Field.DIAMETER,
+                Field.VALVE_TYPE,
+                Field.MINOR_LOSS,
+                Field.INITIAL_STATUS,
+                Field.INITIAL_SETTING,
+                Field.HEADLOSS_CURVE,
             ],
         }
         return field_dict[self]
@@ -339,17 +339,17 @@ class ResultLayer(_AbstractLayer):
     def wq_fields(self):
         if self is ResultLayer.NODES:
             return [
-                ResultField.DEMAND,
-                ResultField.HEAD,
-                ResultField.PRESSURE,
-                ResultField.QUALITY,
+                Field.DEMAND,
+                Field.HEAD,
+                Field.PRESSURE,
+                Field.QUALITY,
             ]
         return [
-            ResultField.FLOWRATE,
-            ResultField.HEADLOSS,
-            ResultField.VELOCITY,
-            ResultField.QUALITY,
-            ResultField.REACTION_RATE,
+            Field.FLOWRATE,
+            Field.HEADLOSS,
+            Field.VELOCITY,
+            Field.QUALITY,
+            Field.REACTION_RATE,
         ]
 
 
@@ -374,7 +374,7 @@ class _AbstractField(Enum):
         return self._field_group
 
 
-class ModelField(_AbstractField):
+class Field(_AbstractField):
     """All recognised fields that could be in a model layer"""
 
     NAME = "name", str, FieldGroup.BASE
@@ -421,87 +421,100 @@ class ModelField(_AbstractField):
 
     @property
     def friendly_name(self):
-        if self is ModelField.NAME:
+        if self is Field.NAME:
             return tr("Name")
-        if self is ModelField.ELEVATION:
+        if self is Field.ELEVATION:
             return tr("Elevation")
-        if self is ModelField.BASE_DEMAND:
+        if self is Field.BASE_DEMAND:
             return tr("Base Demand")
-        if self is ModelField.DEMAND_PATTERN:
+        if self is Field.DEMAND_PATTERN:
             return tr("Demand Pattern")
-        if self is ModelField.EMITTER_COEFFICIENT:
+        if self is Field.EMITTER_COEFFICIENT:
             return tr("Emitter Coefficient")
-        if self is ModelField.INIT_LEVEL:
+        if self is Field.INIT_LEVEL:
             return tr("Initial Level")
-        if self is ModelField.MIN_LEVEL:
+        if self is Field.MIN_LEVEL:
             return tr("Minimum Level")
-        if self is ModelField.MAX_LEVEL:
+        if self is Field.MAX_LEVEL:
             return tr("Maximum Level")
-        if self is ModelField.VALVE_TYPE:
+        if self is Field.VALVE_TYPE:
             return tr("Valve Type")
-        if self is ModelField.DIAMETER:
+        if self is Field.DIAMETER:
             return tr("Diameter")
-        if self is ModelField.MIN_VOL:
+        if self is Field.MIN_VOL:
             return tr("Minimum Volume")
-        if self is ModelField.VOL_CURVE:
+        if self is Field.VOL_CURVE:
             return tr("Volume Curve")
-        if self is ModelField.OVERFLOW:
+        if self is Field.OVERFLOW:
             return tr("Overflow")
-        if self is ModelField.BASE_HEAD:
+        if self is Field.BASE_HEAD:
             return tr("Base Head")
-        if self is ModelField.HEAD_PATTERN:
+        if self is Field.HEAD_PATTERN:
             return tr("Head Pattern")
-        if self is ModelField.LENGTH:
+        if self is Field.LENGTH:
             return tr("Length")
-        if self is ModelField.ROUGHNESS:
+        if self is Field.ROUGHNESS:
             return tr("Roughness")
-        if self is ModelField.MINOR_LOSS:
+        if self is Field.MINOR_LOSS:
             return tr("Minor Loss")
-        if self is ModelField.CHECK_VALVE:
+        if self is Field.CHECK_VALVE:
             return tr("Check Valve")
-        if self is ModelField.PUMP_TYPE:
+        if self is Field.PUMP_TYPE:
             return tr("Pump Type")
-        if self is ModelField.PUMP_CURVE:
+        if self is Field.PUMP_CURVE:
             return tr("Pump Curve")
-        if self is ModelField.POWER:
+        if self is Field.POWER:
             return tr("Power")
-        if self is ModelField.BASE_SPEED:
+        if self is Field.BASE_SPEED:
             return tr("Base Speed")
-        if self is ModelField.SPEED_PATTERN:
+        if self is Field.SPEED_PATTERN:
             return tr("Speed Pattern")
-        if self is ModelField.INITIAL_STATUS:
+        if self is Field.INITIAL_STATUS:
             return tr("Initial Status")
-        if self is ModelField.INITIAL_SETTING:
+        if self is Field.INITIAL_SETTING:
             return tr("Initial Setting")
-        if self is ModelField.HEADLOSS_CURVE:
+        if self is Field.HEADLOSS_CURVE:
             return tr("Headloss Curve")
-        if self is ModelField.INITIAL_QUALITY:
+        if self is Field.INITIAL_QUALITY:
             return tr("Initial Quality")
-        if self is ModelField.MIXING_FRACTION:
+        if self is Field.MIXING_FRACTION:
             return tr("Mixing Fraction")
-        if self is ModelField.MIXING_MODEL:
+        if self is Field.MIXING_MODEL:
             return tr("Mixing Model")
-        if self is ModelField.BULK_COEFF:
+        if self is Field.BULK_COEFF:
             return tr("Bulk Coefficient")
-        if self is ModelField.WALL_COEFF:
+        if self is Field.WALL_COEFF:
             return tr("Wall Coefficient")
-        if self is ModelField.MINIMUM_PRESSURE:
+        if self is Field.MINIMUM_PRESSURE:
             return tr("Minimum Pressure")
-        if self is ModelField.REQUIRED_PRESSURE:
+        if self is Field.REQUIRED_PRESSURE:
             return tr("Required Pressure")
-        if self is ModelField.PRESSURE_EXPONENT:
+        if self is Field.PRESSURE_EXPONENT:
             return tr("Pressure Exponent")
-        if self is ModelField.EFFICIENCY:
+        if self is Field.EFFICIENCY:
             return tr("Efficiency")
-        if self is ModelField.ENERGY_PATTERN:
+        if self is Field.ENERGY_PATTERN:
             return tr("Energy Pattern")
-        if self is ModelField.ENERGY_PRICE:
+        if self is Field.ENERGY_PRICE:
             return tr("Energy Price")
+
+        if self is Field.DEMAND:
+            return tr("Demand")
+        if self is Field.HEAD:
+            return tr("Head")
+        if self is Field.PRESSURE:
+            return tr("Pressure")
+        if self is Field.FLOWRATE:
+            return tr("Flowrate")
+        if self is Field.HEADLOSS:
+            return tr("Headloss")
+        if self is Field.VELOCITY:
+            return tr("Velocity")
+        if self is Field.QUALITY:
+            return tr("Quality")
+        if self is Field.REACTION_RATE:
+            return tr("Reaction Rate")
         raise ValueError
-
-
-class ResultField(_AbstractField):
-    """Fields that can be in the results layers"""
 
     DEMAND = "demand", float, FieldGroup.BASE
     HEAD = "head", float, FieldGroup.BASE
@@ -513,23 +526,3 @@ class ResultField(_AbstractField):
 
     QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
     REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS
-
-    @property
-    def friendly_name(self):
-        if self is ResultField.DEMAND:
-            return tr("Demand")
-        if self is ResultField.HEAD:
-            return tr("Head")
-        if self is ResultField.PRESSURE:
-            return tr("Pressure")
-        if self is ResultField.FLOWRATE:
-            return tr("Flowrate")
-        if self is ResultField.HEADLOSS:
-            return tr("Headloss")
-        if self is ResultField.VELOCITY:
-            return tr("Velocity")
-        if self is ResultField.QUALITY:
-            return tr("Quality")
-        if self is ResultField.REACTION_RATE:
-            return tr("Reaction Rate")
-        raise ValueError
