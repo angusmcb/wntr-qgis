@@ -78,7 +78,7 @@ class _FieldStyles:
         raise KeyError  # pragma: no cover
 
     @property
-    def default_value(self):
+    def default_value(self) -> QgsDefaultValue:
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
 
         if self.field_type is ModelField.ROUGHNESS:
@@ -106,7 +106,7 @@ class _FieldStyles:
         return QgsDefaultValue()
 
     @property
-    def alias(self):
+    def alias(self) -> str:
         return self.field_type.friendly_name
 
 
