@@ -43,7 +43,7 @@ def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Li
     styler = _LayerStyler(layer, layer_type, theme)
 
     layer.setRenderer(styler.layer_renderer)
-    layer.setLabeling(styler.labelling)
+    layer.setLabeling(styler.labeling)
     styler.setup_extended_period()
 
     _setup_fields(layer, layer_type)
@@ -53,10 +53,10 @@ def _setup_fields(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
     field: QgsField
     for i, field in enumerate(layer.fields()):
         try:
-            field_styler = _FieldStyler(Field(field.name()), layer_type)
+            field_styler = _FieldStyler(Field(field.name().lower()), layer_type)
         except ValueError:
             continue
-        layer.setEditorWidgetSetup(i, field_styler.editor_widget())
+        layer.setEditorWidgetSetup(i, field_styler.editor_widget)
         layer.setDefaultValueDefinition(i, field_styler.default_value)
         layer.setFieldAlias(i, field_styler.alias)
         layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
@@ -67,6 +67,7 @@ class _FieldStyler:
         self.field_type = field_type
         self.layer_type = layer_type
 
+    @property
     def editor_widget(self) -> QgsEditorWidgetSetup:
         # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
         python_type_class = self.field_type.python_type
@@ -173,8 +174,8 @@ class _LayerStyler:
             temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
 
     @property
-    def labelling(self) -> QgsAbstractVectorLayerLabeling | None:
-        if isinstance(self.layer_type, ResultLayer.LINKS):
+    def labeling(self) -> QgsAbstractVectorLayerLabeling | None:
+        if self.layer_type is ResultLayer.LINKS:
             label_settings = QgsPalLayerSettings()
             label_settings.drawLabels = False
             label_settings.fieldName = "flowrate"
