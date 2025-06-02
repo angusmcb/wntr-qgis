@@ -5,9 +5,11 @@ from typing import Any, Literal
 
 from qgis.core import (
     Qgis,
+    QgsAbstractVectorLayerLabeling,
     QgsClassificationQuantile,
     QgsDefaultValue,
     QgsEditorWidgetSetup,
+    QgsFeatureRenderer,
     QgsField,
     QgsGraduatedSymbolRenderer,
     QgsLineSymbol,
@@ -19,6 +21,7 @@ from qgis.core import (
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
     QgsStyle,
+    QgsSymbol,
     QgsVectorLayer,
     QgsVectorLayerSimpleLabeling,
     QgsVectorLayerTemporalProperties,
@@ -37,11 +40,29 @@ from wntrqgis.elements import (
 
 
 def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Literal["extended"] | None = None):
-    styler = _LayerStyler(layer_type, theme)
-    styler.style_layer(layer)
+    styler = _LayerStyler(layer, layer_type, theme)
+
+    layer.setRenderer(styler.layer_renderer)
+    layer.setLabeling(styler.labelling)
+    styler.setup_extended_period()
+
+    _setup_fields(layer, layer_type)
 
 
-class _FieldStyles:
+def _setup_fields(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
+    field: QgsField
+    for i, field in enumerate(layer.fields()):
+        try:
+            field_styler = _FieldStyler(Field(field.name()), layer_type)
+        except ValueError:
+            continue
+        layer.setEditorWidgetSetup(i, field_styler.editor_widget())
+        layer.setDefaultValueDefinition(i, field_styler.default_value)
+        layer.setFieldAlias(i, field_styler.alias)
+        layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
+
+
+class _FieldStyler:
     def __init__(self, field_type: Field, layer_type: ModelLayer | ResultLayer):
         self.field_type = field_type
         self.layer_type = layer_type
@@ -140,23 +161,34 @@ class _FieldStyles:
 
 
 class _LayerStyler:
-    def __init__(self, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
+    def __init__(self, layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
+        self.layer = layer
         self.layer_type = layer_type
         self.theme = theme
 
-    def style_layer(self, layer: QgsVectorLayer):
-        self._setup_fields(layer)
+    def setup_extended_period(self):
+        if isinstance(self.layer_type, ResultLayer) and self.theme == "extended":
+            temporal_properties: QgsVectorLayerTemporalProperties = self.layer.temporalProperties()
+            temporal_properties.setIsActive(True)
+            temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
 
+    @property
+    def labelling(self) -> QgsAbstractVectorLayerLabeling | None:
+        if isinstance(self.layer_type, ResultLayer.LINKS):
+            label_settings = QgsPalLayerSettings()
+            label_settings.drawLabels = False
+            label_settings.fieldName = "flowrate"
+            label_settings.decimals = 1
+            label_settings.formatNumbers = True
+            return QgsVectorLayerSimpleLabeling(label_settings)
+
+        return None
+
+    @property
+    def layer_renderer(self) -> QgsFeatureRenderer:
         if isinstance(self.layer_type, ModelLayer):
-            self._style_model_layer(layer)
-        if isinstance(self.layer_type, ResultLayer):
-            self._style_result_layer(layer)
+            return QgsSingleSymbolRenderer(self._symbol)
 
-    def _style_model_layer(self, layer: QgsVectorLayer):
-        renderer = QgsSingleSymbolRenderer(self._symbol)
-        layer.setRenderer(renderer)
-
-    def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is ResultLayer.NODES:
             attribute_expression = 'wntr_result_at_current_time("pressure")' if self.theme == "extended" else "pressure"
         else:
@@ -170,41 +202,16 @@ class _LayerStyler:
         classification_method.setLabelTrimTrailingZeroes(False)
         renderer.setClassificationMethod(classification_method)
 
-        renderer.updateClasses(layer, 5)
+        renderer.updateClasses(self.layer, 5)
 
         color_ramp = QgsStyle().defaultStyle().colorRamp("Spectral")
         color_ramp.invert()
         renderer.updateColorRamp(color_ramp)
 
-        layer.setRenderer(renderer)
-
-        if self.theme == "extended":
-            temporal_properties: QgsVectorLayerTemporalProperties = layer.temporalProperties()
-            temporal_properties.setIsActive(True)
-            temporal_properties.setMode(Qgis.VectorTemporalMode.RedrawLayerOnly)
-
-        label_settings = QgsPalLayerSettings()
-        label_settings.drawLabels = False
-        label_settings.fieldName = "flowrate"
-        label_settings.decimals = 1
-        label_settings.formatNumbers = True
-
-        layer.setLabeling(QgsVectorLayerSimpleLabeling(label_settings))
-
-    def _setup_fields(self, layer: QgsVectorLayer):
-        field: QgsField
-        for i, field in enumerate(layer.fields()):
-            try:
-                field_styler = _FieldStyles(Field(field.name()), self.layer_type)
-            except ValueError:
-                continue
-            layer.setEditorWidgetSetup(i, field_styler.editor_widget())
-            layer.setDefaultValueDefinition(i, field_styler.default_value)
-            layer.setFieldAlias(i, field_styler.alias)
-            layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
+        return renderer
 
     @property
-    def _symbol(self):
+    def _symbol(self) -> QgsSymbol:
         if self.layer_type is ModelLayer.JUNCTIONS:
             return QgsMarkerSymbol.createSimple(CIRCLE | WHITE_FILL | HAIRLINE_STROKE | JUNCTION_SIZE)
 
