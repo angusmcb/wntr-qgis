@@ -136,6 +136,7 @@ class FieldGroup(Flag):
     ENERGY = auto()
     EXTRA = auto()
     REQUIRED = auto()
+    LIST_IN_EXTENDED_PERIOD = auto()
 
 
 class PatternType(str):
@@ -516,13 +517,13 @@ class Field(_AbstractField):
             return tr("Reaction Rate")
         raise ValueError
 
-    DEMAND = "demand", float, FieldGroup.BASE
-    HEAD = "head", float, FieldGroup.BASE
-    PRESSURE = "pressure", float, FieldGroup.BASE
+    DEMAND = "demand", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEAD = "head", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    PRESSURE = "pressure", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
-    FLOWRATE = "flowrate", float, FieldGroup.BASE
-    HEADLOSS = "headloss", float, FieldGroup.BASE
-    VELOCITY = "velocity", float, FieldGroup.BASE
+    FLOWRATE = "flowrate", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEADLOSS = "headloss", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    VELOCITY = "velocity", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
-    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
-    REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD

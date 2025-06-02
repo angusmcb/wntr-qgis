@@ -366,13 +366,12 @@ class Writer:
         qgs_fields = QgsFields()  # nice constructor didn't arrive until qgis 3.40
 
         for f in field_names:
+            is_list_field = False
             try:
                 dtype = Field[f.upper()].python_type
+                is_list_field = Field[f.upper()].field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD
             except KeyError:
-                try:
-                    dtype = Field[f.upper()].python_type
-                except KeyError:
-                    dtype = dtypes[f]
+                dtype = dtypes[f]
 
             f = cast(str, f)
             is_result_field = f.upper() in Field._member_names_
@@ -382,7 +381,7 @@ class Writer:
 
             precision = (2 if is_result_field else 5) if pd.api.types.is_float_dtype(dtype) else 0
 
-            if is_result_field and self._timestep is None:
+            if is_list_field and self._timestep is None:
                 qgs_fields.append(
                     QgsField(
                         f.lower(),
