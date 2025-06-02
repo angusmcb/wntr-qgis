@@ -404,7 +404,7 @@ class Field(Enum):
 
     INITIAL_QUALITY = "initial_quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS
-    MIXING_MODEL = "mixing_model", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    MIXING_MODEL = "mixing_model", str, FieldGroup.WATER_QUALITY_ANALYSIS
     BULK_COEFF = "bulk_coeff", float, FieldGroup.WATER_QUALITY_ANALYSIS
     WALL_COEFF = "wall_coeff", float, FieldGroup.WATER_QUALITY_ANALYSIS
 
