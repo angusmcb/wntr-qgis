@@ -110,13 +110,3 @@ All valves must have a `valve_type` attribute. The options are:
 * `FCV` - Flow Control Valves limit the flow to a specified amount. They must have a `initial_setting` attribute, which is a float representing the flow setpoint of the valve.
 * `TCV` - Throttle Control Valves simulate a partially closed valve by adjusting the minor head loss coefficient of the valve. They must have a `initial_setting` attribute, which represents the minor head loss coefficient of the valve.
 * `GPV` - General Purpose Valves are used to represent a link where the user supplies a special flow - head loss relationship instead of following one of the standard hydraulic formulas. They can be used to model turbines, well draw-down or reduced-flow backflow prevention valves. They must have a `headloss_curve` attribute, which is a string representing the headloss curve of the valve in the form of a list of points, e.g. ``(0, 10), (2, 5), (3.3, 7)``.
-
-
-
-
-
-
-
-
-
-
