@@ -233,14 +233,14 @@ class _LayerStyler:
             # creating using nomral __init__ with list crashes 3.34
             valve_marker = QgsMarkerSymbol.createSimple(left_triangle.properties())  # left_triangle, right_triangle])
             valve_marker.appendSymbolLayer(right_triangle)
-            return self._line_with_marker(background_line, valve_marker)
+            return _line_with_marker(background_line, valve_marker)
 
         if self.layer_type is ModelLayer.PUMPS:
             pump_body = QgsSimpleMarkerSymbolLayer.create(CIRCLE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_outlet = QgsSimpleMarkerSymbolLayer.create(OUTLET_SQUARE | PUMP_SIZE | BLACK_FILL | NO_STROKE)
             pump_marker = QgsMarkerSymbol.createSimple(pump_body.properties())
             pump_marker.appendSymbolLayer(pump_outlet)
-            return self._line_with_marker(background_line, pump_marker)
+            return _line_with_marker(background_line, pump_marker)
 
         if self.layer_type is ResultLayer.NODES:
             return QgsMarkerSymbol.createSimple(CIRCLE | NO_STROKE | NODE_SIZE)
@@ -253,17 +253,17 @@ class _LayerStyler:
 
             exp = QgsProperty.fromExpression(f"if( {flowrate_field} <0,180,0)")
             arrow.setDataDefinedAngle(exp)
-            return self._line_with_marker(line, arrow)
+            return _line_with_marker(line, arrow)
 
         raise KeyError  # pragma: no cover
 
-    def _line_with_marker(self, background_line, marker):
-        marker_line = QgsMarkerLineSymbolLayer.create(CENTRAL_PLACEMENT)
-        marker_line.setSubSymbol(marker)
-        combined_symbol = QgsLineSymbol.createSimple(background_line.properties())
-        # combined_symbol.appendSymbolLayer(background_line)
-        combined_symbol.appendSymbolLayer(marker_line)
-        return combined_symbol
+
+def _line_with_marker(background_line: QgsLineSymbol, marker: QgsMarkerSymbol) -> QgsLineSymbol:
+    marker_line = QgsMarkerLineSymbolLayer.create(CENTRAL_PLACEMENT)
+    marker_line.setSubSymbol(marker)
+    combined_symbol = QgsLineSymbol.createSimple(background_line.properties())
+    combined_symbol.appendSymbolLayer(marker_line)
+    return combined_symbol
 
 
 # USE THE FOLLOWING TO DISCOVER WHAT PROPERTIES ARE AVAILABLE:
