@@ -145,6 +145,8 @@ class _LayerStyler:
         self.theme = theme
 
     def style_layer(self, layer: QgsVectorLayer):
+        self._setup_fields(layer)
+
         if isinstance(self.layer_type, ModelLayer):
             self._style_model_layer(layer)
         if isinstance(self.layer_type, ResultLayer):
@@ -153,17 +155,6 @@ class _LayerStyler:
     def _style_model_layer(self, layer: QgsVectorLayer):
         renderer = QgsSingleSymbolRenderer(self._symbol)
         layer.setRenderer(renderer)
-
-        field: QgsField
-        for i, field in enumerate(layer.fields()):
-            try:
-                field_styler = _FieldStyles(Field(field.name()), self.layer_type)
-            except ValueError:
-                continue
-            layer.setEditorWidgetSetup(i, field_styler.editor_widget())
-            layer.setDefaultValueDefinition(i, field_styler.default_value)
-            layer.setFieldAlias(i, field_styler.alias)
-            layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
 
     def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is ResultLayer.NODES:
@@ -199,6 +190,18 @@ class _LayerStyler:
         label_settings.formatNumbers = True
 
         layer.setLabeling(QgsVectorLayerSimpleLabeling(label_settings))
+
+    def _setup_fields(self, layer: QgsVectorLayer):
+        field: QgsField
+        for i, field in enumerate(layer.fields()):
+            try:
+                field_styler = _FieldStyles(Field(field.name()), self.layer_type)
+            except ValueError:
+                continue
+            layer.setEditorWidgetSetup(i, field_styler.editor_widget())
+            layer.setDefaultValueDefinition(i, field_styler.default_value)
+            layer.setFieldAlias(i, field_styler.alias)
+            layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
 
     @property
     def _symbol(self):
