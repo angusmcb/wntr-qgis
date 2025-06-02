@@ -627,11 +627,6 @@ class WqProcessingFeedback(QgsProcessingFeedback):
         self.warnings: list[str] = []
         super().__init__(logFeedback)
 
-    def setProgressText(self, text: str | None):  # noqa N802
-        iface.statusBarIface().showMessage(text)
-
-        super().setProgressText(text)
-
     def reportError(self, error: str | None, fatalError: bool = False):  # noqa N802
         if error:
             self.errors.append(error)
