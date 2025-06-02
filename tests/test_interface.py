@@ -1,5 +1,5 @@
 import pytest
-from qgis.core import QgsFields, QgsProject, QgsVectorLayer
+from qgis.core import QgsFields, QgsVectorLayer
 
 import wntrqgis.elements
 from wntrqgis.interface import (

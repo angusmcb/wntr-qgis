@@ -6,7 +6,7 @@ from wntrqgis import from_qgis, to_qgis
 
 
 @pytest.fixture(scope="class")
-def template_layers(wn):
+def template_layers():
     import wntr
 
     wn = wntr.network.WaterNetworkModel()
