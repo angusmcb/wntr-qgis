@@ -118,6 +118,9 @@ class _FieldStyler:
         if self.field_type is Field.BASE_SPEED:
             return QgsDefaultValue("1.0")
 
+        if self.field_type is Field.POWER:
+            return QgsDefaultValue("50.0")
+
         if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
             return QgsDefaultValue(f"'{InitialStatus.ACTIVE.name}'")
 
