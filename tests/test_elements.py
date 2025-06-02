@@ -23,4 +23,4 @@ def test_friendly_name(enum):
 
 def test_field_name_matches_value():
     for field in Field:
-        assert field.name.lower() == field.value.lower()
+        assert field.name.lower() == field.value
