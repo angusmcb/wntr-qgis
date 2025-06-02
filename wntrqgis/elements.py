@@ -303,7 +303,6 @@ class ModelLayer(_AbstractLayer):
                 ModelField.BASE_SPEED,
                 ModelField.SPEED_PATTERN,
                 ModelField.INITIAL_STATUS,
-                ModelField.INITIAL_SETTING,
                 ModelField.EFFICIENCY,
                 ModelField.ENERGY_PATTERN,
                 ModelField.ENERGY_PRICE,
