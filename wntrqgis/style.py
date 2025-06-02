@@ -50,7 +50,7 @@ class _FieldStyles:
         python_type_class = self.field_type.python_type
 
         if python_type_class is float:
-            config: dict[str, Any] = {"Style": "SpinBox"}
+            config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
             if self.field_type.field_group & FieldGroup.REQUIRED:
                 config["AllowNull"] = False
             return QgsEditorWidgetSetup(
