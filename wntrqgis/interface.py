@@ -115,13 +115,10 @@ class _Converter:
         field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
-        if isinstance(field, (wntr.epanet.HydParam, wntr.epanet.QualParam)):
-            conversion_param = field
-        else:
-            try:
-                conversion_param = self._get_wntr_conversion_param(field, layer)
-            except ValueError:
-                return value
+        conversion_param = self._get_wntr_conversion_param(field, layer)
+
+        if not conversion_param:
+            return value
 
         return wntr.epanet.util.to_si(
             self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
@@ -133,23 +130,27 @@ class _Converter:
         field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
-        if isinstance(field, (wntr.epanet.HydParam, wntr.epanet.QualParam)):
-            conversion_param = field
-        else:
-            try:
-                conversion_param = self._get_wntr_conversion_param(field, layer)
-            except ValueError:
-                return value
+        conversion_param = self._get_wntr_conversion_param(field, layer)
+
+        if not conversion_param:
+            return value
 
         return wntr.epanet.util.from_si(
             self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
         )
 
     def _get_wntr_conversion_param(
-        self, field: Field, layer: ModelLayer | ResultLayer | None = None
-    ) -> wntr.epanet.QualParam | wntr.epanet.HydParam:
+        self, field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam, layer: ModelLayer | ResultLayer | None = None
+    ) -> wntr.epanet.QualParam | wntr.epanet.HydParam | None:
         QualParam = wntr.epanet.QualParam  # noqa
         HydParam = wntr.epanet.HydParam  # noqa
+
+        if isinstance(field, (HydParam, QualParam)):
+            return field
+
+        if field.python_type is not float:
+            return None
+
         if field is Field.ELEVATION:
             return HydParam.Elevation
         if field is Field.BASE_DEMAND or field is Field.DEMAND:
@@ -192,8 +193,19 @@ class _Converter:
             return HydParam.HydraulicHead
         if field is Field.VELOCITY:
             return HydParam.Velocity
-        msg = f"no param found for {field}"
-        raise ValueError(msg)
+
+        if field in [
+            Field.MINOR_LOSS,
+            Field.BASE_SPEED,
+            Field.INITIAL_SETTING,
+            Field.MIXING_FRACTION,
+            Field.PRESSURE_EXPONENT,
+            Field.ENERGY_PRICE,
+            Field.REACTION_RATE,
+        ]:
+            return None
+
+        raise ValueError(field)
 
 
 @needs_wntr_pandas
