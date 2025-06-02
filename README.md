@@ -22,7 +22,7 @@ It is compatible with and import/exports to EPANET. It uses the EPANET solver by
 Compared to other QGIS water network modelling plugins, this plugin aims to be:
 - **Easy to use.** Accessible for those who know how to use QGIS. Well documented, good defaults, clear functionality.
 - **Integrate the power of QGIS and WNTR.** It aims to complement rather than replace features already within QGIS. Data can be manipulated with the standard QGIS tools, processing algorithms, and plugins.
-- **Robust.** Limited, well tested features (more than 200 tests).
+- **Robust.** Limited, well tested features (more than 500 tests).
 - **Flexible.** Not choosy about how you do things.
 - **Automatable / programmable.** Tools can be used from the toolbar, in the QGIS 'model builder' or from  PyQGIS
 

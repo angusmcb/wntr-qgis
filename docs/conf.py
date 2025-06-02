@@ -106,17 +106,23 @@ autodoc_member_order = "bysource"
 
 
 def generate_attributes_table(_):
-    from wntrqgis.elements import ModelLayer
+    from wntrqgis.elements import FieldGroup, ModelLayer
 
     output_dir = Path(__file__).parent / "user_guide" / "autogen-includes"
     output_dir.mkdir(parents=True, exist_ok=True)
     for layer in ModelLayer:
         table = pd.DataFrame(
             [
-                (field.value, field_type_str(field), field_value(field, layer), field_analysis_type(field))
+                (
+                    field.value + ("*" if field.field_group & FieldGroup.REQUIRED else ""),
+                    field.friendly_name,
+                    field_type_str(field),
+                    field_value(field, layer),
+                    field_analysis_type(field),
+                )
                 for field in layer.wq_fields()
             ],
-            columns=["Attribute", "QGIS Field Type", "Value(s)", "Used for"],
+            columns=["Attribute", "Alias", "Type", "Value(s)", "Used for"],
         )
         table.to_csv(output_dir / (layer.name.lower() + ".csv"), index=False)
 
@@ -129,7 +135,7 @@ def field_type_str(field):
     if issubclass(python_type, PatternType):
         return "Text (string) *or* Decimal list"
 
-    if issubclass(python_type, str):
+    if issubclass(python_type, (str, Enum)):
         return "Text (string)"
     if python_type is float:
         return "Decimal (double)"
@@ -152,7 +158,9 @@ def field_value(field, layer) -> str:
         return "Pattern"
     if issubclass(python_type, CurveType):
         return "Curve"
-    if field.name in ["NAME", "LENGTH"]:
+    if field.name == "NAME":
+        return "Will generate automatically if blank"
+    if field.name == "LENGTH":
         return "Will calculate if blank"
 
     return ""
