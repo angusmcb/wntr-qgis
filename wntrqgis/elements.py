@@ -354,7 +354,7 @@ class ResultLayer(_AbstractLayer):
         ]
 
 
-class _AbstractField(Enum):
+class Field(Enum):
     def __new__(cls, *args):
         obj = object.__new__(cls)
         obj._value_ = args[0]
@@ -373,10 +373,6 @@ class _AbstractField(Enum):
     def field_group(self) -> FieldGroup:
         """The field group(s) the field is part of"""
         return self._field_group
-
-
-class Field(_AbstractField):
-    """All recognised fields that could be in a model layer"""
 
     NAME = "name", str, FieldGroup.BASE
     ELEVATION = "elevation", float, FieldGroup.BASE | FieldGroup.REQUIRED
@@ -419,6 +415,17 @@ class Field(_AbstractField):
     EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
     ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
+
+    DEMAND = "demand", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEAD = "head", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    PRESSURE = "pressure", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+
+    FLOWRATE = "flowrate", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEADLOSS = "headloss", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    VELOCITY = "velocity", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+
+    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
     @property
     def friendly_name(self):
@@ -516,14 +523,3 @@ class Field(_AbstractField):
         if self is Field.REACTION_RATE:
             return tr("Reaction Rate")
         raise ValueError
-
-    DEMAND = "demand", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    HEAD = "head", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    PRESSURE = "pressure", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-
-    FLOWRATE = "flowrate", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    HEADLOSS = "headloss", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    VELOCITY = "velocity", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-
-    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
