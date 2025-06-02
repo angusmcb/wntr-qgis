@@ -369,7 +369,7 @@ class Writer:
             is_list_field = False
             try:
                 dtype = Field[f.upper()].python_type
-                is_list_field = Field[f.upper()].field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD
+                is_list_field = bool(Field[f.upper()].field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD)
             except KeyError:
                 dtype = dtypes[f]
 

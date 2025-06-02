@@ -167,7 +167,7 @@ class _LayerStyler:
         self.layer_type = layer_type
         self.theme = theme
 
-    def setup_extended_period(self):
+    def setup_extended_period(self) -> None:
         if isinstance(self.layer_type, ResultLayer) and self.theme == "extended":
             temporal_properties: QgsVectorLayerTemporalProperties = self.layer.temporalProperties()
             temporal_properties.setIsActive(True)
