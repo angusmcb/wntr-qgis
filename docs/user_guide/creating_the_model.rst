@@ -69,6 +69,8 @@ Patterns will also accept a field of type list, where each item in the list is a
 
     The alias names will also be translated if using the plugin in a different language, whilst the underlying attribute names will not be.
 
+    The values of attributes may also be given aliases. For example, the `valve_type` attribute value 'PRV' can have the alias 'Pressure Reducing Valve'. The alias will be used in the user interface, but the underlying value will still be 'PRV'.
+
 
 .. csv-table:: Possible Junction Attributes
     :file: autogen-includes/junctions.csv
