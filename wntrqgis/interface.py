@@ -373,22 +373,12 @@ class Writer:
             except KeyError:
                 dtype = dtypes[f]
 
-            f = cast(str, f)
-            is_result_field = f.upper() in Field._member_names_
-
-            if is_result_field:
-                dtype = float
-
-            precision = (2 if is_result_field else 5) if pd.api.types.is_float_dtype(dtype) else 0
-
             if is_list_field and self._timestep is None:
                 qgs_fields.append(
                     QgsField(
                         f.lower(),
                         self._get_qgs_field_type(list),
                         subType=self._get_qgs_field_type(float),
-                        len=10 if pd.api.types.is_float_dtype(float) else 0,
-                        prec=precision,
                     )
                 )
             else:
@@ -396,8 +386,6 @@ class Writer:
                     QgsField(
                         f.lower(),
                         self._get_qgs_field_type(dtype),
-                        len=10 if pd.api.types.is_float_dtype(dtype) else 0,
-                        prec=precision,
                     )
                 )
         return qgs_fields
