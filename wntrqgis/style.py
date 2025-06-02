@@ -140,7 +140,7 @@ class _FieldStyler:
         return self.field_type.friendly_name
 
     @property
-    def constraint(self) -> tuple[str | None]:
+    def constraint(self) -> tuple[str, str] | tuple[None, None]:
         """Returns field constraint. Either:
         tuple of constraint expression and description for the field
         None, None if no constraint is needed.
