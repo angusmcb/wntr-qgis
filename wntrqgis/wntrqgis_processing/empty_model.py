@@ -13,7 +13,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtGui import QIcon
 
-from wntrqgis.elements import FieldGroup, ModelField, ModelLayer
+from wntrqgis.elements import Field, FieldGroup, ModelLayer
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
 from wntrqgis.wntrqgis_processing.common import ProgressTracker, WntrQgisProcessingBase
@@ -89,7 +89,7 @@ class TemplateLayers(WntrQgisProcessingBase):
 
         wn = wntr.network.WaterNetworkModel()
         network_writer = Writer(wn)
-        network_writer.fields = [field for field in ModelField if field.field_group & analysis_types_to_use]
+        network_writer.fields = [field for field in Field if field.field_group & analysis_types_to_use]
 
         # for shapefile writing
         warnings.filterwarnings("ignore", "Field", RuntimeWarning)
