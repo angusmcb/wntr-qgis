@@ -25,10 +25,12 @@ from qgis.core import (
 )
 
 from wntrqgis.elements import (
+    CurveType,
     FieldGroup,
     InitialStatus,
     ModelField,
     ModelLayer,
+    PatternType,
     ResultField,
     ResultLayer,
     _AbstractValueMap,
@@ -89,8 +91,11 @@ class _FieldStyles:
         ):
             return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
 
-        if self.field_type in [ModelField.ELEVATION, ModelField.BASE_HEAD]:
-            return QgsDefaultValue("0")
+        if self.field_type in [ModelField.MINOR_LOSS]:
+            return QgsDefaultValue("0.0")
+
+        if self.field_type is ModelField.BASE_SPEED:
+            return QgsDefaultValue("1.0")
 
         if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
             return QgsDefaultValue(f"'{InitialStatus.ACTIVE.name}'")
@@ -101,13 +106,38 @@ class _FieldStyles:
         if issubclass(self.field_type.python_type, Enum):
             return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).name}'")
 
-        if self.field_type.python_type is str:
+        if self.field_type.python_type in [str, CurveType, PatternType]:
             return QgsDefaultValue("''")  # because 'NULL' doesn't look nice
+
         return QgsDefaultValue()
 
     @property
     def alias(self) -> str:
         return self.field_type.friendly_name
+
+    @property
+    def constraint_expression(self) -> str | None:
+        if self.field_type is ModelField.NAME:
+            return "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')"
+        if self.field_type is ModelField.DIAMETER:
+            return "diameter > 0"
+        if self.field_type is ModelField.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+            return "minor_loss >= 0"
+        if self.field_type is ModelField.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+            return "base_speed > 0"
+        return None
+
+    @property
+    def constraint_description(self) -> str | None:
+        if self.field_type is ModelField.NAME:
+            return "Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"
+        if self.field_type is ModelField.DIAMETER:
+            return "Diameter must be greater than 0"
+        if self.field_type is ModelField.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+            return "Minor loss must be greater than or equal to 0"
+        if self.field_type is ModelField.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+            return "Base speed must be greater than 0"
+        return None
 
 
 class _LayerStyler:
@@ -134,6 +164,7 @@ class _LayerStyler:
             layer.setEditorWidgetSetup(i, field_styler.editor_widget())
             layer.setDefaultValueDefinition(i, field_styler.default_value)
             layer.setFieldAlias(i, field_styler.alias)
+            layer.setConstraintExpression(i, field_styler.constraint_expression, field_styler.constraint_description)
 
     def _style_result_layer(self, layer: QgsVectorLayer):
         if self.layer_type is ResultLayer.NODES:
