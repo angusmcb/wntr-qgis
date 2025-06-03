@@ -1177,7 +1177,7 @@ class _FromGis:
                         continue
                     if field.value not in node_df:
                         raise RequiredFieldError(layer, field)
-                    if node_df.loc[layer_items, field.value].isna().any():
+                    if node_df.loc[layer_items, field.value].hasnans:
                         raise RequiredFieldError(layer, field)
 
         node_df["demand_pattern_name"] = self.patterns.add_all(
@@ -1215,35 +1215,34 @@ class _FromGis:
         valves = link_df["link_type"] == "Valve"
 
         if valves.any():
-            if "valve_type" not in link_df.columns:
-                raise ValveTypeError from None
-
             try:
-                link_df["valve_type"] = link_df["valve_type"].str.upper()
-            except AttributeError:
+                link_df[Field.VALVE_TYPE.value] = link_df[Field.VALVE_TYPE.value].str.upper()
+            except (KeyError, AttributeError):
                 raise ValveTypeError from None
 
-            if not link_df.loc[valves, "valve_type"].isin(ValveType._member_names_).all():
+            if not link_df.loc[valves, Field.VALVE_TYPE.value].isin(ValveType._member_names_).all():
                 raise ValveTypeError from None
 
-            pressure_valves = link_df["valve_type"].isin(["PRV", "PSV", "PBV"])
-            fcvs = link_df["valve_type"] == "FCV"
-            tcvs = link_df["valve_type"] == "TCV"
-            gpvs = link_df["valve_type"] == "GPV"
+            pressure_valves = link_df[Field.VALVE_TYPE.value].isin(
+                [ValveType.PRV.name, ValveType.PSV.name, ValveType.PBV.name]
+            )
+            fcvs = link_df[Field.VALVE_TYPE.value] == ValveType.FCV.name
+            tcvs = link_df[Field.VALVE_TYPE.value] == ValveType.TCV.name
+            gpvs = link_df[Field.VALVE_TYPE.value] == ValveType.GPV.name
 
             if pressure_valves.any() or fcvs.any() or tcvs.any():
                 if "initial_setting" not in link_df:
                     raise ValveInitialSettingError
 
-                if link_df.loc[(pressure_valves | fcvs | tcvs), "initial_setting"].isna().any():
+                if link_df.loc[(pressure_valves | fcvs | tcvs), "initial_setting"].hasnans:
                     raise ValveInitialSettingError
 
-                link_df.loc[pressure_valves, "initial_setting"] = link_df.loc[pressure_valves, "initial_setting"].apply(
-                    self._converter.to_si, field=wntr.epanet.HydParam.Pressure
+                link_df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
+                    link_df.loc[pressure_valves, "initial_setting"].to_numpy(), field=wntr.epanet.HydParam.Pressure
                 )
 
-                link_df.loc[fcvs, "initial_setting"] = link_df.loc[fcvs, "initial_setting"].apply(
-                    self._converter.to_si, field=wntr.epanet.HydParam.Flow
+                link_df.loc[fcvs, "initial_setting"] = self._converter.to_si(
+                    link_df.loc[fcvs, "initial_setting"].to_numpy(), field=wntr.epanet.HydParam.Flow
                 )
 
             if gpvs.any():
@@ -1252,43 +1251,38 @@ class _FromGis:
 
                 link_df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(link_df.loc[gpvs, "headloss_curve"])
 
-                if (link_df.loc[gpvs, "headloss_curve_name"].isna()).any():
+                if link_df.loc[gpvs, "headloss_curve_name"].hasnans:
                     raise GpvMissingCurveError
 
         pumps = link_df["link_type"] == "Pump"
 
         if pumps.any():
-            if "pump_type" not in link_df.columns:
-                raise PumpTypeError
-
             try:
-                link_df.loc[pumps, "pump_type"] = link_df.loc[pumps, "pump_type"].str.upper()
-            except AttributeError:
+                link_df.loc[pumps, Field.PUMP_TYPE.value] = link_df.loc[pumps, Field.PUMP_TYPE.value].str.upper()
+            except (KeyError, AttributeError):
                 raise PumpTypeError from None
 
-            if not link_df.loc[pumps, "pump_type"].isin(PumpTypes._member_names_).all():
+            if not link_df.loc[pumps, Field.PUMP_TYPE.value].isin(PumpTypes._member_names_).all():
                 raise PumpTypeError
 
-            power_pumps = link_df["pump_type"] == PumpTypes.POWER.name
-            head_pumps = link_df["pump_type"] == PumpTypes.HEAD.name
+            power_pumps = link_df[Field.PUMP_TYPE.value] == PumpTypes.POWER.name
+            head_pumps = link_df[Field.PUMP_TYPE.value] == PumpTypes.HEAD.name
 
-            if not link_df.loc[power_pumps].empty:
-                if "power" not in link_df:
+            if power_pumps.any():
+                if Field.POWER.value not in link_df:
                     raise PumpPowerError
-                if link_df.loc[power_pumps, "power"].isna().any():
+                if link_df.loc[power_pumps, Field.POWER.value].hasnans:
                     raise PumpPowerError
-                if (link_df.loc[power_pumps, "power"] <= 0).any():
+                if (link_df.loc[power_pumps, Field.POWER.value] <= 0).any():
                     raise PumpPowerError
 
-            if not link_df.loc[head_pumps].empty:
-                if "pump_curve" not in link_df:
-                    raise PumpCurveMissingError
-                if link_df.loc[head_pumps, "pump_curve"].isna().any():
+            if head_pumps.any():
+                if Field.PUMP_CURVE.value not in link_df:
                     raise PumpCurveMissingError
 
-                link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
+                link_df["pump_curve_name"] = self.curves.add_head(link_df[Field.PUMP_CURVE.value])
 
-                if (link_df.loc[head_pumps, "pump_curve_name"].isna()).any():
+                if link_df.loc[head_pumps, "pump_curve_name"].hasnans:
                     raise PumpCurveMissingError
 
         if "speed_pattern" in link_df:
@@ -1309,7 +1303,7 @@ class _FromGis:
                         continue
                     if field.value not in link_df:
                         raise RequiredFieldError(layer, field)
-                    if link_df.loc[layer_items, field.value].isna().any():
+                    if link_df.loc[layer_items, field.value].hasnans:
                         raise RequiredFieldError(layer, field)
 
         return link_df.drop(
