@@ -13,10 +13,14 @@ from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, os.path.abspath(".."))
+
+import wntrqgis
+
 project = "Water Network Tools for Resiliance - QGIS Integration"
 project_copyright = "2024, Angus McBride"
 author = "Angus McBride"
-release = "0.1.0"
+release = wntrqgis.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -98,8 +102,6 @@ myst_url_schemes = [
 numfig = True
 numfig_format = {"figure": "Figure %s", "table": "Table %s", "code-block": "Listing %s"}
 
-
-sys.path.insert(0, os.path.abspath(".."))
 
 autodoc_type_aliases = {"Iterable": "Iterable", "ArrayLike": "ArrayLike"}
 # add_module_names = False
