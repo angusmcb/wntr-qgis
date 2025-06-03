@@ -58,9 +58,9 @@ html_theme_options = {
         },
         {
             # Label for this link
-            "name": "QGIS",
+            "name": "QGIS Plugin Page",
             # URL where the link will redirect
-            "url": "https://qgis.org/",  # required
+            "url": "https://plugins.qgis.org/plugins/wntrqgis/",  # required
             # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
             "icon": "_static/qgis-32x32.png",
             # The type of image to be used (see below for details)
@@ -68,7 +68,7 @@ html_theme_options = {
         },
         {
             # Label for this link
-            "name": "WNTR",
+            "name": "WNTR documentation",
             # URL where the link will redirect
             "url": "https://usepa.github.io/WNTR/",  # required
             # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
