@@ -25,6 +25,7 @@ Compared to other QGIS water network modelling plugins, this plugin aims to be:
 - **Robust.** Limited, well tested features (more than 500 tests).
 - **Flexible.** Not choosy about how you do things.
 - **Automatable / programmable.** Tools can be used from the toolbar, in the QGIS 'model builder' or from  PyQGIS
+- **Multi-lingual** English, French, Spanish, Italian, Dutch, Arabic...
 
 
 Feedback on this plugin would be very welcome.
