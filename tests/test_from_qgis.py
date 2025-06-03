@@ -122,9 +122,11 @@ def all_layers() -> dict[str, QgsVectorLayer]:
     add_line(pump_layer, [(2, 2), (3, 3)], ["power", 10])
     add_line(pump_layer, [(2, 2), (3, 3)], ["head", None, "(0,0), (1, 1)"])
 
-    valve_layer = layer("LineString", [("diameter", float), ("valve_type", str), ("headloss_curve", str)])
-    add_line(valve_layer, [(1, 1), (2, 2)], [1, "PRV"])
-    add_line(valve_layer, [(2, 2), (3, 3)], [1, "GPV", "[(0,0), (1, 1)]"])
+    valve_layer = layer(
+        "LineString", [("diameter", float), ("valve_type", str), ("initial_setting", float), ("headloss_curve", str)]
+    )
+    add_line(valve_layer, [(1, 1), (2, 2)], [1, "PRV", 1.0])
+    add_line(valve_layer, [(2, 2), (3, 3)], [1, "GPV", None, "[(0,0), (1, 1)]"])
 
     return {
         "JUNCTIONS": junction_layer,
@@ -185,6 +187,7 @@ def test_minimum_attributes(all_layers):
         ("PUMPS", "power"),
         ("PUMPS", "pump_curve"),
         ("VALVES", "valve_type"),
+        ("VALVES", "initial_setting"),
         ("VALVES", "headloss_curve"),
         ("VALVES", "diameter"),
     ],
@@ -1107,9 +1110,10 @@ def test_initial_status_valve(initial_status, expected_status):
     add_point(junction_layer, (4, 5), ["J2", 1])
 
     valve_layer = layer(
-        "linestring", [("name", str), ("diameter", float), ("valve_type", str), ("initial_status", str)]
+        "linestring",
+        [("name", str), ("diameter", float), ("valve_type", str), ("initial_setting", float), ("initial_status", str)],
     )
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", initial_status])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", 1, initial_status])
 
     layers = {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
 
@@ -1121,9 +1125,16 @@ def test_inital_status_string_error(simple_layers):
     initial_status = "NOT_A_STATUS"
 
     valve_layer = layer(
-        "linestring", [("name", str), ("diameter", float), ("valve_type", str), ("initial_status", initial_status)]
+        "linestring",
+        [
+            ("name", str),
+            ("diameter", float),
+            ("valve_type", str),
+            ("initial_setting", float),
+            ("initial_status", initial_status),
+        ],
     )
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", initial_status])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", 1, initial_status])
     simple_layers["VALVES"] = valve_layer
 
     with pytest.raises(wntrqgis.interface.WntrError, match=initial_status):
@@ -1133,9 +1144,16 @@ def test_inital_status_string_error(simple_layers):
 @pytest.mark.parametrize("initial_status", [1.0, True, False])
 def test_inital_status_type_error(simple_layers, initial_status):
     valve_layer = layer(
-        "linestring", [("name", str), ("diameter", float), ("valve_type", str), ("initial_status", initial_status)]
+        "linestring",
+        [
+            ("name", str),
+            ("diameter", float),
+            ("valve_type", str),
+            ("initial_setting", float),
+            ("initial_status", initial_status),
+        ],
     )
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", initial_status])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", 1, initial_status])
     simple_layers["VALVES"] = valve_layer
 
     with pytest.raises(wntrqgis.interface.WntrError, match="initial_status"):
@@ -1191,9 +1209,8 @@ def test_tcv_valve_initial_setting(valve_layers):
 @pytest.mark.parametrize("valve_type", ["fcv", "prv", "tcv"])
 @pytest.mark.parametrize("initial_setting", [None])
 def test_valve_no_initial_setting(valve_layers):
-    wn = wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
-
-    assert wn.get_link("V1").initial_setting == 0
+    with pytest.raises(wntrqgis.interface.ValveInitialSettingError, match="initial_setting"):
+        wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
 
 
 @pytest.mark.parametrize("valve_type", ["FCV", "PRV", "PSV", "PBV", "TCV", "GPV"])
@@ -1211,6 +1228,12 @@ def test_valve_type_not_specified(valve_layers):
 
 @pytest.mark.parametrize("valve_type", ["not_a_valve_type"])
 def test_valve_type_wrong_type(valve_layers):
+    with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
+        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+
+
+@pytest.mark.parametrize("valve_type", [0, 1, 1.0, True, False])
+def test_valve_type_is_number(valve_layers):
     with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
         wntrqgis.from_qgis(valve_layers, "SI", "H-W")
 

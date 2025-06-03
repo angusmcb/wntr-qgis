@@ -1214,28 +1214,38 @@ class _FromGis:
     def _do_link_patterns_curves(self, link_df: pd.DataFrame) -> pd.DataFrame:
         valves = link_df["link_type"] == "Valve"
 
-        if valves.any() and "valve_type" not in link_df.columns:
-            raise ValveTypeError from None
-
         if valves.any():
-            try:
-                assert (  # noqa: S101
-                    link_df.loc[valves, "valve_type"].str.upper().isin(ValveType._member_names_).all()
-                )
-            except (AssertionError, AttributeError):
+            if "valve_type" not in link_df.columns:
                 raise ValveTypeError from None
 
-            if "initial_setting" in link_df:
-                pressure_valves = link_df["valve_type"].str.upper().isin(["PRV", "PSV", "PBV"])
+            try:
+                link_df["valve_type"] = link_df["valve_type"].str.upper()
+            except AttributeError:
+                raise ValveTypeError from None
+
+            if not link_df.loc[valves, "valve_type"].isin(ValveType._member_names_).all():
+                raise ValveTypeError from None
+
+            pressure_valves = link_df["valve_type"].isin(["PRV", "PSV", "PBV"])
+            fcvs = link_df["valve_type"] == "FCV"
+            tcvs = link_df["valve_type"] == "TCV"
+            gpvs = link_df["valve_type"] == "GPV"
+
+            if pressure_valves.any() or fcvs.any() or tcvs.any():
+                if "initial_setting" not in link_df:
+                    raise ValveInitialSettingError
+
+                if link_df.loc[(pressure_valves | fcvs | tcvs), "initial_setting"].isna().any():
+                    raise ValveInitialSettingError
+
                 link_df.loc[pressure_valves, "initial_setting"] = link_df.loc[pressure_valves, "initial_setting"].apply(
                     self._converter.to_si, field=wntr.epanet.HydParam.Pressure
                 )
 
-                fcvs = link_df["valve_type"].str.upper() == "FCV"
                 link_df.loc[fcvs, "initial_setting"] = link_df.loc[fcvs, "initial_setting"].apply(
                     self._converter.to_si, field=wntr.epanet.HydParam.Flow
                 )
-            gpvs = link_df["valve_type"].str.upper() == "GPV"
+
             if gpvs.any():
                 if "headloss_curve" not in link_df:
                     raise GpvMissingCurveError
@@ -1245,37 +1255,40 @@ class _FromGis:
                 if (link_df.loc[gpvs, "headloss_curve_name"].isna()).any():
                     raise GpvMissingCurveError
 
-        if any(link_df["link_type"] == "Pump") and "pump_type" not in link_df.columns:
-            raise PumpTypeError
+        pumps = link_df["link_type"] == "Pump"
 
-        if "pump_type" in link_df.columns:
+        if pumps.any():
+            if "pump_type" not in link_df.columns:
+                raise PumpTypeError
+
             try:
-                link_df.loc[link_df["link_type"] == "Pump", "pump_type"] = link_df.loc[
-                    link_df["link_type"] == "Pump", "pump_type"
-                ].str.upper()
-                assert (  # noqa: S101
-                    link_df.loc[link_df["link_type"] == "Pump", "pump_type"].isin(PumpTypes._member_names_).all()
-                )
-            except (AssertionError, AttributeError):
+                link_df.loc[pumps, "pump_type"] = link_df.loc[pumps, "pump_type"].str.upper()
+            except AttributeError:
                 raise PumpTypeError from None
 
-            if not link_df.loc[link_df["pump_type"] == PumpTypes.POWER.name].empty:
+            if not link_df.loc[pumps, "pump_type"].isin(PumpTypes._member_names_).all():
+                raise PumpTypeError
+
+            power_pumps = link_df["pump_type"] == PumpTypes.POWER.name
+            head_pumps = link_df["pump_type"] == PumpTypes.HEAD.name
+
+            if not link_df.loc[power_pumps].empty:
                 if "power" not in link_df:
                     raise PumpPowerError
-                if link_df.loc[link_df["pump_type"] == PumpTypes.POWER.name, "power"].isna().any():
+                if link_df.loc[power_pumps, "power"].isna().any():
                     raise PumpPowerError
-                if (link_df.loc[link_df["pump_type"] == PumpTypes.POWER.name, "power"] <= 0).any():
+                if (link_df.loc[power_pumps, "power"] <= 0).any():
                     raise PumpPowerError
 
-            if not link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name].empty:
+            if not link_df.loc[head_pumps].empty:
                 if "pump_curve" not in link_df:
                     raise PumpCurveMissingError
-                if link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve"].isna().any():
+                if link_df.loc[head_pumps, "pump_curve"].isna().any():
                     raise PumpCurveMissingError
 
                 link_df["pump_curve_name"] = self.curves.add_head(link_df["pump_curve"])
 
-                if (link_df.loc[link_df["pump_type"] == PumpTypes.HEAD.name, "pump_curve_name"].isna()).any():
+                if (link_df.loc[head_pumps, "pump_curve_name"].isna()).any():
                     raise PumpCurveMissingError
 
         if "speed_pattern" in link_df:
@@ -1358,15 +1371,20 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
     if not wn.num_junctions:
         msg = tr("At least one junction is necessary")
         raise NetworkModelError(msg)
+
     if not wn.num_tanks and not wn.num_reservoirs:
         msg = tr("At least one tank or reservoir is required")
         raise NetworkModelError(msg)
+
     if not wn.num_links:
         msg = tr("At least one link (pipe, pump or valve) is necessary")
         raise NetworkModelError(msg)
+
     orphan_nodes = wn.nodes.unused()
     if len(orphan_nodes):
-        msg = tr("the following nodes are not connected to any links: ") + ", ".join(orphan_nodes)
+        msg = tr("the following nodes are not connected to any links: {orphan_node_list}").format(
+            orphan_node_list=", ".join(orphan_nodes)
+        )
         raise NetworkModelError(msg)
 
 
@@ -1457,9 +1475,21 @@ class ValveTypeError(ValveError, GenericRequiredFieldError):
 class GpvMissingCurveError(ValveError, GenericRequiredFieldError):
     def __init__(self):
         super().__init__(
-            tr("{headloss_curve_name} ({headloss_curve}) must be set for all valves of type GPV").format(
+            tr("{headloss_curve_name} ({headloss_curve}) must be set for all general purpose valves (GPV)").format(
                 headloss_curve_name=Field.HEADLOSS_CURVE.friendly_name,
                 headloss_curve=Field.HEADLOSS_CURVE.name.lower(),
+            )
+        )
+
+
+class ValveInitialSettingError(ValveError, GenericRequiredFieldError):
+    def __init__(self):
+        super().__init__(
+            tr(
+                "{initial_setting_name} ({initial_setting}) must be set for all valves except general purpose valves"
+            ).format(
+                initial_setting_name=Field.INITIAL_SETTING.friendly_name,
+                initial_setting=Field.INITIAL_SETTING.name.lower(),
             )
         )
 
