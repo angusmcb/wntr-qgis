@@ -738,7 +738,10 @@ class _Curves:
         HEADLOSS = "HEADLOSS"
 
     def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
-        if isinstance(curve_string, str) and curve_string.strip() == "":
+        if not isinstance(curve_string, str):
+            raise CurveError(curve_string, curve_type)
+
+        if curve_string.strip() == "":
             return None
 
         try:
