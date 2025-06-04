@@ -8,6 +8,7 @@ import ast
 import enum
 import functools
 import importlib
+import itertools
 import logging
 import math
 import pathlib
@@ -1138,22 +1139,20 @@ class _FromGis:
         return attribute_lengths.fillna(calculated_lengths)
 
     def _fill_names(self, df: pd.DataFrame) -> None:
-        existing_names = pd.Series()
-        mask: pd.Series[bool] | bool
-
         if "name" not in df.columns:
             df["name"] = pd.NA
 
-        existing_names = df.loc[:, "name"].dropna().unique().tolist()
-        mask = (df["name"].isna()) | (df["name"] == "")
-        names_required = mask.sum()
+        df["name"] = df["name"].astype("string").str.strip()
 
-        new_names: list[str] = []
-        next_name = 1
-        while len(new_names) < names_required:
-            if str(next_name) not in existing_names:
-                new_names.append(str(next_name))
-            next_name += 1
+        existing_names = set(df["name"].dropna())
+        mask = (df["name"].isna()) | (df["name"] == "")
+        number_of_names_required = mask.sum()
+
+        name_iterator = map(str, itertools.count(1))
+        valid_name_iterator = filter(lambda name: name not in existing_names, name_iterator)
+
+        new_names = [next(valid_name_iterator) for _ in range(number_of_names_required)]
+
         df.loc[mask, "name"] = new_names
 
     def _get_point_coordinates(self, geometry: QgsGeometry):
