@@ -524,11 +524,11 @@ class Writer:
             elif lyr is ModelLayer.VALVES:
                 p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
                 df.loc[p_valves_setting] = self._converter.from_si(
-                    df.loc[p_valves_setting].to_numpy(), wntr.epanet.HydParam.Pressure
-                ).round(5)
+                    df.loc[p_valves_setting].array, wntr.epanet.HydParam.Pressure
+                )
                 df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
-                    df.loc[df["valve_type"] == "FCV", "initial_setting"].to_numpy(), wntr.epanet.HydParam.Flow
-                ).round(5)
+                    df.loc[df["valve_type"] == "FCV", "initial_setting"].array, wntr.epanet.HydParam.Flow
+                )
                 if "headloss_curve" in df:
                     df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
                         df["valve_type"] == "GPV", "headloss_curve_name"
@@ -539,8 +539,7 @@ class Writer:
                     field = Field[str(fieldname).upper()]
                 except KeyError:
                     continue
-                converted_array = self._converter.from_si(df[fieldname].to_numpy(), field, lyr)
-                df[fieldname] = converted_array.round(5)
+                df[fieldname] = self._converter.from_si(df[fieldname].array, field, lyr)
 
         return dfs
 
@@ -585,8 +584,6 @@ class Writer:
 
         else:
             converted_df = self._converter.from_si(df, field)
-
-        converted_df = converted_df.round(2)
 
         return converted_df
 
