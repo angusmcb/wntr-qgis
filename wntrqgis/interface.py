@@ -534,7 +534,7 @@ class Writer:
                         df["valve_type"] == "GPV", "headloss_curve_name"
                     ].apply(curves.get)
 
-            for fieldname in df.select_dtypes(include=[np.floating]):
+            for fieldname in df.select_dtypes(include=["float"]):
                 try:
                     field = Field[str(fieldname).upper()]
                 except KeyError:
