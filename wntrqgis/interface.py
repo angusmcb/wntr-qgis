@@ -1048,7 +1048,7 @@ class _FromGis:
                 field = Field[str(fieldname).upper()]
             except KeyError:
                 continue
-            source_df[fieldname] = self._converter.to_si(source_df[fieldname].to_numpy(), field, layer)
+            source_df[fieldname] = self._converter.to_si(source_df[fieldname].array, field, layer)
         return source_df
 
     def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -1232,11 +1232,11 @@ class _FromGis:
                     raise ValveInitialSettingError
 
                 link_df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
-                    link_df.loc[pressure_valves, "initial_setting"].to_numpy(), field=wntr.epanet.HydParam.Pressure
+                    link_df.loc[pressure_valves, "initial_setting"].array, field=wntr.epanet.HydParam.Pressure
                 )
 
                 link_df.loc[fcvs, "initial_setting"] = self._converter.to_si(
-                    link_df.loc[fcvs, "initial_setting"].to_numpy(), field=wntr.epanet.HydParam.Flow
+                    link_df.loc[fcvs, "initial_setting"].array, field=wntr.epanet.HydParam.Flow
                 )
 
             if gpvs.any():
