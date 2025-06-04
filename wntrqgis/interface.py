@@ -1150,8 +1150,7 @@ class _FromGis:
 
         name_iterator = map(str, itertools.count(1))
         valid_name_iterator = filter(lambda name: name not in existing_names, name_iterator)
-
-        new_names = [next(valid_name_iterator) for _ in range(number_of_names_required)]
+        new_names = list(itertools.islice(valid_name_iterator, number_of_names_required))
 
         df.loc[mask, "name"] = new_names
 
