@@ -674,7 +674,7 @@ class _SpatialIndex:
 @needs_wntr_pandas
 class _Patterns:
     def __init__(self, wn: wntr.network.model.WaterNetworkModel) -> None:
-        self._next_pattern_name = 2
+        self._name_iterator = map(str, itertools.count(2))
         self._existing_patterns: dict[tuple, str] = {}
         self._wn = wn
 
@@ -697,10 +697,9 @@ class _Patterns:
         if existing_pattern_name := self._existing_patterns.get(pattern_tuple):
             return existing_pattern_name
 
-        name = str(self._next_pattern_name)
+        name = next(self._name_iterator)
         self._wn.add_pattern(name=name, pattern=pattern_list)
         self._existing_patterns[pattern_tuple] = name
-        self._next_pattern_name += 1
         return name
 
     def add_all(self, pattern_series: pd.Series | Any, layer: ModelLayer, pattern_type: Field) -> pd.Series | None:
@@ -729,7 +728,7 @@ class _Patterns:
 class _Curves:
     def __init__(self, wn: wntr.network.WaterNetworkModel, converter: _Converter) -> None:
         self._wn = wn
-        self._next_curve_name = 1
+        self._name_iterator = map(str, itertools.count(1))
         self._converter = converter
 
     class Type(enum.Enum):
@@ -763,9 +762,8 @@ class _Curves:
         except TypeError as e:
             raise CurveError(curve_string, curve_type) from e
 
-        name = str(self._next_curve_name)
+        name = next(self._name_iterator)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
-        self._next_curve_name += 1
         return name
 
     def _add_all(self, curve_series: pd.Series, curve_type: _Curves.Type) -> pd.Series | None:
