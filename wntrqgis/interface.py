@@ -760,10 +760,8 @@ class _Curves:
 
         if not len(curve_points):
             raise CurveError(curve_string, curve_type) from None
-        try:
-            curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
-        except TypeError as e:
-            raise CurveError(curve_string, curve_type) from e
+
+        curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
 
         name = next(self._name_iterator)
         self._wn.add_curve(name=name, curve_type=curve_type.value, xy_tuples_list=curve_points)
