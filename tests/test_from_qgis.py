@@ -5,7 +5,7 @@ import types
 from typing import Any
 
 import pytest
-from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsProject, QgsVectorLayer
 
 import wntrqgis
 
@@ -234,17 +234,23 @@ def test_wntr_error(simple_layers):
         wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
-@pytest.mark.skip("Can't find out how to make an infinite line")
-def test_infinite_pipe():
-    junction_layer = layer("point", [("name", str)], "EPSG:4326")
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (400, 400), ["J2"])
-    pipe_layer = layer("linestring", [("name", str)], "EPSG:4326")
-    add_line(pipe_layer, [(1, 1), (400, 400)], ["P1"])
+def test_unmeasurable_pipe(qgis_new_project):
+    junction_layer = layer("point", [("name", str), ("elevation", float)], "EPSG:4326")
+    add_point(junction_layer, (1, 1), ["J1", 1])
+    add_point(junction_layer, (9000, 9000), ["J2", 1])
+    pipe_layer = layer("linestring", [("name", str), ("diameter", float), ("roughness", float)], "EPSG:4326")
+    add_line(pipe_layer, [(1, 1), (9000, 9000)], ["P1", 1, 100])
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="Infinite length is not allowed"):
-        wntrqgis.from_qgis(layers, "LPS", "H-W", crs="EPSG:3089")
+    class ProjectMock:
+        def ellipsoid():
+            return "EPSG:7030"
+
+        def transformContext():  # noqa: N802
+            return QgsProject.instance().transformContext()
+
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="cannot calculate length of"):
+        wntrqgis.from_qgis(layers, "LPS", "H-W", project=ProjectMock)
 
 
 @pytest.mark.parametrize("headloss", ["H-W", "D-W", "C-M"])
