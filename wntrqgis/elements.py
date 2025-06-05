@@ -48,7 +48,7 @@ class FlowUnit(Enum):
             return tr("Acre-feet per Day")
         if self is FlowUnit.SI:
             return tr("International System of Units (SI)")
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
 
 class HeadlossFormula(Enum):
@@ -64,7 +64,7 @@ class HeadlossFormula(Enum):
             return tr("Darcy-Weisbach")
         if self is HeadlossFormula.CHEZY_MANNING:
             return tr("Chezy-Manning")
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
 
 class _AbstractValueMap(Enum):
@@ -101,7 +101,7 @@ class InitialStatus(_AbstractValueMap):
             return tr("Active")
         if self is InitialStatus.CLOSED:
             return tr("Closed")
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
 
 class ValveType(_AbstractValueMap):
@@ -126,7 +126,7 @@ class ValveType(_AbstractValueMap):
             return tr("Throttle Control Valve")
         if self is ValveType.GPV:
             return tr("General Purpose Valve")
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
 
 class FieldGroup(Flag):
@@ -213,8 +213,7 @@ class ModelLayer(_AbstractLayer):
             return "Pump"
         if self is ModelLayer.VALVES:
             return "Valve"
-        msg = "Unknown model layer type"
-        raise ValueError(msg)
+        raise ValueError  # pragma: no cover
 
     @property
     def friendly_name(self):
@@ -230,7 +229,7 @@ class ModelLayer(_AbstractLayer):
             return tr("Pumps")
         if self is ModelLayer.VALVES:
             return tr("Valves")
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
     @property
     def element_family(self) -> ElementFamily:
@@ -331,7 +330,7 @@ class ResultLayer(_AbstractLayer):
             return tr("Nodes")
         if self is ResultLayer.LINKS:
             return tr("Links")
-        raise ValueError
+        raise ValueError  # pragma: no cover
 
     @property
     def element_family(self):
@@ -522,4 +521,4 @@ class Field(Enum):
             return tr("Quality")
         if self is Field.REACTION_RATE:
             return tr("Reaction Rate")
-        raise ValueError
+        raise ValueError  # pragma: no cover
