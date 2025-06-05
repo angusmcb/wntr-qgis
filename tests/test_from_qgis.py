@@ -1340,6 +1340,16 @@ def test_power_pump_with_no_power(simple_layers):
         wntrqgis.from_qgis(simple_layers, "SI", "H-W")
 
 
+def test_power_pump_with_one_missing_power(simple_layers):
+    pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float)])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 1])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP2", "POWER"])
+    simple_layers.update({"PUMPS": pump_layer})
+
+    with pytest.raises(wntrqgis.interface.PumpPowerError):
+        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+
+
 @pytest.mark.parametrize("power", ["not_a_number"])
 def test_power_pump_with_wrong_power_type(simple_layers, power):
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", power)])
