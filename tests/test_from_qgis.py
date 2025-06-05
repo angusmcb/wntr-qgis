@@ -731,11 +731,10 @@ def test_head_pattern(head_pattern_layers, expected_pattern):
     assert list(wn.patterns["2"].multipliers) == expected_pattern
 
 
-@pytest.mark.skip(reason="Energy pattern bug in wntr")
 def test_energy_pattern(pump_energy_pattern_layers, expected_pattern):
     wn = wntrqgis.from_qgis(pump_energy_pattern_layers, "LPS", "H-W")
 
-    assert wn.get_link("P1").energy_pattern == "2"
+    assert wn.get_link("PUMP1").energy_pattern == "2"
     assert list(wn.patterns["2"].multipliers) == expected_pattern
 
 
