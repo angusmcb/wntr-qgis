@@ -206,7 +206,7 @@ class _Converter:
         ]:
             return None
 
-        raise ValueError(field)
+        raise ValueError(field)  # pragma: no cover
 
 
 @needs_wntr_pandas
@@ -608,7 +608,7 @@ class Writer:
         if pd.api.types.is_integer_dtype(dtype):
             return QMetaType.Type.Int if USE_QMETATYPE else QVariant.Int
 
-        raise KeyError(f"Couldn't get qgs field type for {dtype}")  # noqa: EM102, TRY003
+        raise KeyError(f"Couldn't get qgs field type for {dtype}")  # noqa: EM102, TRY003 # pragma: no cover
 
 
 class _SpatialIndex:
