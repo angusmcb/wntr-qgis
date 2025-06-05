@@ -319,7 +319,6 @@ except ModuleNotFoundError:
 
         self.add_layer_indicators()
 
-        self.tm = QgsApplication.taskManager()
         self.warm_up_wntr()
 
         self.initProcessing()
