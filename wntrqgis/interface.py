@@ -373,7 +373,7 @@ class Writer:
             if ignore_key in field_names:
                 field_names.remove(ignore_key)
 
-        layer_df = layer_df.convert_dtypes(convert_integer=False)
+        layer_df = layer_df.convert_dtypes()
         dtypes = layer_df.dtypes
 
         qgs_fields = QgsFields()  # nice constructor didn't arrive until qgis 3.40
