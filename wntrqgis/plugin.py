@@ -207,16 +207,17 @@ except ModuleNotFoundError:
             parent=iface.mainWindow(),
         )
 
-        template_layers_menu = QMenu(iface.mainWindow())
-        template_layers_menu.addAction(self.actions["template_layers"])
-        template_layers_menu.addAction(self.actions["create_template_geopackage"])
+        template_button = QToolButton()
 
-        self.template_layers_button = QToolButton()
-        self.template_layers_button.setMenu(template_layers_menu)
-        self.template_layers_button.setDefaultAction(self.actions["template_layers"])
-        self.template_layers_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        template_menu = QMenu(template_button)
+        template_menu.addAction(self.actions["template_layers"])
+        template_menu.addAction(self.actions["create_template_geopackage"])
 
-        self.actions["template_layers_menu_widget"] = iface.addToolBarWidget(self.template_layers_button)
+        template_button.setMenu(template_menu)
+        template_button.setDefaultAction(self.actions["template_layers"])
+        template_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+
+        self.actions["template_layers_menu_widget"] = iface.addToolBarWidget(template_button)
 
         self.add_action(
             "load_inp",
