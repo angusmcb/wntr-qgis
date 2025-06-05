@@ -353,7 +353,7 @@ except ModuleNotFoundError:
     def show_welcome_message(self, exception, value=None):  # noqa: ARG002
         if exception:
             iface.messageBar().pushMessage(
-                "Failed to install WNTR. Please check your internet connection.",
+                tr("Failed to install WNTR. Please check your internet connection."),
                 level=Qgis.MessageLevel.Critical,
             )
             return
@@ -365,16 +365,20 @@ except ModuleNotFoundError:
                 else tr("WNTR QGIS upgraded successfully")
             )
 
-            self.message_widget = iface.messageBar().createMessage(
+            message_item = iface.messageBar().createMessage(
                 msg,
                 tr("Load an example to try me out"),
             )
 
-            example_button = QPushButton(self.message_widget)
+            example_button = QPushButton(message_item)
             example_button.setText(tr("Load Example"))
-            example_button.pressed.connect(self.load_example_from_messagebar)
-            self.message_widget.layout().addWidget(example_button)
-            iface.messageBar().pushWidget(self.message_widget, Qgis.MessageLevel.Info)
+            example_button.clicked.connect(self.load_example)
+            example_button.clicked.connect(message_item.dismiss)
+
+            message_item.layout().addWidget(example_button)
+            message_item.setLevel(Qgis.MessageLevel.Info)
+
+            iface.messageBar().pushItem(message_item)
 
     def add_layer_indicators(self):
         self._indicators = [NewModelLayerIndicator(layer) for layer in ModelLayer]
