@@ -101,6 +101,9 @@ def test_custom_attr_int(wn):
 
     check_values(layers["JUNCTIONS"], "custom_int", [NULL, 42])
 
+    field = layers["JUNCTIONS"].fields().field("custom_int")
+    assert field.typeName().lower() in ("integer", "int")
+
 
 def test_custom_attr_float(wn):
     wn.nodes["J1"].custom_float = 3.14
