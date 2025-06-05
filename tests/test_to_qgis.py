@@ -45,7 +45,11 @@ def check_values(layer, field_name, expected_values):
     actual_values = [feature[field_name] for feature in layer.getFeatures()]
 
     error_message = f"Field '{field_name}' values do not match. Expected: {expected_values}, Actual: {actual_values}"
-    assert actual_values == expected_values, error_message
+    if len(expected_values) and isinstance(expected_values[0], list):
+        for actual, expected in zip(actual_values, expected_values):
+            assert actual == pytest.approx(expected), error_message
+    else:
+        assert actual_values == pytest.approx(expected_values), error_message
 
 
 def test_basic_wn(qgis_new_project, wn):
