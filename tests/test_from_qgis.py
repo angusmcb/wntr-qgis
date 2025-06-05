@@ -710,7 +710,7 @@ def head_pattern_layers(pattern, simple_layers):
 @pytest.fixture
 def pump_energy_pattern_layers(pattern, simple_layers):
     pump_layer = layer("linestring", [("name", str), ("pump_type", str), ("power", float), ("energy_pattern", pattern)])
-    add_line(pump_layer, [(1, 1), (4, 5)], ["P1", "POWER", 10, pattern])
+    add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10, pattern])
 
     simple_layers["PUMPS"] = pump_layer
 
