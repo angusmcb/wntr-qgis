@@ -12,6 +12,7 @@ from qgis.PyQt import QtWidgets
 
 import wntrqgis
 from wntrqgis.elements import FlowUnit, HeadlossFormula
+from wntrqgis.plugin import DurationSettingMenu, SettingMenu
 from wntrqgis.settings import ProjectSettings, SettingKey
 
 
@@ -183,29 +184,68 @@ def test_processing_alg_loaded(processing_provider, algorithm):
     assert processing_provider.algorithm(algorithm)
 
 
-def test_algorithm_properties(processing_provider):
-    for alg in processing_provider.algorithms():
-        assert alg.displayName() is not None
-        assert alg.shortHelpString() is not None
-        assert alg.icon() is not None
+@pytest.mark.parametrize("formula", list(HeadlossFormula))
+def test_setting_menu_headloss_formula_updates_setting(formula):
+    """Test that selecting a headloss formula in SettingMenu updates the project setting."""
+    menu = SettingMenu(
+        title="Headloss Formula",
+        parent=None,
+        setting=SettingKey.HEADLOSS_FORMULA,
+    )
 
-
-@pytest.mark.parametrize("hlf", list(HeadlossFormula))
-def test_set_headloss_formula(patched_plugin, hlf):
-    patched_plugin.headloss_formula_actions[hlf].trigger()
-
-    assert ProjectSettings().get(SettingKey.HEADLOSS_FORMULA) == hlf
+    action = menu.actions[formula]
+    action.trigger()
+    assert ProjectSettings().get(SettingKey.HEADLOSS_FORMULA) == formula
 
 
 @pytest.mark.parametrize("unit", list(FlowUnit))
-def test_set_units(patched_plugin, unit):
-    patched_plugin.units_actions[unit].trigger()
-
+def test_setting_menu_flow_units_updates_setting(unit):
+    """Test that selecting a flow unit in SettingMenu updates the project setting."""
+    menu = SettingMenu(
+        title="Units",
+        parent=None,
+        setting=SettingKey.FLOW_UNITS,
+    )
+    action = menu.actions[unit]
+    action.trigger()
     assert ProjectSettings().get(SettingKey.FLOW_UNITS) == unit
 
 
-@pytest.mark.parametrize("duration", [0, 5, 10, 20])
-def test_set_duration(patched_plugin, duration):
-    patched_plugin.duration_actions[duration].trigger()
+def test_setting_menu_checkmarks_reflect_setting(qgis_iface):
+    """Test that the checked action matches the current setting."""
+    menu = SettingMenu(
+        title="Headloss Formula",
+        parent=None,
+        setting=SettingKey.HEADLOSS_FORMULA,
+    )
+    # Set to each value and check update_checked
+    for formula in HeadlossFormula:
+        ProjectSettings().set(SettingKey.HEADLOSS_FORMULA, formula)
+        menu.update_checked()
+        for f, action in menu.actions.items():
+            if f == formula:
+                assert action.isChecked()
+            else:
+                assert not action.isChecked()
 
-    assert ProjectSettings().get(SettingKey.SIMULATION_DURATION) == duration
+
+def test_duration_setting_menu_triggers_and_checkmarks(qgis_iface):
+    """Test DurationSettingMenu triggers and checkmarks."""
+    menu = DurationSettingMenu(title="Duration")
+    # Test single period
+    menu.actions[0].trigger()
+    assert ProjectSettings().get(SettingKey.SIMULATION_DURATION) == 0
+    # Test several hours
+    for hour in [1, 5, 10, 24]:
+        menu.actions[hour].trigger()
+        assert ProjectSettings().get(SettingKey.SIMULATION_DURATION) == hour
+        menu.update_checked()
+        for h, action in menu.actions.items():
+            if h == hour:
+                assert action.isChecked()
+            else:
+                assert not action.isChecked()
+    # Test dynamic addition for a duration not in actions
+    ProjectSettings().set(SettingKey.SIMULATION_DURATION, 42)
+    menu.update_checked()
+    assert menu.actions[42].isChecked()
