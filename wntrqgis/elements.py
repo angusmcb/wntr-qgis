@@ -76,8 +76,8 @@ class _AbstractValueMap(Enum):
 
 
 class PumpTypes(_AbstractValueMap):
-    POWER = auto()
-    HEAD = auto()
+    POWER = "POWER"
+    HEAD = "HEAD"
 
     @property
     def friendly_name(self):
@@ -89,9 +89,9 @@ class PumpTypes(_AbstractValueMap):
 
 
 class InitialStatus(_AbstractValueMap):
-    ACTIVE = auto()
-    OPEN = auto()
-    CLOSED = auto()
+    ACTIVE = "Active"
+    OPEN = "Open"
+    CLOSED = "Closed"
 
     @property
     def friendly_name(self):
@@ -105,12 +105,12 @@ class InitialStatus(_AbstractValueMap):
 
 
 class ValveType(_AbstractValueMap):
-    PRV = auto()
-    PSV = auto()
-    PBV = auto()
-    FCV = auto()
-    TCV = auto()
-    GPV = auto()
+    PRV = "PRV"
+    PSV = "PSV"
+    PBV = "PBV"
+    FCV = "FCV"
+    TCV = "TCV"
+    GPV = "GPV"
 
     @property
     def friendly_name(self):

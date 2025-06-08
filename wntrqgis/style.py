@@ -90,7 +90,7 @@ class _FieldStyler:
             if python_type_class is InitialStatus and self.layer_type in [ModelLayer.PIPES, ModelLayer.PUMPS]:
                 enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
 
-            value_map = [{enum_instance.friendly_name: enum_instance.name} for enum_instance in enum_list]
+            value_map = [{enum_instance.friendly_name: enum_instance.value} for enum_instance in enum_list]
 
             return QgsEditorWidgetSetup(
                 "ValueMap",
@@ -122,13 +122,13 @@ class _FieldStyler:
             return QgsDefaultValue("50.0")
 
         if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
-            return QgsDefaultValue(f"'{InitialStatus.ACTIVE.name}'")
+            return QgsDefaultValue(f"'{InitialStatus.ACTIVE.value}'")
 
         if self.field_type.python_type is InitialStatus and self.layer_type in [ModelLayer.PUMPS, ModelLayer.PIPES]:
-            return QgsDefaultValue(f"'{InitialStatus.OPEN.name}'")
+            return QgsDefaultValue(f"'{InitialStatus.OPEN.value}'")
 
         if issubclass(self.field_type.python_type, Enum):
-            return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).name}'")
+            return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).value}'")
 
         if self.field_type.python_type in [str, CurveType, PatternType]:
             return QgsDefaultValue("''")  # because 'NULL' doesn't look nice
