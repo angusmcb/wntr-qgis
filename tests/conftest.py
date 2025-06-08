@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from qgis.gui import QgsMessageBar
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -26,7 +27,13 @@ def patch_iface(qgis_app, qgis_iface):
     qgis_iface.layerTreeView = Mock()
     qgis_iface.layerTreeView.return_value.indicators.return_value = []
     qgis_iface.addToolBarWidget = Mock()
-    qgis_iface.messageBar = Mock()
+    message_bar = QgsMessageBar()
+    qgis_iface.messageBar = lambda: message_bar
+
+
+@pytest.fixture
+def clean_message_bar(qgis_iface):
+    qgis_iface.messageBar().clearWidgets()
 
 
 @pytest.fixture(autouse=True, scope="session")
