@@ -1091,7 +1091,7 @@ class _FromGis:
         return link_df.drop(columns="geometry")
 
     def _process_pipe_length(self, pipe_df: pd.DataFrame) -> pd.Series:
-        calculated_lengths: pd.Series = pipe_df.loc[:, "geometry"].map(self._get_length).astype("float")
+        calculated_lengths = pipe_df["geometry"].map(self._get_length).astype("float")
         if calculated_lengths.isna().any():
             msg = tr(
                 "cannot calculate length of %n pipe(s) (probably due to a problem with the selected coordinate reference system)",  # noqa: E501
