@@ -10,6 +10,7 @@ def template_layers():
     import wntr
 
     wn = wntr.network.WaterNetworkModel()
+    wn.options.quality.parameter = "CHEMICAL"
     layers = to_qgis(wn)
     for layer in layers.values():
         layer.startEditing()

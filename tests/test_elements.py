@@ -8,13 +8,14 @@ from wntrqgis.elements import (
     ModelLayer,
     PumpTypes,
     ResultLayer,
+    TankMixingModel,
     ValveType,
 )
 
 
 @pytest.mark.parametrize(
     "enum",
-    [FlowUnit, HeadlossFormula, PumpTypes, InitialStatus, ValveType, ModelLayer, ResultLayer, Field],
+    [FlowUnit, HeadlossFormula, PumpTypes, InitialStatus, ValveType, TankMixingModel, ModelLayer, ResultLayer, Field],
 )
 def test_friendly_name(enum):
     for member in enum:

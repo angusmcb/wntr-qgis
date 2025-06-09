@@ -85,7 +85,26 @@ class PumpTypes(_AbstractValueMap):
             return tr("Power")
         if self is PumpTypes.HEAD:
             return tr("Head")
-        raise ValueError
+        raise ValueError  # pragma: no cover
+
+
+class TankMixingModel(_AbstractValueMap):
+    FULLY_MIXED = "MIXED"
+    MIX2 = "2COMP"
+    FIFO = "FIFO"
+    FILO = "FILO"
+
+    @property
+    def friendly_name(self):
+        if self is TankMixingModel.FULLY_MIXED:
+            return tr("Fully Mixed")
+        if self is TankMixingModel.MIX2:
+            return tr("Two Compartment Mixing")
+        if self is TankMixingModel.FIFO:
+            return tr("First In First Out (FIFO)")
+        if self is TankMixingModel.FILO:
+            return tr("First In Last Out (FILO)")
+        raise ValueError  # pragma: no cover
 
 
 class InitialStatus(_AbstractValueMap):
@@ -274,8 +293,8 @@ class ModelLayer(_AbstractLayer):
                 Field.VOL_CURVE,
                 Field.OVERFLOW,
                 Field.INITIAL_QUALITY,
-                Field.MIXING_FRACTION,
                 Field.MIXING_MODEL,
+                Field.MIXING_FRACTION,
                 Field.BULK_COEFF,
             ],
             ModelLayer.RESERVOIRS: [
@@ -402,8 +421,8 @@ class Field(Enum):
     HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
 
     INITIAL_QUALITY = "initial_quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    MIXING_MODEL = "mixing_model", TankMixingModel, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS
-    MIXING_MODEL = "mixing_model", str, FieldGroup.WATER_QUALITY_ANALYSIS
     BULK_COEFF = "bulk_coeff", float, FieldGroup.WATER_QUALITY_ANALYSIS
     WALL_COEFF = "wall_coeff", float, FieldGroup.WATER_QUALITY_ANALYSIS
 
