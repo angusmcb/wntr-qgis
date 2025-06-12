@@ -1376,6 +1376,75 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
         raise NetworkModelError(msg)
 
 
+def describe_network(wn: wntr.network.WaterNetworkModel) -> str:
+    """Returns a string describing the network model.
+
+    Args:
+        wn: WaterNetworkModel to describe
+
+    Returns:
+        A string describing the network model.
+    """
+
+    counts = {
+        ModelLayer.JUNCTIONS.friendly_name: wn.num_junctions,
+        ModelLayer.TANKS.friendly_name: wn.num_tanks,
+        ModelLayer.RESERVOIRS.friendly_name: wn.num_reservoirs,
+        ModelLayer.PIPES.friendly_name: wn.num_pipes,
+        ValveType.PRV.friendly_name: len(list(wn.prvs())),
+        ValveType.PSV.friendly_name: len(list(wn.psvs())),
+        ValveType.PBV.friendly_name: len(list(wn.pbvs())),
+        ValveType.FCV.friendly_name: len(list(wn.fcvs())),
+        ValveType.TCV.friendly_name: len(list(wn.tcvs())),
+        ValveType.GPV.friendly_name: len(list(wn.gpvs())),
+        tr("Pumps defined by power"): len(list(wn.power_pumps())),
+        tr("Pumps defined by head curve"): len(list(wn.head_pumps())),
+    }
+    return ", ".join((str(count) + " " + part) for part, count in counts.items() if count > 0)
+
+
+@needs_wntr_pandas
+def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
+    converter = _Converter(wn.options.hydraulic.inpfile_units, HeadlossFormula(wn.options.hydraulic.headloss))
+
+    pipe_df = pd.DataFrame(
+        ((pipe.length, pipe.diameter, pipe.roughness) for _, pipe in wn.pipes()),
+        columns=["length", "diameter", "roughness"],
+    )
+    pipe_df["length"] = converter.from_si(pipe_df["length"], Field.LENGTH)
+    pipe_df["diameter"] = converter.from_si(pipe_df["diameter"], Field.DIAMETER)
+    pipe_df["roughness"] = converter.from_si(pipe_df["roughness"], Field.ROUGHNESS)
+
+    formatted_df = pd.concat(
+        [
+            pipe_df.groupby("diameter").agg({"length": ["count", "sum", "min", "max"], "roughness": ["min", "max"]}),
+            pipe_df.groupby(lambda _: True)
+            .agg({"length": ["sum", "count", "min", "max"], "roughness": ["min", "max"]})
+            .rename(index={1.0: tr("All Pipes")}),
+        ]
+    ).round()
+
+    index = pd.MultiIndex.from_tuples(
+        [
+            ("", tr("Count")),
+            (Field.LENGTH.friendly_name, tr("Total")),
+            (Field.LENGTH.friendly_name, tr("Min")),
+            (Field.LENGTH.friendly_name, tr("Max")),
+            (Field.ROUGHNESS.friendly_name, tr("Min")),
+            (Field.ROUGHNESS.friendly_name, tr("Max")),
+        ],
+    )
+
+    formatted_df.columns = index
+    formatted_df.index.name = Field.DIAMETER.friendly_name
+
+    html_string = formatted_df.to_html(border=1, col_space=75).replace("\n", "")
+
+    text_alternative = "Total pipe length: {pipe_length:.2f}.".format(pipe_length=pipe_df["length"].sum())
+
+    return html_string, text_alternative
+
+
 @needs_wntr_pandas
 def _get_field_groups(wn: wntr.network.WaterNetworkModel):
     """Utility function for guessing what types of analysis a specific wn will undertake,

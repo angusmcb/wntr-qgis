@@ -40,11 +40,7 @@ from wntrqgis.elements import (
     ResultLayer,
 )
 from wntrqgis.i18n import tr
-from wntrqgis.interface import (
-    NetworkModelError,
-    Writer,
-    check_network,
-)
+from wntrqgis.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
 
@@ -213,7 +209,8 @@ in other software.
             except NetworkModelError as e:
                 raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
 
-            self._describe_model(wn, feedback)
+            feedback.pushInfo(describe_network(wn))
+            feedback.pushFormattedMessage(*describe_pipes(wn))
 
             outputs: dict[str, str] = {}
 
