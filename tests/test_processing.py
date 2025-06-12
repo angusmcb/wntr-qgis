@@ -205,8 +205,8 @@ def test_import_layers_tanks(import_layers):
         "vol_curve",
         "overflow",
         "initial_quality",
-        "mixing_fraction",
         "mixing_model",
+        "mixing_fraction",
         "bulk_coeff",
     ]
 
