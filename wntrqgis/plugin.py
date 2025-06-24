@@ -580,11 +580,13 @@ class IconWithLogo(QIcon):
 class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
     layer_id_changed = pyqtSignal()
 
+    _icon = QIcon("wntrqgis:logo.svg")
+
     def __init__(self, layer_type: ModelLayer):
         super().__init__()
         self.layer_id = None
         self.layer_type = layer_type
-        self.setIcon(QIcon("wntrqgis:logo.svg"))
+        self.setIcon(self._icon)
         self.setToolTip(layer_type.friendly_name)
         self.layer_id_changed.connect(self.search_new_layer)
         self.check_layer_id()
