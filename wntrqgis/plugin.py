@@ -119,7 +119,7 @@ except ModuleNotFoundError:
     def add_action(
         self,
         key: str,
-        icon_path: str,
+        icon: QIcon | str | None,
         text: str,
         callback: typing.Callable,
         *,
@@ -161,7 +161,7 @@ except ModuleNotFoundError:
         :rtype: QAction
         """
 
-        icon = QIcon(icon_path)
+        icon = QIcon(icon)
         action = QAction(icon, text, parent)
         # noinspection PyUnresolvedReferences
         action.triggered.connect(callback)
@@ -192,7 +192,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "template_layers",
-            join_pixmap(QPixmap(":images/themes/default/mActionFileNew.svg"), QPixmap("wntrqgis:logo.svg")),
+            IconWithLogo(":images/themes/default/mActionFileNew.svg"),
             text=tr("Create Template Memory Layers"),
             callback=self.create_template_layers,
             parent=iface.mainWindow(),
@@ -200,7 +200,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "create_template_geopackage",
-            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), QPixmap("wntrqgis:logo.svg")),
+            IconWithLogo(":images/themes/default/mGeoPackage.svg"),
             text=tr("Create Template Geopackage"),
             callback=self.create_template_geopackage,
             parent=iface.mainWindow(),
@@ -220,7 +220,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "load_inp",
-            join_pixmap(QPixmap(":images/themes/default/mActionFileOpen.svg"), QPixmap("wntrqgis:logo.svg")),
+            IconWithLogo(":images/themes/default/mActionFileOpen.svg"),
             text=tr("Load from .inp file"),
             callback=self.load_inp_file,
             parent=iface.mainWindow(),
@@ -228,7 +228,7 @@ except ModuleNotFoundError:
         )
         self.add_action(
             "run_simulation",
-            join_pixmap(QPixmap("wntrqgis:run.svg"), QPixmap("wntrqgis:logo.svg")),
+            IconWithLogo("wntrqgis:run.svg"),
             text=tr("Run Simulation"),
             callback=self.run_simulation,
             parent=iface.mainWindow(),
@@ -564,15 +564,17 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
         raise ImportError(msg)
 
 
-def join_pixmap(p1: QPixmap, p2: QPixmap) -> QPixmap:
-    result = QPixmap(128, 128)
-    result.fill(QColorConstants.Transparent)
-    painter = QPainter(result)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.drawPixmap(0, 0, 128, 128, p1)
-    painter.drawPixmap(64, 64, 64, 64, p2)
-    painter.end()
-    return result
+class IconWithLogo(QIcon):
+    _logo = QPixmap("wntrqgis:logo.svg")
+
+    def __init__(self, icon_path: str):
+        result_pixmap = QIcon(icon_path).pixmap(256, 256)
+        painter = QPainter(result_pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.drawPixmap(128, 128, 128, 128, self._logo)
+        painter.end()
+
+        super().__init__(result_pixmap)
 
 
 class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
