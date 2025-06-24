@@ -41,7 +41,6 @@ from qgis.utils import iface
 
 import wntrqgis
 import wntrqgis.expressions
-import wntrqgis.resources.icons.resources
 from wntrqgis.dependency_management import WntrInstaller
 from wntrqgis.elements import (
     FlowUnit,
@@ -193,7 +192,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "template_layers",
-            join_pixmap(QPixmap(":images/themes/default/mActionFileNew.svg"), QPixmap(":wntrqgis/logo.svg")),
+            join_pixmap(QPixmap(":images/themes/default/mActionFileNew.svg"), QPixmap("wntrqgis:logo.svg")),
             text=tr("Create Template Memory Layers"),
             callback=self.create_template_layers,
             parent=iface.mainWindow(),
@@ -201,7 +200,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "create_template_geopackage",
-            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), QPixmap(":wntrqgis/logo.svg")),
+            join_pixmap(QPixmap(":images/themes/default/mGeoPackage.svg"), QPixmap("wntrqgis:logo.svg")),
             text=tr("Create Template Geopackage"),
             callback=self.create_template_geopackage,
             parent=iface.mainWindow(),
@@ -221,7 +220,7 @@ except ModuleNotFoundError:
 
         self.add_action(
             "load_inp",
-            join_pixmap(QPixmap(":images/themes/default/mActionFileOpen.svg"), QPixmap(":wntrqgis/logo.svg")),
+            join_pixmap(QPixmap(":images/themes/default/mActionFileOpen.svg"), QPixmap("wntrqgis:logo.svg")),
             text=tr("Load from .inp file"),
             callback=self.load_inp_file,
             parent=iface.mainWindow(),
@@ -229,7 +228,7 @@ except ModuleNotFoundError:
         )
         self.add_action(
             "run_simulation",
-            join_pixmap(QPixmap(":wntrqgis/run.svg"), QPixmap(":wntrqgis/logo.svg")),
+            join_pixmap(QPixmap("wntrqgis:run.svg"), QPixmap("wntrqgis:logo.svg")),
             text=tr("Run Simulation"),
             callback=self.run_simulation,
             parent=iface.mainWindow(),
@@ -565,14 +564,12 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
         raise ImportError(msg)
 
 
-def join_pixmap(p1, p2):
-    # s = p1.size().expandedTo(p2.size())
+def join_pixmap(p1: QPixmap, p2: QPixmap) -> QPixmap:
     result = QPixmap(128, 128)
     result.fill(QColorConstants.Transparent)
     painter = QPainter(result)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.drawPixmap(0, 0, 128, 128, p1)
-    # painter.drawPixmap(result.rect(), p2, p2.rect())
     painter.drawPixmap(64, 64, 64, 64, p2)
     painter.end()
     return result
@@ -585,7 +582,7 @@ class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
         super().__init__()
         self.layer_id = None
         self.layer_type = layer_type
-        self.setIcon(QIcon(":wntrqgis/logo.svg"))
+        self.setIcon(QIcon("wntrqgis:logo.svg"))
         self.setToolTip(layer_type.friendly_name)
         self.layer_id_changed.connect(self.search_new_layer)
         self.check_layer_id()

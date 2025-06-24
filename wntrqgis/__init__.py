@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from qgis.PyQt import QtCore
+
 import wntrqgis.dependency_management
 from wntrqgis.interface import from_qgis, to_qgis
 
@@ -43,6 +45,9 @@ examples = {
     "KY10": _inp_path("ky10"),
     "VALVES": _inp_path("valves"),
 }
+
+
+QtCore.QDir.addSearchPath("wntrqgis", str(Path(__file__).resolve().parent / "resources" / "icons"))
 
 
 def classFactory(iface: "QgisInterface"):  # noqa N802

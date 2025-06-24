@@ -71,7 +71,7 @@ in other software.
             """)
 
     def icon(self):
-        return QIcon(":/wntrqgis/run.svg")
+        return QIcon("wntrqgis:run.svg")
 
     def initAlgorithm(self, config=None):  # noqa N802
         project_settings = ProjectSettings(QgsProject.instance())
