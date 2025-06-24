@@ -14,7 +14,7 @@ class Provider(QgsProcessingProvider):
         return "WNTR"
 
     def icon(self):
-        return QIcon("wntrqgis:logo.svg")
+        return QIcon("wntrqgis:logo.png")
 
     def loadAlgorithms(self) -> None:  # noqa N802
         self.addAlgorithm(RunSimulation())

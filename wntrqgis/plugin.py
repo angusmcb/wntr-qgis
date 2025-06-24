@@ -565,7 +565,7 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
 
 
 class IconWithLogo(QIcon):
-    _logo = QPixmap("wntrqgis:logo.svg")
+    _logo = QPixmap("wntrqgis:logo.png")
 
     def __init__(self, icon_path: str):
         result_pixmap = QIcon(icon_path).pixmap(256, 256)
@@ -580,7 +580,7 @@ class IconWithLogo(QIcon):
 class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
     layer_id_changed = pyqtSignal()
 
-    _icon = QIcon("wntrqgis:logo.svg")
+    _icon = QIcon("wntrqgis:logo.png")
 
     def __init__(self, layer_type: ModelLayer):
         super().__init__()
