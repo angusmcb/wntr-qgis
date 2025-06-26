@@ -118,7 +118,7 @@ def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
     )
 
 
-def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis_new_project):
+def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis_new_project, clean_message_bar):
     patch_dialogs(mocker, bad_inp, "EPSG:4326")
 
     patched_plugin.actions["load_inp"].trigger()
@@ -128,13 +128,6 @@ def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis
         == "error reading .inp file: (Error 201) syntax error (%s), at line 330:\n   [FOO]"
     )
 
-    # qgis_iface.messageBar.return_value.pushMessage.assert_called_with(
-    #     title="Error",
-    #     text="error reading .inp file: (Error 201) syntax error (%s), at line 330:\n   [FOO]",
-    #     showMore=ANY,
-    #     level=Qgis.MessageLevel.Critical,
-    #     duration=ANY,
-    # )
     assert len(QgsProject.instance().mapLayers()) == 0
 
 
