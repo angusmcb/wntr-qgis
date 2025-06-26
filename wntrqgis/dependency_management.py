@@ -49,7 +49,7 @@ class WntrInstaller:
             kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)  # type: ignore[attr-defined]
 
         try:
-            process_result = subprocess.run(
+            process_result = subprocess.run(  # noqa: S603
                 [
                     "python" if os.name == "nt" else sys.executable,  # https://github.com/qgis/QGIS/issues/45646
                     "-m",

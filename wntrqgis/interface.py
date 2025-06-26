@@ -54,8 +54,8 @@ from wntrqgis.i18n import tr
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
-    import pandas as pd  # noqa
-    import numpy as np  # noqa
+    import pandas as pd
+    import numpy as np
     from numpy.typing import ArrayLike
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ QGIS_VERSION_DISTANCE_UNIT_IN_QGIS = 33000
 QGIS_DISTANCE_UNIT_METERS = (
     Qgis.DistanceUnit.Meters if Qgis.versionInt() >= QGIS_VERSION_DISTANCE_UNIT_IN_QGIS else QgsUnitTypes.DistanceMeters
 )
-USE_QMETATYPE = Qgis.versionInt() >= 33800  # noqa: PLR2004
+USE_QMETATYPE = Qgis.versionInt() >= 33800
 
 
 def needs_wntr_pandas(func):
@@ -743,13 +743,13 @@ class _Curves:
 
         try:
             curve_points_input: list = ast.literal_eval(curve_string)
-        except Exception:  # noqa: BLE001
+        except Exception:
             raise CurveError(curve_string, curve_type) from None
 
         curve_points = []
         try:
             for point in curve_points_input:
-                if len(point) != 2:  # noqa: PLR2004
+                if len(point) != 2:
                     raise CurveError(curve_string, curve_type)
                 curve_points.append((float(point[0]), float(point[1])))
         except (TypeError, ValueError):

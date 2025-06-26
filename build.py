@@ -13,9 +13,9 @@ from qgis_plugin_tools.infrastructure.plugin_maker import PluginMaker
 """
 
 locales = ["en", "fr", "es", "de", "pt", "it", "ar", "nl"]
-py_files = [fil for fil in glob.glob("wntrqgis/**/*.py", recursive=True) if "packages" not in fil]
-ui_files = list(glob.glob("**/*.ui", recursive=True))
-resources = list(glob.glob("**/*.qrc", recursive=True))
+py_files = [fil for fil in glob.glob("wntrqgis/**/*.py", recursive=True) if "packages" not in fil]  # noqa: PTH207
+ui_files = list(glob.glob("**/*.ui", recursive=True))  # noqa: PTH207
+resources = list(glob.glob("**/*.qrc", recursive=True))  # noqa: PTH207
 extra_dirs = ["resources"]
 compiled_resources = ["resources.py"]
 
