@@ -1,8 +1,5 @@
-from unittest.mock import ANY
-
 import pytest
 from qgis.core import (
-    Qgis,
     QgsCoordinateReferenceSystem,
     QgsProcessingProvider,
     QgsProject,
@@ -100,22 +97,26 @@ def patch_dialogs(mocker, file, crs):
     qpsd.return_value.crs.return_value = QgsCoordinateReferenceSystem(crs)
 
 
-@pytest.mark.skipif(not hasattr(QtWidgets.QMessageBox, "Close"), reason="QMessageBox.Close in pytest-qgis will error")
+@pytest.mark.skipif(
+    not hasattr(QtWidgets.QMessageBox, "Close"), reason="QMessageBox.Close in pytest-qgis will error in qt6"
+)
 @pytest.mark.qgis_show_map(timeout=3, zoom_to_common_extent=True)
-def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project):
+def test_load_inp_file_visual_check(qgis_iface, patched_plugin, mocker, qgis_new_project, clean_message_bar):
     patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
 
     patched_plugin.actions["load_inp"].trigger()
 
     assert len(QgsProject.instance().mapLayers()) == 6
 
-    qgis_iface.messageBar.return_value.pushMessage.assert_called_with(
-        title="Success",
-        text="Loaded .inp file",
-        showMore=ANY,
-        level=Qgis.MessageLevel.Success,
-        duration=ANY,
-    )
+
+def test_load_inp_file(qgis_iface, patched_plugin, mocker, qgis_new_project, clean_message_bar):
+    patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
+
+    patched_plugin.actions["load_inp"].trigger()
+
+    assert len(QgsProject.instance().mapLayers()) == 6
+
+    assert qgis_iface.messageBar().currentItem().text() == "Loaded .inp file"
 
 
 def test_load_inp_file_bad_inp(qgis_iface, patched_plugin, mocker, bad_inp, qgis_new_project, clean_message_bar):
