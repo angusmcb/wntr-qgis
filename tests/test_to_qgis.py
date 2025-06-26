@@ -30,7 +30,7 @@ def results(wn):
     return sim.run_sim()
 
 
-def check_numeric_values(layer: QgsVectorLayer, field_name: str, expected_values: list):
+def check_values(layer: QgsVectorLayer, field_name: str, expected_values: list):
     """
     Helper function to check if the values in a specific field of a layer's features match the expected values.
 
@@ -47,27 +47,10 @@ def check_numeric_values(layer: QgsVectorLayer, field_name: str, expected_values
     error_message = f"Field '{field_name}' values do not match. Expected: {expected_values}, Actual: {actual_values}"
 
     for actual, expected in zip(actual_values, expected_values):
-        if isinstance(actual, (list, float, int)):
+        if isinstance(expected, (list, float, int)):
             assert actual == pytest.approx(expected), error_message
         else:
-            assert actual == expected[0], error_message
-
-
-def check_exact_values(layer, field_name, expected_values):
-    """
-    Helper function to check if the values in a specific field of a layer's features match the expected values.
-
-    :param layer: QgsVectorLayer to check.
-    :param field_name: Name of the field to validate.
-    :param expected_values: List of expected values.
-    :raises AssertionError: If the field values do not match the expected values.
-    """
-    assert layer.isValid(), "Layer is not valid."
-    assert layer.fields()[field_name], f"Field '{field_name}' does not exist in the layer."
-
-    actual_values = [feature[field_name] for feature in layer.getFeatures()]
-    error_message = f"Field '{field_name}' values do not match. Expected: {expected_values}, Actual: {actual_values}"
-    assert actual_values == expected_values, error_message
+            assert actual == expected, error_message
 
 
 def test_basic_wn(qgis_new_project, wn):
@@ -76,7 +59,7 @@ def test_basic_wn(qgis_new_project, wn):
     assert isinstance(layers["JUNCTIONS"], QgsVectorLayer)
     assert isinstance(layers["PIPES"], QgsVectorLayer)
     assert len(QgsProject.instance().mapLayers()) == 6
-    check_exact_values(layers["JUNCTIONS"], "name", ["J1", "J2"])
+    check_values(layers["JUNCTIONS"], "name", ["J1", "J2"])
 
 
 def test_empty_wn(qgis_new_project):
@@ -93,35 +76,35 @@ def test_empty_wn(qgis_new_project):
 def test_demand_conversion(wn):
     layers = wntrqgis.to_qgis(wn, units="LPS")
 
-    check_numeric_values(layers["JUNCTIONS"], "base_demand", [10, 20])
+    check_values(layers["JUNCTIONS"], "base_demand", [10, 20])
 
 
 def test_results(qgis_new_project, wn, results):
     layers = wntrqgis.to_qgis(wn, results=results, units="LPS")
     assert len(QgsProject.instance().mapLayers()) == 2
-    check_numeric_values(layers["NODES"], "demand", [10.0, 20.0, -30.0])
-    check_numeric_values(layers["LINKS"], "flowrate", [-10.0, -30.0])
+    check_values(layers["NODES"], "demand", [10.0, 20.0, -30.0])
+    check_values(layers["LINKS"], "flowrate", [-10.0, -30.0])
 
 
 def test_eps_results(qgis_new_project, wn, eps, results):
     layers = wntrqgis.to_qgis(wn, results=results, units="LPS")
     assert len(QgsProject.instance().mapLayers()) == 2
-    check_numeric_values(layers["NODES"], "demand", [[10.0, 10.0], [20.0, 20.0], [-30.0, -30.0]])
-    check_numeric_values(layers["LINKS"], "flowrate", [[-10.0, -10.0], [-30.0, -30.0]])
+    check_values(layers["NODES"], "demand", [[10.0, 10.0], [20.0, 20.0], [-30.0, -30.0]])
+    check_values(layers["LINKS"], "flowrate", [[-10.0, -10.0], [-30.0, -30.0]])
 
 
 def test_custom_attr_str(wn):
     wn.nodes["J1"].custom_str = "Custom String"
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["JUNCTIONS"], "custom_str", ["Custom String", NULL])
+    check_values(layers["JUNCTIONS"], "custom_str", ["Custom String", NULL])
 
 
 def test_custom_attr_int(wn):
     wn.nodes["J2"].custom_int = 42
     layers = wntrqgis.to_qgis(wn)
 
-    check_numeric_values(layers["JUNCTIONS"], "custom_int", [NULL, 42])
+    check_values(layers["JUNCTIONS"], "custom_int", [NULL, 42])
 
     field = layers["JUNCTIONS"].fields().field("custom_int")
     assert field.typeName().lower() in ("integer", "int")
@@ -131,14 +114,14 @@ def test_custom_attr_float(wn):
     wn.nodes["J1"].custom_float = 3.14
     layers = wntrqgis.to_qgis(wn)
 
-    check_numeric_values(layers["JUNCTIONS"], "custom_float", [3.14, NULL])
+    check_values(layers["JUNCTIONS"], "custom_float", [3.14, NULL])
 
 
 def test_custom_attr_bool(wn):
     wn.links["P1"].custom_bool = True
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["PIPES"], "custom_bool", [True, NULL])
+    check_values(layers["PIPES"], "custom_bool", [True, NULL])
 
 
 def test_valid_crs_string(wn):
@@ -188,7 +171,7 @@ def test_demand_pattern(wn):
 
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["JUNCTIONS"], "demand_pattern", [NULL, NULL, "0.5 1.0 1.5"])
+    check_values(layers["JUNCTIONS"], "demand_pattern", [NULL, NULL, "0.5 1.0 1.5"])
 
 
 def test_head_pattern(wn):
@@ -196,7 +179,7 @@ def test_head_pattern(wn):
     wn.add_reservoir("R2", base_head=10, head_pattern="H1")
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["RESERVOIRS"], "head_pattern", [NULL, "10.0 20.0 30.0"])
+    check_values(layers["RESERVOIRS"], "head_pattern", [NULL, "10.0 20.0 30.0"])
 
 
 def test_vol_curve(wn):
@@ -204,7 +187,7 @@ def test_vol_curve(wn):
     wn.add_tank("T1", vol_curve="C1")
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(
+    check_values(
         layers["TANKS"],
         "vol_curve",
         ["[(0.0, 0.0), (32.808398950131235, 353.14666721488584), (65.61679790026247, 706.2933344297717)]"],
@@ -216,7 +199,7 @@ def test_pump_curve(wn):
     wn.add_pump("PUMP1", "J1", "J2", pump_type="head", pump_parameter="C1")
     layers = wntrqgis.to_qgis(wn, units="SI")
 
-    check_exact_values(layers["PUMPS"], "pump_curve", ["[(0.0, 0), (10.0, 10), (20.0, 20)]"])
+    check_values(layers["PUMPS"], "pump_curve", ["[(0.0, 0), (10.0, 10), (20.0, 20)]"])
 
 
 def test_speed_pattern(wn):
@@ -224,7 +207,7 @@ def test_speed_pattern(wn):
     wn.add_pump("PUMP1", "J1", "J2", pattern="S1")
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["PUMPS"], "speed_pattern", ["0.5 1.0 1.5"])
+    check_values(layers["PUMPS"], "speed_pattern", ["0.5 1.0 1.5"])
 
 
 def test_energy_pattern(wn):
@@ -234,7 +217,7 @@ def test_energy_pattern(wn):
 
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["PUMPS"], "energy_pattern", ["0.5 1.0 1.5"])
+    check_values(layers["PUMPS"], "energy_pattern", ["0.5 1.0 1.5"])
 
 
 def test_efficiency_curve(wn):
@@ -244,14 +227,14 @@ def test_efficiency_curve(wn):
 
     layers = wntrqgis.to_qgis(wn, units="LPS")
 
-    check_exact_values(layers["PUMPS"], "efficiency", ["[(0.0, 0), (10000.0, 0.5), (20000.0, 1)]"])
+    check_values(layers["PUMPS"], "efficiency", ["[(0.0, 0), (10000.0, 0.5), (20000.0, 1)]"])
 
 
 def test_valve_active(wn):
     wn.add_valve("v1", "J1", "J2")
     layers = wntrqgis.to_qgis(wn)
 
-    check_exact_values(layers["VALVES"], "initial_status", ["Active"])
+    check_values(layers["VALVES"], "initial_status", ["Active"])
 
 
 @pytest.mark.parametrize("valve_type", ["PRV", "PSV", "PBV"])
@@ -260,7 +243,7 @@ def test_p_valve_setting(wn, valve_type):
 
     layers = wntrqgis.to_qgis(wn)
 
-    check_numeric_values(layers["VALVES"], "initial_setting", [14.21588])
+    check_values(layers["VALVES"], "initial_setting", [14.21588])
 
 
 def test_flow_valve_setting(wn):
@@ -268,7 +251,7 @@ def test_flow_valve_setting(wn):
 
     layers = wntrqgis.to_qgis(wn, units="CMH")
 
-    check_numeric_values(layers["VALVES"], "initial_setting", [10.0 * 3600])
+    check_values(layers["VALVES"], "initial_setting", [10.0 * 3600])
 
 
 def test_gpv_curve(wn):
@@ -277,7 +260,7 @@ def test_gpv_curve(wn):
 
     layers = wntrqgis.to_qgis(wn, units="lps")
 
-    check_exact_values(layers["VALVES"], "headloss_curve", ["[(0.0, 0), (10000.0, 10), (20000.0, 20)]"])
+    check_values(layers["VALVES"], "headloss_curve", ["[(0.0, 0), (10000.0, 10), (20000.0, 20)]"])
 
 
 def test_tcv_setting(wn):
@@ -285,7 +268,7 @@ def test_tcv_setting(wn):
 
     layers = wntrqgis.to_qgis(wn)
 
-    check_numeric_values(layers["VALVES"], "initial_setting", [10.0])
+    check_values(layers["VALVES"], "initial_setting", [10.0])
 
 
 def test_unit_warning(wn, caplog):
