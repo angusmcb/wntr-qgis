@@ -341,12 +341,7 @@ except ModuleNotFoundError:
             iface.removePluginMenu(self.menu, action)
             iface.removeToolBarIcon(action)
 
-        # if self.examplebutton:
-        #    self.examplebutton.disconnect()
         # teardown_logger("wntrqgis")
-
-        # QgsProject.instance().customVariablesChanged.disconnect(self.add_layer_indicators)
-        # QgsProject.instance().layerTreeRoot().addedChildren.disconnect(self.add_layer_indicators)
 
         QgsApplication.processingRegistry().removeProvider(self.provider)
         for indicator in self._indicators:
@@ -376,15 +371,15 @@ except ModuleNotFoundError:
                     MESSAGE_CATEGORY,
                     Qgis.MessageLevel.Critical,
                 )
-                iface.statusBarIface().clearMessage()
                 return
 
             import processing
 
-            processing.gui.Postprocessing.handleAlgorithmResults(algorithm, context, feedback, results)
-            iface.statusBarIface().clearMessage()
+            processing.handleAlgorithmResults(algorithm, context, feedback, results)
+
             if on_finish:
                 on_finish()
+
             if success_message:
                 level = Qgis.MessageLevel.Warning if feedback.warnings else Qgis.MessageLevel.Success
                 title = tr("Analysed with Warnings") if feedback.warnings else tr("Success")
