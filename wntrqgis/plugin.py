@@ -586,20 +586,24 @@ class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
         super().__init__()
         self.layer_id = None
         self.layer_type = layer_type
+
         self.setIcon(self._icon)
         self.setToolTip(layer_type.friendly_name)
-        self.layer_id_changed.connect(self.search_new_layer)
+
+        self.layer_id_changed.connect(self.find_and_attach_to_layer)
         self.check_layer_id()
         QgsProject.instance().customVariablesChanged.connect(self.check_layer_id)
-        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.search_new_layer)
+        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.find_and_attach_to_layer)
 
-    def destroy(self):
+    def destroy(self) -> None:
+        """Self destruct mechanism"""
         self.layer_id = None
         self.layer_id_changed.emit()
         self.deleteLater()
 
     @pyqtSlot()
-    def check_layer_id(self):
+    def check_layer_id(self) -> None:
+        """Check if the layer id in the project settings has changed"""
         layer_id = ProjectSettings().get(SettingKey.MODEL_LAYERS, {}).get(self.layer_type.name)
         if layer_id != self.layer_id:
             self.layer_id = layer_id
@@ -608,20 +612,21 @@ class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
     @pyqtSlot()
     @pyqtSlot(QObject)
     @pyqtSlot(QgsLayerTreeNode, int, int)
-    def search_new_layer(self, *_):
+    def find_and_attach_to_layer(self, *_) -> None:
+        """Fnd the layer in the layer tree, and if it exists attach oneself to it"""
         layer = QgsProject.instance().layerTreeRoot().findLayer(self.layer_id)
         if not layer:
             return
 
         iface.layerTreeView().addIndicator(layer, self)
-        layer.destroyed.connect(self.search_new_layer)
+        layer.destroyed.connect(self.find_and_attach_to_layer)
         self.layer_id_changed.connect(lambda: self.remove_from_layer(layer))
 
-    @pyqtSlot(QgsLayerTreeLayer)
-    def remove_from_layer(self, layer):
+    def remove_from_layer(self, layer: QgsLayerTreeLayer) -> None:
+        """Remove oneself from a layer if the layer id in settings has changed"""
         with contextlib.suppress(RuntimeError, TypeError):  # if layer is already deleted
             iface.layerTreeView().removeIndicator(layer, self)
-            layer.destroyed.disconnect(self.search_new_layer)
+            layer.destroyed.disconnect(self.find_and_attach_to_layer)
 
 
 class SettingMenu(QMenu):
