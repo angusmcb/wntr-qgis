@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 from wntrqgis import interface
 
 
@@ -100,9 +102,9 @@ def test_describe_pipes_basic():
 
 @patch("wntrqgis.interface.tr", lambda x: x)
 def test_describe_pipes_conv():
-    from wntr.network import WaterNetworkModel
+    import wntr
 
-    wn = WaterNetworkModel()
+    wn = wntr.model.WaterNetworkModel()
     wn.options.hydraulic.inpfile_units = "GPM"  # Set units to Liters per Second
     wn.options.hydraulic.headloss = "D-W"
     wn.add_junction("j1", base_demand=0, elevation=0)
@@ -118,7 +120,11 @@ def test_describe_pipes_conv():
     # Check that the HTML table includes expected diameters and roughness values
     assert "393" in html
     assert "787" in html
-    assert "3281.0" in html
+
+    if wntr.__version__ == "1.2.0":
+        pytest.skip(reason="Roughness conversion broken in wntr 1.2.0")
+
+    assert "3281.0" in html  # roughness in 1/1000 feeet - doesn't work in wntr 1.2.0
 
 
 @patch("wntrqgis.interface.tr", lambda x: x)
