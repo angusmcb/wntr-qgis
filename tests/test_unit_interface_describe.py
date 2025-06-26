@@ -104,7 +104,7 @@ def test_describe_pipes_basic():
 def test_describe_pipes_conv():
     import wntr
 
-    wn = wntr.model.WaterNetworkModel()
+    wn = wntr.network.WaterNetworkModel()
     wn.options.hydraulic.inpfile_units = "GPM"  # Set units to Liters per Second
     wn.options.hydraulic.headloss = "D-W"
     wn.add_junction("j1", base_demand=0, elevation=0)
