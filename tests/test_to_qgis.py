@@ -30,7 +30,7 @@ def results(wn):
     return sim.run_sim()
 
 
-def check_numeric_values(layer, field_name, expected_values):
+def check_numeric_values(layer: QgsVectorLayer, field_name: str, expected_values: list):
     """
     Helper function to check if the values in a specific field of a layer's features match the expected values.
 
@@ -45,11 +45,12 @@ def check_numeric_values(layer, field_name, expected_values):
     actual_values = [feature[field_name] for feature in layer.getFeatures()]
 
     error_message = f"Field '{field_name}' values do not match. Expected: {expected_values}, Actual: {actual_values}"
-    if len(expected_values) and isinstance(expected_values[0], list):
-        for actual, expected in zip(actual_values, expected_values):
+
+    for actual, expected in zip(actual_values, expected_values):
+        if isinstance(actual, (list, float, int)):
             assert actual == pytest.approx(expected), error_message
-    else:
-        assert actual_values == pytest.approx(expected_values), error_message
+        else:
+            assert actual == expected[0], error_message
 
 
 def check_exact_values(layer, field_name, expected_values):
