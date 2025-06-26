@@ -86,7 +86,14 @@ def test_writer_write_no_features(wn, qgs_layer):
     assert sink.featureCount() == 0
 
 
+def test_check_network_empty_model(wn):
+    with pytest.raises(NetworkModelError, match="The model is empty, no nodes or links found"):
+        check_network(wn)
+
+
 def test_check_network_no_junctions(wn):
+    wn.add_tank("t1")
+    wn.add_reservoir("r1")
     with pytest.raises(NetworkModelError, match="At least one junction is necessary"):
         check_network(wn)
 

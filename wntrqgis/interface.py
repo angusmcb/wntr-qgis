@@ -1356,6 +1356,10 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
 
 
     """
+    if not wn.num_links and not wn.num_nodes:
+        msg = tr("The model is empty, no nodes or links found.")
+        raise NetworkModelError(msg)
+
     if not wn.num_junctions:
         msg = tr("At least one junction is necessary")
         raise NetworkModelError(msg)
