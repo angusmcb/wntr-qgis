@@ -27,7 +27,7 @@ from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSele
 from qgis.PyQt.QtCore import QCoreApplication, QLocale, QObject, QSettings, QTranslator, pyqtSignal, pyqtSlot
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
-from qgis.PyQt.QtGui import QColorConstants, QIcon, QPainter, QPixmap
+from qgis.PyQt.QtGui import QIcon, QPainter, QPixmap
 from qgis.PyQt.QtWidgets import (
     QAction,
     QActionGroup,
@@ -454,7 +454,7 @@ except ModuleNotFoundError:
     def open_settings(self) -> None:
         import processing
 
-        processing.execAlgorithmDialog("wntr:run")
+        processing.execAlgorithmDialog("wntr:run")  # type: ignore
 
     def run_simulation(self) -> None:
         project_settings = ProjectSettings(QgsProject.instance())
@@ -630,7 +630,7 @@ class SettingMenu(QMenu):
 
         self.action_group = QActionGroup(self)
         self.action_group.triggered.connect(lambda action: ProjectSettings().set(setting, action.data()))  # type: ignore
-        self.actions = {}
+        self.actions = {}  # type: ignore
         self.setting_key = setting
 
         self.setup_actions()
