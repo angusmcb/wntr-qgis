@@ -210,7 +210,10 @@ in other software.
                 raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
 
             feedback.pushInfo(describe_network(wn))
-            feedback.pushFormattedMessage(*describe_pipes(wn))
+            if hasattr(feedback, "pushFormattedMessage"):  # QGIS > 3.32
+                feedback.pushFormattedMessage(*describe_pipes(wn))
+            else:
+                feedback.pushInfo(describe_pipes(wn)[1])
 
             outputs: dict[str, str] = {}
 
