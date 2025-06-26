@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+# mypy: ignore-errors
 # ruff: noqa: T201
 
 """
