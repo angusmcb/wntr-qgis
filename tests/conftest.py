@@ -25,6 +25,8 @@ from qgis.gui import QgsLayerTreeView, QgsMessageBar
 def patch_iface(qgis_app, qgis_iface):
     qgis_iface.statusBarIface = Mock()
     layer_tree_view = QgsLayerTreeView()
+    layer_tree_view.currentNode = Mock()
+    layer_tree_view.currentNode.return_value = None
     qgis_iface.layerTreeView = lambda: layer_tree_view
     qgis_iface.addToolBarWidget = Mock()
     message_bar = QgsMessageBar()
