@@ -24,7 +24,7 @@ from qgis.core import (
     QgsTask,
 )
 from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSelectionDialog
-from qgis.PyQt.QtCore import QCoreApplication, QLocale, QObject, QSettings, QTranslator, pyqtSignal, pyqtSlot
+from qgis.PyQt.QtCore import QCoreApplication, QLocale, QObject, QSettings, QTranslator, pyqtSlot
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
 from qgis.PyQt.QtGui import QIcon, QPainter, QPixmap
@@ -266,7 +266,7 @@ except ModuleNotFoundError:
             add_to_toolbar=False,
         )
 
-        self.add_layer_indicators()
+        self._indicator_registry = IndicatorRegistry()
 
         self.warm_up_wntr()
 
@@ -329,9 +329,6 @@ except ModuleNotFoundError:
 
             iface.messageBar().pushItem(message_item)
 
-    def add_layer_indicators(self):
-        self._indicators = [NewModelLayerIndicator(layer) for layer in ModelLayer]
-
     def onClosePlugin(self) -> None:  # noqa N802
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
@@ -344,8 +341,8 @@ except ModuleNotFoundError:
         # teardown_logger("wntrqgis")
 
         QgsApplication.processingRegistry().removeProvider(self.provider)
-        for indicator in self._indicators:
-            indicator.destroy()
+
+        self._indicator_registry.destroy()
 
     def run_alg_async(self, algorithm_name, parameters, on_finish=None, success_message: str | None = None):
         context = QgsProcessingContext()
@@ -572,56 +569,125 @@ class IconWithLogo(QIcon):
         super().__init__(result_pixmap)
 
 
-class NewModelLayerIndicator(QgsLayerTreeViewIndicator):
-    layer_id_changed = pyqtSignal()
+class IndicatorRegistry(QObject):
+    """Registry for layer tree indicators"""
 
-    _icon = QIcon("wntrqgis:logo.png")
-
-    def __init__(self, layer_type: ModelLayer):
+    def __init__(self) -> None:
         super().__init__()
-        self.layer_id = None
-        self.layer_type = layer_type
 
-        self.setIcon(self._icon)
-        self.setToolTip(layer_type.friendly_name)
+        self._layer_ids: dict[ModelLayer, str] = {}
+        self._indicators = {layer: ModelLayerIndicator(self, layer) for layer in ModelLayer}
 
-        self.layer_id_changed.connect(self.find_and_attach_to_layer)
-        self.check_layer_id()
-        QgsProject.instance().customVariablesChanged.connect(self.check_layer_id)
-        QgsProject.instance().layerTreeRoot().addedChildren.connect(self.find_and_attach_to_layer)
+        root = QgsProject.instance().layerTreeRoot()
+        root.addedChildren.connect(self.layer_tree_layer_added)
+        root.willRemoveChildren.connect(self.layer_tree_layer_will_be_removed)
+
+        QgsProject.instance().customVariablesChanged.connect(self.update_layer_ids)
+
+        self.update_layer_ids()
 
     def destroy(self) -> None:
         """Self destruct mechanism"""
-        self.layer_id = None
-        self.layer_id_changed.emit()
+        for layer_type in ModelLayer:
+            old_id = self._layer_ids.get(layer_type)
+            if not old_id:
+                continue
+
+            layer_tree_layer = QgsProject.instance().layerTreeRoot().findLayer(old_id)
+
+            if layer_tree_layer:
+                indicator = self._indicators[layer_type]
+                iface.layerTreeView().removeIndicator(layer_tree_layer, indicator)
+
         self.deleteLater()
 
-    @pyqtSlot()
-    def check_layer_id(self) -> None:
-        """Check if the layer id in the project settings has changed"""
-        layer_id = ProjectSettings().get(SettingKey.MODEL_LAYERS, {}).get(self.layer_type.name)
-        if layer_id != self.layer_id:
-            self.layer_id = layer_id
-            self.layer_id_changed.emit()
+    @pyqtSlot(QgsLayerTreeNode, int, int)
+    def layer_tree_layer_added(
+        self,
+        layer_tree: QgsLayerTreeNode,
+        indexFrom: int,  # noqa: N803
+        indexTo: int,  # noqa: N803
+    ) -> None:
+        """Receive layer tree layers added and attach indicator to them if indicator exists."""
+
+        layer_tree_nodes = layer_tree.children()[indexFrom : indexTo + 1]
+
+        for layer_tree_node in layer_tree_nodes:
+            try:
+                layer_id = layer_tree_node.layerId()
+            except AttributeError:  # Not a layer node
+                continue
+
+            if layer_id not in self._layer_ids.values():
+                continue
+
+            model_layer = next(key for key, value in self._layer_ids.items() if value == layer_id)
+
+            indicator = self._indicators[model_layer]
+
+            iface.layerTreeView().addIndicator(layer_tree_node, indicator)
+
+    @pyqtSlot(QgsLayerTreeNode, int, int)
+    def layer_tree_layer_will_be_removed(
+        self,
+        layer_tree: QgsLayerTreeNode,
+        indexFrom: int,  # noqa: N803
+        indexTo: int,  # noqa: N803
+    ) -> None:
+        """Receive layer tree layers added and attach indicator to them if indicator exists."""
+
+        layer_tree_view = iface.layerTreeView()
+        layer_tree_nodes = layer_tree.children()[indexFrom : indexTo + 1]
+
+        for layer_tree_node in layer_tree_nodes:
+            for indicator in layer_tree_view.indicators(layer_tree_node):
+                if isinstance(indicator, ModelLayerIndicator):
+                    layer_tree_view.removeIndicator(layer_tree_node, indicator)
 
     @pyqtSlot()
-    @pyqtSlot(QObject)
-    @pyqtSlot(QgsLayerTreeNode, int, int)
-    def find_and_attach_to_layer(self, *_) -> None:
-        """Fnd the layer in the layer tree, and if it exists attach oneself to it"""
-        layer = QgsProject.instance().layerTreeRoot().findLayer(self.layer_id)
-        if not layer:
+    def update_layer_ids(self) -> None:
+        """Update the layer ids in the registry based on project settings."""
+        new_layer_ids: dict[ModelLayer, str] = {}
+        for layer, layer_id in ProjectSettings().get(SettingKey.MODEL_LAYERS, {}).items():
+            try:
+                new_layer_ids[ModelLayer[layer]] = layer_id
+            except KeyError:
+                continue
+
+        if new_layer_ids == self._layer_ids:
             return
 
-        iface.layerTreeView().addIndicator(layer, self)
-        layer.destroyed.connect(self.find_and_attach_to_layer)
-        self.layer_id_changed.connect(lambda: self.remove_from_layer(layer))
+        for layer_type in ModelLayer:
+            old_id = self._layer_ids.get(layer_type)
+            new_id = new_layer_ids.get(layer_type)
 
-    def remove_from_layer(self, layer: QgsLayerTreeLayer) -> None:
-        """Remove oneself from a layer if the layer id in settings has changed"""
-        with contextlib.suppress(RuntimeError, TypeError):  # if layer is already deleted
-            iface.layerTreeView().removeIndicator(layer, self)
-            layer.destroyed.disconnect(self.find_and_attach_to_layer)
+            if old_id == new_id:
+                continue
+
+            indicator = self._indicators[layer_type]
+            root = QgsProject.instance().layerTreeRoot()
+
+            if old_id:
+                layer_tree_layer = root.findLayer(old_id)
+                if layer_tree_layer:
+                    iface.layerTreeView().removeIndicator(layer_tree_layer, indicator)
+
+            if new_id:
+                layer_tree_layer = root.findLayer(new_id)
+                if layer_tree_layer:
+                    iface.layerTreeView().addIndicator(layer_tree_layer, indicator)
+
+        self._layer_ids = new_layer_ids
+
+
+class ModelLayerIndicator(QgsLayerTreeViewIndicator):
+    _icon = QIcon("wntrqgis:logo.png")
+
+    def __init__(self, parent: QObject, layer_type: ModelLayer):
+        super().__init__(parent)
+
+        self.setIcon(self._icon)
+        self.setToolTip(layer_type.friendly_name)
 
 
 class SettingMenu(QMenu):
