@@ -272,6 +272,14 @@ except ModuleNotFoundError:
 
         self.initProcessing()
 
+        self._add_icons_to_menu()
+
+    def _add_icons_to_menu(self) -> None:
+        for action in iface.pluginMenu().actions():
+            if action.text() != self.menu:
+                continue
+            action.setIcon(QIcon("wntrqgis:logo.png"))
+
     def warm_up_wntr(self):
         """wntr is slow to load so start warming it up now !"""
         self._load_wntr_task = QgsTask.fromFunction(
