@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import enum
 import math
 import typing
 from pathlib import Path
@@ -56,14 +55,15 @@ from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
+CONSOLE_STATEMENTS = """
+import wntrqgis
+try:
+    import wntr
+except ModuleNotFoundError:
+    pass
+"""
 
 iface = typing.cast(QgisInterface, iface)
-
-
-class _InstallStatus(enum.Enum):
-    NO_CHANGE = enum.auto()
-    FRESH_INSTALL = enum.auto()
-    UPGRADE = enum.auto()
 
 
 class Plugin:
@@ -76,17 +76,7 @@ class Plugin:
         with contextlib.suppress(ModuleNotFoundError, AttributeError):
             import console
 
-            console.console_sci._init_statements.extend(  # noqa SLF001
-                [
-                    "import wntrqgis",
-                    """
-try:
-    import wntr
-except ModuleNotFoundError:
-    pass
-""",
-                ]
-            )
+            console.console_sci._init_statements.append(CONSOLE_STATEMENTS)  # noqa: SLF001
 
     def init_translation(self):
         qgis_locale = QLocale(QSettings().value("locale/userLocale"))
@@ -234,23 +224,11 @@ except ModuleNotFoundError:
             )
             return
 
-        s = QgsSettings()
-        old_version = s.value(WNTR_SETTING_VERSION, None)
-        s.setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
+        old_version = QgsSettings().value(WNTR_SETTING_VERSION, None)
+        QgsSettings().setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
 
-        if old_version is None:
-            self._install_status = _InstallStatus.FRESH_INSTALL
-        elif old_version != wntrqgis.__version__:
-            self._install_status = _InstallStatus.UPGRADE
-        else:
-            self._install_status = _InstallStatus.NO_CHANGE
-
-        if self._install_status in [_InstallStatus.FRESH_INSTALL, _InstallStatus.UPGRADE]:
-            msg = (
-                tr("WNTR QGIS installed successfully")
-                if self._install_status == _InstallStatus.FRESH_INSTALL
-                else tr("WNTR QGIS upgraded successfully")
-            )
+        if old_version != wntrqgis.__version__ or self.TESTING:
+            msg = tr("WNTR QGIS upgraded successfully") if old_version else tr("WNTR QGIS installed successfully")
 
             message_item = iface.messageBar().createMessage(
                 msg,
