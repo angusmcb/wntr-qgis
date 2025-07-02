@@ -31,6 +31,9 @@ def patch_iface(qgis_app, qgis_iface):
     qgis_iface.addToolBarWidget = Mock()
     message_bar = QgsMessageBar()
     qgis_iface.messageBar = lambda: message_bar
+    qgis_iface.pluginMenu = Mock()
+    qgis_iface.pluginMenu.return_value.actions.return_value = []
+    qgis_iface.removePluginMenu = Mock()
 
 
 @pytest.fixture

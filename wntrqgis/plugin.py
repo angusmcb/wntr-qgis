@@ -10,16 +10,15 @@ from qgis.core import (
     Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
     QgsLayerTreeLayer,
     QgsLayerTreeNode,
+    QgsProcessingAlgorithm,
     QgsProcessingAlgRunnerTask,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProcessingOutputLayerDefinition,
     QgsProject,
     QgsRasterLayer,
-    QgsRectangle,
     QgsSettings,
     QgsTask,
 )
@@ -50,7 +49,10 @@ from wntrqgis.elements import (
 )
 from wntrqgis.i18n import tr
 from wntrqgis.settings import ProjectSettings, SettingKey
+from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
+from wntrqgis.wntrqgis_processing.import_inp import ImportInp
 from wntrqgis.wntrqgis_processing.provider import Provider
+from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
@@ -68,31 +70,8 @@ class Plugin:
     TESTING = False
 
     def __init__(self) -> None:
-        # setup_logger("wntrqgis")
-
-        # initialize locale
-        # locale, file_path = setup_translation()
-        # if file_path:
-        #     self.translator = QTranslator()
-        #     self.translator.load(file_path)
-        #     # noinspection PyCallByClass
-        #     # QCoreApplication.installTranslator(self.translator)
-        # else:
-        #     pass
-
-        self.actions: dict[str, typing.Any] = {}
         self.init_translation()
         self.menu = tr("Water Network Tools for Resilience")
-
-        s = QgsSettings()
-        oldversion = s.value(WNTR_SETTING_VERSION, None)
-        s.setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
-        if oldversion is None:
-            self._install_status = _InstallStatus.FRESH_INSTALL
-        elif oldversion != wntrqgis.__version__:
-            self._install_status = _InstallStatus.UPGRADE
-        else:
-            self._install_status = _InstallStatus.NO_CHANGE
 
         with contextlib.suppress(ModuleNotFoundError, AttributeError):
             import console
@@ -116,73 +95,6 @@ except ModuleNotFoundError:
         self.translator.load(qgis_locale, "", "", locale_path)
         QCoreApplication.installTranslator(self.translator)
 
-    def add_action(
-        self,
-        key: str,
-        icon: QIcon | str | None,
-        text: str,
-        callback: typing.Callable,
-        *,
-        enabled_flag: bool = True,
-        add_to_menu: bool = True,
-        add_to_toolbar: bool = False,
-        status_tip: str | None = None,
-        whats_this: str | None = None,
-        parent: QWidget | None = None,
-    ):
-        """Add a toolbar icon to the toolbar.
-
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
-
-        :param text: Text that should be shown in menu items for this action.
-
-        :param callback: Function to be called when the action is triggered.
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
-
-        :param parent: Parent widget for the new action. Defaults None.
-
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
-        :rtype: QAction
-        """
-
-        icon = QIcon(icon)
-        action = QAction(icon, text, parent)
-        # noinspection PyUnresolvedReferences
-        action.triggered.connect(callback)
-        action.setEnabled(enabled_flag)
-
-        if status_tip is not None:
-            action.setStatusTip(status_tip)
-
-        if whats_this is not None:
-            action.setWhatsThis(whats_this)
-
-        if add_to_toolbar:
-            iface.addToolBarIcon(action)
-
-        if add_to_menu:
-            iface.addPluginToMenu(self.menu, action)
-
-        self.actions[key] = action
-
-        return action
-
     def initProcessing(self):  # noqa N802
         self.provider = Provider()
         QgsApplication.processingRegistry().addProvider(self.provider)
@@ -190,95 +102,102 @@ except ModuleNotFoundError:
     def initGui(self) -> None:  # noqa N802
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        self.add_action(
-            "template_layers",
-            IconWithLogo(":images/themes/default/mActionFileNew.svg"),
-            text=tr("Create Template Memory Layers"),
-            callback=self.create_template_layers,
-            parent=iface.mainWindow(),
-        )
+        self.initProcessing()
 
-        self.add_action(
-            "create_template_geopackage",
-            IconWithLogo(":images/themes/default/mGeoPackage.svg"),
-            text=tr("Create Template Geopackage"),
-            callback=self.create_template_geopackage,
-            parent=iface.mainWindow(),
-        )
+        self.setup_actions()
 
-        template_button = QToolButton()
+        self.setup_menu()
 
-        template_menu = QMenu(template_button)
-        template_menu.addAction(self.actions["template_layers"])
-        template_menu.addAction(self.actions["create_template_geopackage"])
-
-        template_button.setMenu(template_menu)
-        template_button.setDefaultAction(self.actions["template_layers"])
-        template_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-
-        self.actions["template_layers_menu_widget"] = iface.addToolBarWidget(template_button)
-
-        self.add_action(
-            "load_inp",
-            IconWithLogo(":images/themes/default/mActionFileOpen.svg"),
-            text=tr("Load from .inp file"),
-            callback=self.load_inp_file,
-            parent=iface.mainWindow(),
-            add_to_toolbar=True,
-        )
-        self.add_action(
-            "run_simulation",
-            IconWithLogo("wntrqgis:run.svg"),
-            text=tr("Run Simulation"),
-            callback=self.run_simulation,
-            parent=iface.mainWindow(),
-        )
-        self.add_action(
-            "settings",
-            "",
-            text=tr("Change layers..."),
-            callback=self.open_settings,
-            parent=iface.mainWindow(),
-            add_to_menu=False,
-        )
-
-        run_button = QToolButton()
-
-        run_menu = QMenu(run_button)
-        run_menu.addAction(self.actions["run_simulation"])
-        run_menu.addAction(self.actions["settings"])
-        run_menu.addMenu(SettingMenu(tr("Headloss Formula"), run_menu, SettingKey.HEADLOSS_FORMULA))
-        run_menu.addMenu(SettingMenu(tr("Units"), run_menu, SettingKey.FLOW_UNITS))
-        run_menu.addMenu(DurationSettingMenu(tr("Duration (hours)"), run_menu))
-
-        run_button.setMenu(run_menu)
-        run_button.setDefaultAction(self.actions["run_simulation"])
-        run_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-
-        self.actions["run_menu_widget"] = iface.addToolBarWidget(run_button)
-
-        self.add_action(
-            "load_example",
-            "",
-            text=tr("Load Example"),
-            callback=self.load_example,
-            parent=iface.mainWindow(),
-            add_to_toolbar=False,
-        )
+        self.setup_toolbar()
 
         self._indicator_registry = IndicatorRegistry()
 
         self.warm_up_wntr()
 
-        self.initProcessing()
+    def onClosePlugin(self) -> None:  # noqa N802
+        """Cleanup necessary items here when plugin dockwidget is closed"""
 
-        self._add_icons_to_menu()
+    def unload(self) -> None:
+        """Removes the plugin menu item and icon from QGIS GUI."""
 
-    def _add_icons_to_menu(self) -> None:
-        for action in iface.pluginMenu().actions():
-            if action.text() != self.menu:
-                continue
-            action.setIcon(QIcon("wntrqgis:logo.png"))
+        self.cleanup_menu()
+        self.cleanup_toolbar()
+        self.cleanup_actions()
+
+        QgsApplication.processingRegistry().removeProvider(self.provider)
+
+        self._indicator_registry.destroy()
+
+    def setup_actions(self) -> None:
+        self.run_action = RunAction()
+        self.load_template_memory_action = LoadTemplateToMemoryAction()
+        self.load_template_geopackage_action = LoadTemplateToGeopackageAction()
+        self.load_inp_action = LoadInpAction()
+        self.load_example_action = LoadExampleAction()
+        self.open_settings_action = OpenSettingsAction()
+
+    def cleanup_actions(self) -> None:
+        self.run_action.deleteLater()
+        self.load_template_memory_action.deleteLater()
+        self.load_template_geopackage_action.deleteLater()
+        self.load_inp_action.deleteLater()
+        self.load_example_action.deleteLater()
+        self.open_settings_action.deleteLater()
+
+    def setup_menu(self) -> None:
+        """Setup the plugin menu in the QGIS GUI."""
+        iface.addPluginToMenu(self.menu, self.run_action)
+        iface.addPluginToMenu(self.menu, self.load_template_memory_action)
+        iface.addPluginToMenu(self.menu, self.load_template_geopackage_action)
+        iface.addPluginToMenu(self.menu, self.load_inp_action)
+        iface.addPluginToMenu(self.menu, self.load_example_action)
+        try:
+            our_menu_action = next(action for action in iface.pluginMenu().actions() if action.text() == self.menu)
+            our_menu_action.setIcon(QIcon("wntrqgis:logo.png"))
+        except StopIteration:
+            pass
+
+    def cleanup_menu(self) -> None:
+        iface.removePluginMenu(self.menu, self.run_action)
+        iface.removePluginMenu(self.menu, self.load_template_memory_action)
+        iface.removePluginMenu(self.menu, self.load_template_geopackage_action)
+        iface.removePluginMenu(self.menu, self.load_inp_action)
+        iface.removePluginMenu(self.menu, self.load_example_action)
+
+    def setup_toolbar(self) -> None:
+        template_button = QToolButton()
+
+        template_menu = QMenu(template_button)
+        template_menu.addAction(self.load_template_memory_action)
+        template_menu.addAction(self.load_template_geopackage_action)
+
+        template_button.setMenu(template_menu)
+        template_button.setDefaultAction(self.load_template_memory_action)
+        template_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+
+        self.template_button = iface.addToolBarWidget(template_button)
+
+        iface.addToolBarIcon(self.load_inp_action)
+
+        run_button = QToolButton()
+
+        run_menu = QMenu(run_button)
+        run_menu.addAction(self.run_action)
+        run_menu.addAction(self.open_settings_action)
+        run_menu.addMenu(SettingMenu(tr("Headloss Formula"), run_menu, SettingKey.HEADLOSS_FORMULA))
+        run_menu.addMenu(SettingMenu(tr("Units"), run_menu, SettingKey.FLOW_UNITS))
+        run_menu.addMenu(DurationSettingMenu(tr("Duration (hours)"), run_menu))
+
+        run_button.setMenu(run_menu)
+        run_button.setDefaultAction(self.run_action)
+        run_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+
+        self.run_button = iface.addToolBarWidget(run_button)
+
+    def cleanup_toolbar(self) -> None:
+        iface.removeToolBarIcon(self.template_button)
+        iface.removeToolBarIcon(self.load_inp_action)
+        iface.removeToolBarIcon(self.run_button)
 
     def warm_up_wntr(self):
         """wntr is slow to load so start warming it up now !"""
@@ -315,6 +234,17 @@ except ModuleNotFoundError:
             )
             return
 
+        s = QgsSettings()
+        old_version = s.value(WNTR_SETTING_VERSION, None)
+        s.setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
+
+        if old_version is None:
+            self._install_status = _InstallStatus.FRESH_INSTALL
+        elif old_version != wntrqgis.__version__:
+            self._install_status = _InstallStatus.UPGRADE
+        else:
+            self._install_status = _InstallStatus.NO_CHANGE
+
         if self._install_status in [_InstallStatus.FRESH_INSTALL, _InstallStatus.UPGRADE]:
             msg = (
                 tr("WNTR QGIS installed successfully")
@@ -337,99 +267,224 @@ except ModuleNotFoundError:
 
             iface.messageBar().pushItem(message_item)
 
-    def onClosePlugin(self) -> None:  # noqa N802
-        """Cleanup necessary items here when plugin dockwidget is closed"""
 
-    def unload(self) -> None:
-        """Removes the plugin menu item and icon from QGIS GUI."""
-        for action in self.actions.values():
-            iface.removePluginMenu(self.menu, action)
-            iface.removeToolBarIcon(action)
+class ProcessingRunnerAction(QAction):
+    success_message: str = ""
 
-        # teardown_logger("wntrqgis")
+    def __init__(self, algorithm: QgsProcessingAlgorithm):
+        super().__init__()
 
-        QgsApplication.processingRegistry().removeProvider(self.provider)
+        self.algorithm = algorithm
+        self.triggered.connect(self.run)
 
-        self._indicator_registry.destroy()
+    def run(self):
+        self.context = QgsProcessingContext()
+        self.context.setProject(QgsProject.instance())
+        self.feedback = ProcessingFeedbackWithLogging()
 
-    def run_alg_async(self, algorithm_name, parameters, on_finish=None, success_message: str | None = None):
-        context = QgsProcessingContext()
-        context.setProject(QgsProject.instance())
-        feedback = WqProcessingFeedback()
-        algorithm = QgsApplication.instance().processingRegistry().algorithmById(algorithm_name)
+        try:
+            parameters = self.get_parameters()
+        except CantGetParametersException:
+            return
 
-        def task_finished(successful, results):
-            nonlocal context
-            nonlocal feedback
-            nonlocal algorithm
-            if not successful:
-                iface.messageBar().pushMessage(
-                    title=tr("Error"),
-                    text=feedback.errors[0],
-                    showMore=feedback.textLog(),
-                    level=Qgis.MessageLevel.Critical,
-                    duration=0,
-                )
+        if not self.isEnabled():
+            return
+        self.setEnabled(False)
 
-                QgsApplication.messageLog().logMessage(
-                    feedback.errors[0] + "\n" + feedback.textLog(),
-                    MESSAGE_CATEGORY,
-                    Qgis.MessageLevel.Critical,
-                )
-                return
+        self.task = QgsProcessingAlgRunnerTask(self.algorithm, parameters, self.context, self.feedback)
+        self.task.executed.connect(self.on_executed)
 
-            import processing
+        QgsApplication.taskManager().addTask(self.task)
+        # if TESTING:
+        #    assert self.task.waitForFinished()
 
-            processing.handleAlgorithmResults(algorithm, context, feedback, results)
+    def get_parameters(self) -> dict:
+        """Return the parameters for the algorithm."""
+        return {}
 
-            if on_finish:
-                on_finish()
+    def on_executed(self, successful, results):
+        if successful:
+            self.on_executed_successfully(results)
+        else:
+            self.on_executed_with_error()
 
-            if success_message:
-                level = Qgis.MessageLevel.Warning if feedback.warnings else Qgis.MessageLevel.Success
-                title = tr("Analysed with Warnings") if feedback.warnings else tr("Success")
-                iface.messageBar().pushMessage(
-                    title=title,
-                    text=success_message,
-                    showMore=feedback.textLog(),
-                    level=level,
-                    duration=0,
-                )
+        self.setEnabled(True)
 
-        task = QgsProcessingAlgRunnerTask(algorithm, parameters, context, feedback)
-        task.executed.connect(task_finished)
+    def on_executed_successfully(self, results):
+        import processing
 
-        QgsApplication.taskManager().addTask(task)
-        if self.TESTING:
-            assert task.waitForFinished()  # noqa: S101
+        processing.handleAlgorithmResults(self.algorithm, self.context, self.feedback, results)
 
-    def create_template_layers(self) -> None:
-        parameters = {"CRS": QgsProject.instance().crs(), **self._empty_model_layer_dict()}
-        self.run_alg_async("wntr:templatelayers", parameters)
+        self.show_success_message()
 
-    def load_inp_file(self) -> None:
+    def on_executed_with_error(self):
+        iface.messageBar().pushMessage(
+            title=tr("Error"),
+            text=self.feedback.errors[0],
+            showMore=self.feedback.textLog(),
+            level=Qgis.MessageLevel.Critical,
+            duration=0,
+        )
+
+        QgsApplication.messageLog().logMessage(
+            self.feedback.errors[0] + "\n" + self.feedback.textLog(),
+            MESSAGE_CATEGORY,
+            Qgis.MessageLevel.Critical,
+        )
+
+    def show_success_message(self):
+        """Show the success message in the message bar."""
+        if self.success_message:
+            level = Qgis.MessageLevel.Warning if self.feedback.warnings else Qgis.MessageLevel.Success
+            title = tr("Analysed with Warnings") if self.feedback.warnings else tr("Success")
+            iface.messageBar().pushMessage(
+                title=title,
+                text=self.success_message,
+                showMore=self.feedback.textLog(),
+                level=level,
+                duration=0,
+            )
+
+
+class CantGetParametersException(BaseException):
+    pass
+
+
+class TemporaryOutputLayerDefinition(QgsProcessingOutputLayerDefinition):
+    def __init__(self):
+        super().__init__("TEMPORARY_OUTPUT", QgsProject.instance())
+
+
+class GeopackageOutputLayerDefinition(QgsProcessingOutputLayerDefinition):
+    def __init__(self, path: str, name: str):
+        super().__init__(f"ogr:dbname='{path}' table='{name}' (geom)", QgsProject.instance())
+
+
+class RunAction(ProcessingRunnerAction):
+    def __init__(self):
+        super().__init__(RunSimulation())
+        self.setText(tr("Run Simulation"))
+        self.setIcon(IconWithLogo("wntrqgis:run.svg"))
+        self.setToolTip(tr("Run the simulation with the current settings."))
+
+    def get_parameters(self) -> dict:
+        project_settings = ProjectSettings()
+
+        saved_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+        input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in ModelLayer}
+
+        result_layers = {layer.results_name: TemporaryOutputLayerDefinition() for layer in ResultLayer}
+
+        flow_units = project_settings.get(SettingKey.FLOW_UNITS, FlowUnit.LPS)
+        flow_unit_id = list(FlowUnit).index(flow_units)
+
+        headloss_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
+        headloss_formula_id = list(HeadlossFormula).index(headloss_formula)
+
+        duration = project_settings.get(SettingKey.SIMULATION_DURATION, 0)
+
+        self.set_success_message(flow_units, headloss_formula)
+
+        return {
+            "UNITS": flow_unit_id,
+            "HEADLOSS_FORMULA": headloss_formula_id,
+            "DURATION": duration,
+            **result_layers,
+            **input_layers,
+        }
+
+    def set_success_message(self, units: FlowUnit, headloss_formula: HeadlossFormula) -> None:
+        """Set the success message for this action."""
+        self.success_message = tr("Analysed using units '{units}' and headloss formula '{headloss_formula}'").format(
+            units=units.friendly_name,
+            headloss_formula=headloss_formula.friendly_name,
+        )
+
+
+class LoadTemplateToMemoryAction(ProcessingRunnerAction):
+    def __init__(self):
+        super().__init__(TemplateLayers())
+        self.setText(tr("Create Template Memory Layers"))
+        self.setIcon(IconWithLogo(":images/themes/default/mActionFileNew.svg"))
+
+    def get_parameters(self) -> dict:
+        layer_dict = {layer.value: TemporaryOutputLayerDefinition() for layer in ModelLayer}
+        return {"CRS": QgsProject.instance().crs(), **layer_dict}
+
+
+class LoadTemplateToGeopackageAction(ProcessingRunnerAction):
+    def __init__(self):
+        super().__init__(TemplateLayers())
+        self.setText(tr("Create Template Geopackage"))
+        self.setIcon(IconWithLogo(":images/themes/default/mGeoPackage.svg"))
+
+    def get_parameters(self) -> dict:
+        geopackage_path, _ = QFileDialog.getSaveFileName(
+            iface.mainWindow(),
+            tr("Save Geopackage"),
+            QSettings().value("UI/lastProjectDir"),
+            tr("Geopackage") + " (*.gpkg)",
+        )
+        if not geopackage_path:
+            raise CantGetParametersException
+
+        layer_dict = {
+            layer.value: GeopackageOutputLayerDefinition(geopackage_path, layer.value.lower()) for layer in ModelLayer
+        }
+        return {"CRS": None, **layer_dict}
+
+
+class LoadInpAction(ProcessingRunnerAction):
+    def __init__(self):
+        super().__init__(ImportInp())
+        self.setText(tr("Load from .inp file"))
+        self.setIcon(IconWithLogo(":images/themes/default/mActionFileOpen.svg"))
+        self.setToolTip(tr("Load a network from an EPANET .inp file."))
+        self.success_message = tr("Loaded .inp file")
+
+    def get_parameters(self) -> dict:
+        filepath = self.get_filepath()
+
+        crs = self.get_crs()
+
+        layer_dict = {layer.value: TemporaryOutputLayerDefinition() for layer in ModelLayer}
+
+        return {"INPUT": filepath, "CRS": crs, **layer_dict}
+
+    def get_filepath(self) -> str:
+        """Get the file path from the user."""
         filepath, _ = QFileDialog.getOpenFileName(
             None, tr("Choose Input File"), QSettings().value("UI/lastProjectDir"), tr("EPANET INP File") + " (*.inp)"
         )
         if not filepath:
-            return
+            raise CantGetParametersException
+        return str(filepath)
 
+    def get_crs(self) -> QgsCoordinateReferenceSystem:
+        """Get the CRS from the user."""
         crs_selector = QgsProjectionSelectionDialog(iface.mainWindow())
         crs_selector.setCrs(QgsProject.instance().crs())
         crs_selector.showNoCrsForLayerMessage()
         if not crs_selector.exec():
-            return
-        crs = crs_selector.crs()
+            raise CantGetParametersException
+        return crs_selector.crs()
 
-        parameters = {"INPUT": str(filepath), "CRS": crs, **self._empty_model_layer_dict()}
-        self.run_alg_async(
-            "wntr:importinp",
-            parameters,
-            success_message=tr("Loaded .inp file"),
-        )
 
-    def load_example(self) -> None:
-        network_crs = QgsCoordinateReferenceSystem("EPSG:3089")
+class LoadExampleAction(LoadInpAction):
+    def __init__(self):
+        super().__init__()
+        self.setText(tr("Load Example"))
+        self.setIcon(QIcon())
+        self.setToolTip(tr("Load an example network from the WNTR-QGIS examples."))
+        self.success_message = tr("Example loaded with Open Street Map background")
+
+    def get_crs(self) -> QgsCoordinateReferenceSystem:
+        return QgsCoordinateReferenceSystem("EPSG:3089")
+
+    def get_filepath(self) -> str:
+        return wntrqgis.examples["KY10"]
+
+    def set_transform_context(self) -> None:
         transform_context = QgsProject.instance().transformContext()
         transform_string = (
             "+proj=pipeline +step +inv +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +step +inv"
@@ -439,94 +494,11 @@ except ModuleNotFoundError:
             " +proj=unitconvert +xy_in=m +xy_out=us-ft"
         )
         transform_context.addCoordinateOperation(
-            QgsCoordinateReferenceSystem("EPSG:3857"), network_crs, transform_string, False
+            QgsCoordinateReferenceSystem("EPSG:3857"), self.get_crs(), transform_string, False
         )
         QgsProject.instance().setTransformContext(transform_context)
 
-        parameters = {"INPUT": wntrqgis.examples["KY10"], "CRS": network_crs, **self._empty_model_layer_dict()}
-        self.run_alg_async(
-            "wntr:importinp",
-            parameters,
-            on_finish=self.load_osm,
-            success_message=tr("Example loaded with Open Street Map background"),
-        )
-
-    def open_settings(self) -> None:
-        import processing
-
-        processing.execAlgorithmDialog("wntr:run")  # type: ignore
-
-    def run_simulation(self) -> None:
-        project_settings = ProjectSettings(QgsProject.instance())
-        saved_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
-        input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in ModelLayer}
-        result_layers = {layer.results_name: self._temporary_processing_output() for layer in ResultLayer}
-        flow_units = project_settings.get(SettingKey.FLOW_UNITS, FlowUnit.LPS)
-        flow_unit_id = list(FlowUnit).index(flow_units)
-        headloss_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
-        headloss_formula_id = list(HeadlossFormula).index(headloss_formula)
-        duration = project_settings.get(SettingKey.SIMULATION_DURATION, 0)
-        parameters = {
-            "UNITS": flow_unit_id,
-            "HEADLOSS_FORMULA": headloss_formula_id,
-            "DURATION": duration,
-            **result_layers,
-            **input_layers,
-        }
-
-        success_message = tr("Analysed using units '{units}' and headloss formula '{headloss_formula}'").format(
-            units=flow_units.friendly_name,
-            headloss_formula=headloss_formula.friendly_name,
-        )
-
-        self.run_alg_async(
-            "wntr:run",
-            parameters,
-            success_message=success_message,
-        )
-
-    def create_template_geopackage(self):
-        geopackage_path, _ = QFileDialog.getSaveFileName(
-            iface.mainWindow(),
-            tr("Save Geopackage"),
-            QSettings().value("UI/lastProjectDir"),
-            tr("Geopackage") + " (*.gpkg)",
-        )
-        if not geopackage_path:
-            return
-
-        params = {"CRS": None, **self._empty_model_layer_dict(geopackage_path)}
-
-        self.run_alg_async("wntr:templatelayers", params)
-
-    def _geopackage_processing_output(self, path, name):
-        return QgsProcessingOutputLayerDefinition(f"ogr:dbname='{path}' table='{name}' (geom)", QgsProject.instance())
-
-    def _temporary_processing_output(self):
-        return QgsProcessingOutputLayerDefinition("TEMPORARY_OUTPUT", QgsProject.instance())
-
-    def _empty_model_layer_dict(self, path=None):
-        if path:
-            return {layer.value: self._geopackage_processing_output(path, layer.value.lower()) for layer in ModelLayer}
-        return {layer.value: self._temporary_processing_output() for layer in ModelLayer}
-
-    def finish_loading_example_ky10(self):
-        # Doesn't work due to this:
-        # https://github.com/qgis/QGIS/issues/27139
-        view_box = QgsRectangle(5765000, 3830000, 5780000, 3838000)
-
-        transform = QgsCoordinateTransform(
-            QgsCoordinateReferenceSystem("EPSG:3089"), QgsProject.instance().crs(), QgsProject.instance()
-        )
-
-        view_box = transform.transform(view_box)
-
-        iface.mapCanvas().setExtent(view_box)
-
-        iface.mapCanvas().refresh()
-        self.load_osm()
-
-    def load_osm(self):
+    def load_osm(self) -> None:
         root = QgsProject.instance().layerTreeRoot()
         tms = "type=xyz&url=https://tile.openstreetmap.org/{z}/{x}/{y}.png&zmax=19&zmin=0"
         title = tr("OpenStreetMap")
@@ -535,8 +507,13 @@ except ModuleNotFoundError:
         QgsProject.instance().addMapLayer(layer, False)
         root.insertChildNode(len(root.children()), QgsLayerTreeLayer(layer))
 
+    def on_executed_successfully(self, results) -> None:
+        self.set_transform_context()
+        self.load_osm()
+        super().on_executed_successfully(results)
 
-class WqProcessingFeedback(QgsProcessingFeedback):
+
+class ProcessingFeedbackWithLogging(QgsProcessingFeedback):
     def __init__(self, logFeedback: bool = True):  # noqa
         self.errors: list[str] = []
         self.warnings: list[str] = []
@@ -553,6 +530,19 @@ class WqProcessingFeedback(QgsProcessingFeedback):
             self.warnings.append(warning)
 
         super().pushWarning(warning)
+
+
+class OpenSettingsAction(QAction):
+    def __init__(self):
+        super().__init__(tr("Change layers..."))
+        self.setToolTip(tr("Open the settings dialog to change the model layers."))
+
+        self.triggered.connect(self.open_settings)
+
+    def open_settings(self):
+        import processing
+
+        processing.execAlgorithmDialog("wntr:run")  # type: ignore
 
 
 def import_wntr(task: QgsTask):  # noqa: ARG001
