@@ -275,6 +275,7 @@ class ProcessingRunnerAction(QAction):
         super().__init__()
 
         self.algorithm = algorithm
+        self.setIcon(IconWithLogo(algorithm.icon()))
         self.triggered.connect(self.run)
 
     def run(self):
@@ -295,8 +296,6 @@ class ProcessingRunnerAction(QAction):
         self.task.executed.connect(self.on_executed)
 
         QgsApplication.taskManager().addTask(self.task)
-        # if TESTING:
-        #    assert self.task.waitForFinished()
 
     def get_parameters(self) -> dict:
         """Return the parameters for the algorithm."""
@@ -364,7 +363,6 @@ class RunAction(ProcessingRunnerAction):
     def __init__(self):
         super().__init__(RunSimulation())
         self.setText(tr("Run Simulation"))
-        self.setIcon(IconWithLogo("wntrqgis:run.svg"))
         self.setToolTip(tr("Run the simulation with the current settings."))
 
     def get_parameters(self) -> dict:
@@ -405,7 +403,6 @@ class LoadTemplateToMemoryAction(ProcessingRunnerAction):
     def __init__(self):
         super().__init__(TemplateLayers())
         self.setText(tr("Create Template Memory Layers"))
-        self.setIcon(IconWithLogo(":images/themes/default/mActionFileNew.svg"))
 
     def get_parameters(self) -> dict:
         layer_dict = {layer.value: TemporaryOutputLayerDefinition() for layer in ModelLayer}
@@ -416,7 +413,7 @@ class LoadTemplateToGeopackageAction(ProcessingRunnerAction):
     def __init__(self):
         super().__init__(TemplateLayers())
         self.setText(tr("Create Template Geopackage"))
-        self.setIcon(IconWithLogo(":images/themes/default/mGeoPackage.svg"))
+        self.setIcon(IconWithLogo(QgsApplication.getThemeIcon("mGeoPackage.svg")))
 
     def get_parameters(self) -> dict:
         geopackage_path, _ = QFileDialog.getSaveFileName(
@@ -438,7 +435,6 @@ class LoadInpAction(ProcessingRunnerAction):
     def __init__(self):
         super().__init__(ImportInp())
         self.setText(tr("Load from .inp file"))
-        self.setIcon(IconWithLogo(":images/themes/default/mActionFileOpen.svg"))
         self.setToolTip(tr("Load a network from an EPANET .inp file."))
         self.success_message = tr("Loaded .inp file")
 
@@ -557,8 +553,8 @@ def import_wntr(task: QgsTask):  # noqa: ARG001
 class IconWithLogo(QIcon):
     _logo = QPixmap("wntrqgis:logo.png")
 
-    def __init__(self, icon_path: str):
-        result_pixmap = QIcon(icon_path).pixmap(256, 256)
+    def __init__(self, icon: QIcon):
+        result_pixmap = icon.pixmap(256, 256)
         painter = QPainter(result_pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.drawPixmap(128, 128, 128, 128, self._logo)
