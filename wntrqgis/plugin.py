@@ -6,7 +6,6 @@ import typing
 from pathlib import Path
 
 from qgis.core import (
-    NULL,
     Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
@@ -80,9 +79,7 @@ class Plugin:
             console.console_sci._init_statements.append(CONSOLE_STATEMENTS)  # noqa: SLF001
 
     def init_translation(self):
-        lang_code = QSettings().value("locale/userLocale")
-        if lang_code == NULL:
-            return
+        lang_code = QSettings().value("locale/userLocale", "en")
         qgis_locale = QLocale(lang_code)
         locale_path = str(Path(__file__).parent / "resources" / "i18n")
         self.translator = QTranslator()
