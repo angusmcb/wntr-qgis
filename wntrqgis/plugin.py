@@ -71,6 +71,7 @@ class Plugin:
 
     def __init__(self) -> None:
         self.object = QWidget()
+        self.task_manager = QgsApplication.taskManager()
 
         self.init_translation()
 
@@ -164,10 +165,6 @@ class Plugin:
         template_button.setDefaultAction(self.load_template_memory_action)
         template_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
 
-        self.template_button = iface.addToolBarWidget(template_button)
-
-        iface.addToolBarIcon(self.load_inp_action)
-
         run_menu = QMenu(self.object)
         run_menu.addAction(self.run_action)
         run_menu.addAction(self.open_settings_action)
@@ -180,6 +177,8 @@ class Plugin:
         run_button.setDefaultAction(self.run_action)
         run_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
 
+        self.template_button = iface.addToolBarWidget(template_button)
+        iface.addToolBarIcon(self.load_inp_action)
         self.run_button = iface.addToolBarWidget(run_button)
 
     def cleanup_toolbar(self) -> None:
@@ -189,55 +188,56 @@ class Plugin:
 
     def warm_up_wntr(self):
         """wntr is slow to load so start warming it up now !"""
-        self._load_wntr_task = QgsTask.fromFunction(
+        task: QgsTask = QgsTask.fromFunction(
             "Set up wntr-qgis",
             import_wntr,
-            on_finished=self.install_wntr_if_none,
             flags=QgsTask.Hidden | QgsTask.Silent,
         )
-        QgsApplication.taskManager().addTask(self._load_wntr_task)
+        task.taskCompleted.connect(self.show_welcome_message)
+        task.taskTerminated.connect(self.install_wntr)
+
+        self.task_manager.addTask(task)
+
         if self.TESTING:
-            assert self._load_wntr_task.waitForFinished()  # noqa: S101
+            assert task.waitForFinished()  # noqa: S101
 
-    def install_wntr_if_none(self, exception, value=None):  # noqa: ARG002
-        if exception:
-            self._install_wntr_task = QgsTask.fromFunction(
-                tr("Installing WNTR"),
-                lambda _: WntrInstaller.install_wntr(),
-                on_finished=self.show_welcome_message,
-                flags=QgsTask.Silent,
+    def install_wntr(self):
+        task: QgsTask = QgsTask.fromFunction(
+            tr("Installing WNTR"),
+            lambda _: WntrInstaller.install_wntr(),
+            flags=QgsTask.Silent,
+        )
+        task.taskCompleted.connect(self.show_welcome_message)
+        task.taskTerminated.connect(
+            lambda: iface.messageBar().pushMessage(
+                tr("Failed to install WNTR. Please check your internet connection."), level=Qgis.MessageLevel.Critical
             )
-            QgsApplication.taskManager().addTask(self._install_wntr_task)
-            if self.TESTING:
-                assert self._install_wntr_task.waitForFinished()  # noqa: S101
-        else:
-            self.show_welcome_message(None, None)
+        )
 
-    # exception and value are required for on_finished to work
-    def show_welcome_message(self, exception, value=None):  # noqa: ARG002
-        if exception:
-            iface.messageBar().pushMessage(
-                tr("Failed to install WNTR. Please check your internet connection."),
-                level=Qgis.MessageLevel.Critical,
-            )
-            return
+        self.task_manager.addTask(task)
 
+        if self.TESTING:
+            assert task.waitForFinished()  # noqa: S101
+
+    def show_welcome_message(self):
         old_version = QgsSettings().value(WNTR_SETTING_VERSION, None)
         QgsSettings().setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
 
-        if old_version != wntrqgis.__version__ or self.TESTING:
-            title = tr("WNTR QGIS upgraded successfully") if old_version else tr("WNTR QGIS installed successfully")
-            text = tr("Load an example to try me out")
+        if old_version == wntrqgis.__version__:
+            return
 
-            message_item = iface.messageBar().createMessage(title, text)
+        title = tr("WNTR QGIS upgraded successfully") if old_version else tr("WNTR QGIS installed successfully")
+        text = tr("Load an example to try me out")
 
-            example_button = QPushButton(tr("Load Example"))
-            example_button.clicked.connect(self.load_example_action.trigger)
-            example_button.clicked.connect(message_item.dismiss)
+        message_item = iface.messageBar().createMessage(title, text)
 
-            message_item.layout().addWidget(example_button)
+        example_button = QPushButton(tr("Load Example"))
+        example_button.clicked.connect(self.load_example_action.trigger)
+        example_button.clicked.connect(message_item.dismiss)
 
-            iface.messageBar().pushItem(message_item)
+        message_item.layout().addWidget(example_button)
+
+        iface.messageBar().pushItem(message_item)
 
     def _append_console_statements(self) -> None:
         """Append the console statements to the QGIS console."""
@@ -522,7 +522,7 @@ class OpenSettingsAction(QAction):
         processing.execAlgorithmDialog("wntr:run")  # type: ignore
 
 
-def import_wntr(task: QgsTask):  # noqa: ARG001
+def import_wntr(_: QgsTask):
     """Pre-import wntr to speed up loading"""
     import wntr  # type: ignore
 
