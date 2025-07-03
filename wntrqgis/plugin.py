@@ -232,20 +232,16 @@ class Plugin:
         QgsSettings().setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
 
         if old_version != wntrqgis.__version__ or self.TESTING:
-            msg = tr("WNTR QGIS upgraded successfully") if old_version else tr("WNTR QGIS installed successfully")
+            title = tr("WNTR QGIS upgraded successfully") if old_version else tr("WNTR QGIS installed successfully")
+            text = tr("Load an example to try me out")
 
-            message_item = iface.messageBar().createMessage(
-                msg,
-                tr("Load an example to try me out"),
-            )
+            message_item = iface.messageBar().createMessage(title, text)
 
-            example_button = QPushButton(message_item)
-            example_button.setText(tr("Load Example"))
-            example_button.clicked.connect(self.load_example)
+            example_button = QPushButton(tr("Load Example"))
+            example_button.clicked.connect(self.load_example_action.trigger)
             example_button.clicked.connect(message_item.dismiss)
 
             message_item.layout().addWidget(example_button)
-            message_item.setLevel(Qgis.MessageLevel.Info)
 
             iface.messageBar().pushItem(message_item)
 
