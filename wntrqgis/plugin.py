@@ -70,21 +70,19 @@ class Plugin:
     TESTING = False
 
     def __init__(self) -> None:
+        self.object = QWidget()
+
         self.init_translation()
+
         self.menu = tr("Water Network Tools for Resilience")
-
-        with contextlib.suppress(ModuleNotFoundError, AttributeError):
-            import console
-
-            console.console_sci._init_statements.append(CONSOLE_STATEMENTS)  # noqa: SLF001
 
     def init_translation(self):
         lang_code = QSettings().value("locale/userLocale", "en")
         qgis_locale = QLocale(lang_code)
         locale_path = str(Path(__file__).parent / "resources" / "i18n")
-        self.translator = QTranslator()
-        self.translator.load(qgis_locale, "", "", locale_path)
-        QCoreApplication.installTranslator(self.translator)
+        translator = QTranslator(self.object)
+        translator.load(qgis_locale, "", "", locale_path)
+        QCoreApplication.installTranslator(translator)
 
     def initProcessing(self):  # noqa N802
         self.provider = Provider()
@@ -103,10 +101,9 @@ class Plugin:
 
         self._indicator_registry = IndicatorRegistry()
 
-        self.warm_up_wntr()
+        self._append_console_statements()
 
-    def onClosePlugin(self) -> None:  # noqa N802
-        """Cleanup necessary items here when plugin dockwidget is closed"""
+        self.warm_up_wntr()
 
     def unload(self) -> None:
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -118,6 +115,8 @@ class Plugin:
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
         self._indicator_registry.destroy()
+
+        self.object.deleteLater()
 
     def setup_actions(self) -> None:
         self.run_action = RunAction()
@@ -156,12 +155,11 @@ class Plugin:
         iface.removePluginMenu(self.menu, self.load_example_action)
 
     def setup_toolbar(self) -> None:
-        template_button = QToolButton()
-
-        template_menu = QMenu(template_button)
+        template_menu = QMenu(self.object)
         template_menu.addAction(self.load_template_memory_action)
         template_menu.addAction(self.load_template_geopackage_action)
 
+        template_button = QToolButton(self.object)
         template_button.setMenu(template_menu)
         template_button.setDefaultAction(self.load_template_memory_action)
         template_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -170,15 +168,14 @@ class Plugin:
 
         iface.addToolBarIcon(self.load_inp_action)
 
-        run_button = QToolButton()
-
-        run_menu = QMenu(run_button)
+        run_menu = QMenu(self.object)
         run_menu.addAction(self.run_action)
         run_menu.addAction(self.open_settings_action)
         run_menu.addMenu(SettingMenu(tr("Headloss Formula"), run_menu, SettingKey.HEADLOSS_FORMULA))
         run_menu.addMenu(SettingMenu(tr("Units"), run_menu, SettingKey.FLOW_UNITS))
         run_menu.addMenu(DurationSettingMenu(tr("Duration (hours)"), run_menu))
 
+        run_button = QToolButton(self.object)
         run_button.setMenu(run_menu)
         run_button.setDefaultAction(self.run_action)
         run_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
@@ -241,6 +238,15 @@ class Plugin:
             message_item.layout().addWidget(example_button)
 
             iface.messageBar().pushItem(message_item)
+
+    def _append_console_statements(self) -> None:
+        """Append the console statements to the QGIS console."""
+        import console
+
+        with contextlib.suppress(ModuleNotFoundError, AttributeError):
+            import console
+
+            console.console_sci._init_statements.append(CONSOLE_STATEMENTS)  # noqa: SLF001
 
 
 class ProcessingRunnerAction(QAction):
