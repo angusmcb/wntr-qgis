@@ -92,7 +92,7 @@ class TankMixingModel(_AbstractValueMap):
     FULLY_MIXED = "MIXED"
     MIX2 = "2COMP"
     FIFO = "FIFO"
-    FILO = "FILO"
+    LIFO = "LIFO"
 
     @property
     def friendly_name(self):
@@ -102,8 +102,8 @@ class TankMixingModel(_AbstractValueMap):
             return tr("Two Compartment Mixing")
         if self is TankMixingModel.FIFO:
             return tr("First In First Out (FIFO)")
-        if self is TankMixingModel.FILO:
-            return tr("First In Last Out (FILO)")
+        if self is TankMixingModel.LIFO:
+            return tr("Last In First Out (LIFO)")
         raise ValueError  # pragma: no cover
 
 
