@@ -735,28 +735,13 @@ class _Curves:
         HEADLOSS = "HEADLOSS"
 
     def _add_one(self, curve_string: Any, curve_type: _Curves.Type) -> str | None:
-        if not isinstance(curve_string, str):
-            raise CurveError(curve_string, curve_type)
+        try:
+            curve_points = self.read_curve(curve_string)
+        except CurveReadError as e:
+            raise CurveError(curve_string, curve_type, e) from e
 
-        if curve_string.strip() == "":
+        if not curve_points:
             return None
-
-        try:
-            curve_points_input: list = ast.literal_eval(curve_string)
-        except Exception:
-            raise CurveError(curve_string, curve_type) from None
-
-        curve_points = []
-        try:
-            for point in curve_points_input:
-                if len(point) != 2:
-                    raise CurveError(curve_string, curve_type)
-                curve_points.append((float(point[0]), float(point[1])))
-        except (TypeError, ValueError):
-            raise CurveError(curve_string, curve_type) from None
-
-        if not len(curve_points):
-            raise CurveError(curve_string, curve_type) from None
 
         curve_points = self._convert_points(curve_points, curve_type, self._converter.to_si)
 
@@ -806,6 +791,69 @@ class _Curves:
         else:
             raise KeyError("Curve type not specified")  # noqa: EM101, TRY003 # pragma: no cover
         return converted_points
+
+    @staticmethod
+    def read_curve(curve_string: Any) -> list[tuple[float, float]] | None:
+        """Read a curve from a string"""
+        if not isinstance(curve_string, str):
+            msg = "Curve must be a string"
+            raise CurveReadError(msg)
+
+        if curve_string.strip() == "":
+            return None
+
+        try:
+            curve_points_input: list = ast.literal_eval(curve_string)
+        except Exception:
+            msg = "Couldn't convert string to list of points"
+            raise CurveReadError(msg) from None
+
+        try:
+            curve_points_length = len(curve_points_input)
+        except TypeError:
+            msg = "Couldn't convert string to list of points"
+            raise CurveReadError(msg) from None
+
+        if curve_points_length == 2:
+            try:
+                return [(float(curve_points_input[0]), float(curve_points_input[1]))]
+            except (ValueError, TypeError):
+                pass
+
+        curve_points = []
+
+        for point in curve_points_input:
+            try:
+                point_length = len(point)
+            except TypeError:
+                msg = f"Point '{point}' is not an x, y tuple"
+                raise CurveReadError(msg) from None
+            if point_length != 2:
+                msg = f"Point '{point}' is not an x, y tuple"
+                raise CurveReadError(msg)
+
+            try:
+                x = float(point[0])
+            except (ValueError, TypeError):
+                msg = f"In point '{point}', '{point[0]} is not a number"
+                raise CurveReadError(msg) from None
+            try:
+                y = float(point[1])
+            except (ValueError, TypeError):
+                msg = f"In point '{point}', '{point[0]} is not a number"
+                raise CurveReadError(msg) from None
+
+            curve_points.append((x, y))
+
+        if not len(curve_points):
+            msg = "There are no points in the curve"
+            raise CurveReadError(msg)
+
+        return curve_points
+
+
+class CurveReadError(Exception):
+    pass
 
 
 @needs_wntr_pandas
@@ -1481,7 +1529,7 @@ class PatternError(NetworkModelError, ValueError):
 
 
 class CurveError(NetworkModelError, ValueError):
-    def __init__(self, curve_string, curve_type: _Curves.Type):
+    def __init__(self, curve_string, curve_type: _Curves.Type, curve_error: CurveReadError):
         curve_name = ""
         if curve_type is _Curves.Type.HEAD:
             curve_name = tr("pump head")
@@ -1494,8 +1542,8 @@ class CurveError(NetworkModelError, ValueError):
 
         super().__init__(
             tr(
-                'problem reading {curve_name} curve "{curve_string}". Curves should be of the form: (1, 2), (3.6, 4.7)'
-            ).format(curve_name=curve_name, curve_string=curve_string)
+                'problem reading {curve_name} curve "{curve_string}". {error_detail} Curves should be of the form: (1, 2), (3.6, 4.7)'  # noqa: E501
+            ).format(curve_name=curve_name, curve_string=curve_string, error_detail=curve_error.args[0])
         )
 
 
