@@ -100,6 +100,7 @@ def test_describe_pipes_basic():
     assert "100" in html or "110" in html or "120" in html
 
 
+@pytest.mark.filterwarnings("ignore:Changing the headloss formula")
 @patch("wntrqgis.interface.tr", lambda x: x)
 def test_describe_pipes_conv():
     import wntr
