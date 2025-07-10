@@ -10,7 +10,9 @@ def test_processing_provider():
 
 
 def test_processing_provider_icon():
-    assert isinstance(Provider().icon(), QIcon)
+    icon = Provider().icon()
+    assert isinstance(icon, QIcon)
+    assert not icon.isNull()
 
 
 def test_processing_provider_name():
