@@ -10,6 +10,13 @@ from wntrqgis.interface import (
 
 
 @pytest.fixture
+def wn():
+    import wntr
+
+    return wntr.network.WaterNetworkModel()
+
+
+@pytest.fixture
 def qgs_layer():
     return QgsVectorLayer("Point", "test_layer", "memory")
 
