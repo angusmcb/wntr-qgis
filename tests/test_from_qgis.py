@@ -1053,33 +1053,31 @@ class TestCurveEmpty:
             wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
 
 
-def test_null_geometry_point():
-    junction_layer = layer("point")
-    junction_layer.dataProvider().addFeature(QgsFeature())
-    add_point(junction_layer, (1, 1))
-    tank_layer = layer("point")
-    tank_layer.dataProvider().addFeature(QgsFeature())
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", 100])
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+def test_null_geometry_point(simple_layers):
+    layer = simple_layers["JUNCTIONS"]
+
+    with edit(layer):
+        feature = QgsFeature()
+        feature.setAttributes(["JX", 1])
+        layer.dataProvider().addFeature(feature)
+        feature = QgsFeature()
+        feature.setAttributes(["JXX", 1])
+        layer.dataProvider().addFeature(feature)
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in nodes, 2 feature\(s\) have no geometry"):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
-def test_null_geometry_link():
-    junction_layer = layer("point")
-    add_point(junction_layer, (1, 1))
-    add_point(junction_layer, (1, 1), ["J1", 1])
-    tank_layer = layer("point", [("name", str)])
-    add_point(tank_layer, (4, 5), ["T1"])
-    pipe_layer = layer("linestring")
-    pipe_layer.dataProvider().addFeature(QgsFeature())
+def test_null_geometry_link(simple_layers):
+    layer = simple_layers["PIPES"]
 
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+    with edit(layer):
+        feature = QgsFeature()
+        feature.setAttributes(["PX", 100, 100])
+        layer.dataProvider().addFeature(feature)
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in links, 1 feature\(s\) have no geometry"):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize(
