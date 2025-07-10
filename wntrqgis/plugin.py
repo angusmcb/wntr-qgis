@@ -186,7 +186,7 @@ class Plugin:
         iface.removeToolBarIcon(self.load_inp_action)
         iface.removeToolBarIcon(self.run_button)
 
-    def warm_up_wntr(self):
+    def warm_up_wntr(self) -> None:
         """wntr is slow to load so start warming it up now !"""
         task: QgsTask = QgsTask.fromFunction(
             "Set up wntr-qgis",
@@ -201,7 +201,7 @@ class Plugin:
         if self.TESTING:
             assert task.waitForFinished()  # noqa: S101
 
-    def install_wntr(self):
+    def install_wntr(self) -> None:
         task: QgsTask = QgsTask.fromFunction(
             tr("Installing WNTR"),
             lambda _: WntrInstaller.install_wntr(),
@@ -241,7 +241,7 @@ class Plugin:
 
     def _append_console_statements(self) -> None:
         """Append the console statements to the QGIS console."""
-        import console
+        import console  # type: ignore
 
         with contextlib.suppress(ModuleNotFoundError, AttributeError):
             import console
