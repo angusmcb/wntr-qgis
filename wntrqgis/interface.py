@@ -112,7 +112,7 @@ class _Converter:
 
     def to_si(
         self,
-        value: float | ArrayLike | dict,
+        value: float | ArrayLike | dict | pd.api.extensions.ExtensionArray,
         field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
@@ -127,7 +127,7 @@ class _Converter:
 
     def from_si(
         self,
-        value: float | ArrayLike | dict,
+        value: float | ArrayLike | dict | pd.api.extensions.ExtensionArray,
         field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
         layer: ModelLayer | ResultLayer | None = None,
     ):
