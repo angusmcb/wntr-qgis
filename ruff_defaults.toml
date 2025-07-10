@@ -49,7 +49,7 @@ select = [
     # Pylint Refactor
     "PLR0124",
 ]
-exclude = []
+ignore = ["PD901"]
 
 [lint.per-file-ignores]
 "**/scripts/*" = ["INP001", "T201"]
