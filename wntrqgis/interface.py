@@ -703,7 +703,7 @@ class _Patterns:
         if not pattern:
             return None
         if isinstance(pattern, str):
-            pattern_obj: wntr.network.Pattern = wntr.network.Pattern
+            pattern_obj: wntr.network.Pattern = self._wn.get_pattern(pattern)
         else:
             pattern_obj = pattern
 
