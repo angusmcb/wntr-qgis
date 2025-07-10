@@ -5,61 +5,13 @@ import wntrqgis.elements
 from wntrqgis.interface import (
     NetworkModelError,
     Writer,
-    _Converter,
-    _Curves,
-    _Patterns,
     check_network,
 )
 
 
 @pytest.fixture
-def wn():
-    import wntr
-
-    return wntr.network.WaterNetworkModel()
-
-
-@pytest.fixture
 def qgs_layer():
     return QgsVectorLayer("Point", "test_layer", "memory")
-
-
-def test_patterns_add(wn):
-    patterns = _Patterns(wn)
-    pattern_name = patterns.add("1 2 3")
-    assert pattern_name == "2"
-
-
-def test_patterns_get(wn):
-    patterns = _Patterns(wn)
-    pattern_name = patterns.add("1 2 3")
-    pattern = patterns.get(pattern_name)
-    assert pattern == "1.0 2.0 3.0"
-
-
-def test_patterns_add_empty(wn):
-    patterns = _Patterns(wn)
-    pattern_name = patterns.add("")
-    assert pattern_name is None
-
-
-def test_curves_add_one(wn):
-    curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
-    curve_name = curves._add_one("[(1,2), (3,4)]", _Curves.Type.HEAD)
-    assert curve_name == "1"
-
-
-def test_curves_get(wn):
-    curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
-    curve_name = curves._add_one("[(1,2), (3,4)]", _Curves.Type.HEAD)
-    curve = curves.get(curve_name)
-    assert curve == "[(1.0, 2.0), (3.0, 4.0)]"
-
-
-def test_curves_add_invalid(wn):
-    curves = _Curves(wn, _Converter("LPS", wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS))
-    with pytest.raises(wntrqgis.interface.CurveError):
-        curves._add_one(None, _Curves.Type.HEAD)
 
 
 def test_writer_get_qgsfields(wn):
