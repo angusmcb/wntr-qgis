@@ -13,7 +13,7 @@ import logging
 import math
 import pathlib
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from qgis.core import (
     NULL,
@@ -668,7 +668,6 @@ class _SpatialIndex:
         return snapped_geometry, start_node_name, end_node_name
 
 
-@needs_wntr_pandas
 class _Patterns:
     def __init__(self, wn: wntr.network.model.WaterNetworkModel) -> None:
         self._name_iterator = map(str, itertools.count(2))
@@ -676,17 +675,9 @@ class _Patterns:
         self._wn = wn
 
     def add(self, pattern) -> str | None:
-        input_pattern = pattern
-        if isinstance(pattern, str):
-            pattern = cast(str, pattern)
-            pattern = pattern.strip().split()
+        pattern_list = self.read_pattern(pattern)
 
-        try:
-            pattern_list = [float(item) for item in pattern]
-        except (ValueError, TypeError):
-            raise ValueError(input_pattern) from None
-
-        if len(pattern_list) == 0:
+        if not pattern_list:
             return None
 
         pattern_tuple = tuple(pattern_list)
@@ -700,28 +691,41 @@ class _Patterns:
         return name
 
     def add_all(self, pattern_series: pd.Series | Any, layer: ModelLayer, pattern_type: Field) -> pd.Series | None:
-        if not isinstance(pattern_series, pd.Series):
-            return None
-        # try:
-        #     pattern_map = {
-        #         pattern: self.add(pattern, layer_name, pattern_name) for pattern in pattern_series.dropna().unique()
-        #     }
-        # except TypeError:
         try:
             return pattern_series.map(self.add, na_action="ignore")
         except ValueError as e:
             raise PatternError(e, layer, pattern_type) from None
-        # return pattern_series.map(pattern_map)
+        except AttributeError:
+            # occurs if pattern_series isn't a Series
+            return None
 
-    def get(self, pattern: wntr.network.elements.Pattern | str | None) -> str | None:
+    def get(self, pattern: wntr.network.Pattern | str | None) -> str | None:
+        if not pattern:
+            return None
         if isinstance(pattern, str):
-            pattern = self._wn.get_pattern(pattern)
-        if isinstance(pattern, wntr.network.elements.Pattern):
-            return " ".join(map(str, pattern.multipliers))
-        return None
+            pattern_obj: wntr.network.Pattern = wntr.network.Pattern
+        else:
+            pattern_obj = pattern
+
+        return " ".join(map(str, pattern_obj.multipliers))
+
+    @staticmethod
+    def read_pattern(pattern: Any) -> list[float] | None:
+        pattern_in = pattern
+        if isinstance(pattern, str):
+            pattern = pattern.strip().split()
+
+        try:
+            pattern_list = [float(item) for item in pattern]
+        except (ValueError, TypeError):
+            raise ValueError(pattern_in) from None
+
+        if len(pattern_list) == 0:
+            return None
+
+        return pattern_list
 
 
-@needs_wntr_pandas
 class _Curves:
     def __init__(self, wn: wntr.network.WaterNetworkModel, converter: _Converter) -> None:
         self._wn = wn
