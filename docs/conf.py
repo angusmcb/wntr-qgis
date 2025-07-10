@@ -157,7 +157,7 @@ def field_value(field, layer) -> str:
             enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
         else:
             enum_list = python_type
-        return ", ".join([enum.value for enum in enum_list])
+        return ", ".join(["`" + enum.value + "`" for enum in enum_list])
     if issubclass(python_type, PatternType):
         return "Pattern"
     if issubclass(python_type, CurveType):
