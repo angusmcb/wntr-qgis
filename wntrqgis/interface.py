@@ -383,8 +383,10 @@ class Writer:
             try:
                 dtype = Field[f.upper()].python_type
                 is_list_field = bool(Field[f.upper()].field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD)
+                comment = Field[f.upper()].description
             except KeyError:
                 dtype = dtypes[f]
+                comment = ""
 
             if is_list_field and self._timestep is None:
                 qgs_fields.append(
@@ -392,6 +394,7 @@ class Writer:
                         f.lower(),
                         self._get_qgs_field_type(list),
                         subType=self._get_qgs_field_type(float),
+                        comment=comment,
                     )
                 )
             else:
@@ -399,6 +402,7 @@ class Writer:
                     QgsField(
                         f.lower(),
                         self._get_qgs_field_type(dtype),
+                        comment=comment,
                     )
                 )
         return qgs_fields

@@ -541,3 +541,100 @@ class Field(Enum):
         if self is Field.REACTION_RATE:
             return tr("Reaction Rate")
         raise ValueError  # pragma: no cover
+
+    @property
+    def description(self):
+        if self is Field.NAME:
+            return tr("Element identifier. If provided, it must be less than 32 characters and not contain any spaces.")
+        if self is Field.ELEVATION:
+            return tr("Height above datum. This is in metres or feet.")
+        if self is Field.BASE_DEMAND:
+            return tr("The demand for the element. Can be negative for inflows.")
+        if self is Field.DEMAND_PATTERN:
+            return tr("Time-varying multiplier pattern for base demand")
+        if self is Field.EMITTER_COEFFICIENT:
+            return tr("Coefficient for flow through emitter at junction")
+        if self is Field.INIT_LEVEL:
+            return tr("Initial water level in tank")
+        if self is Field.MIN_LEVEL:
+            return tr("Minimum allowable water level in tank")
+        if self is Field.MAX_LEVEL:
+            return tr("Maximum allowable water level in tank")
+        if self is Field.VALVE_TYPE:
+            return tr("Type of valve (PRV, PSV, PBV, FCV, TCV, GPV)")
+        if self is Field.DIAMETER:
+            return tr("Internal diameter of pipe or tank")
+        if self is Field.MIN_VOL:
+            return tr("Minimum volume of water in tank")
+        if self is Field.VOL_CURVE:
+            return tr("Volume curve relating tank level to volume")
+        if self is Field.OVERFLOW:
+            return tr("Whether tank can overflow when full")
+        if self is Field.BASE_HEAD:
+            return tr("Hydraulic head at reservoir")
+        if self is Field.HEAD_PATTERN:
+            return tr("Time-varying pattern for reservoir head")
+        if self is Field.LENGTH:
+            return tr("Physical length of pipe")
+        if self is Field.ROUGHNESS:
+            return tr("Pipe roughness coefficient for headloss calculation")
+        if self is Field.MINOR_LOSS:
+            return tr("Minor loss coefficient for fittings and bends")
+        if self is Field.CHECK_VALVE:
+            return tr("Whether pipe has check valve to prevent backflow")
+        if self is Field.PUMP_TYPE:
+            return tr("Type of pump (power or head curve)")
+        if self is Field.PUMP_CURVE:
+            return tr("Head-flow curve for pump performance")
+        if self is Field.POWER:
+            return tr("Power rating of pump")
+        if self is Field.BASE_SPEED:
+            return tr("Base rotational speed of pump")
+        if self is Field.SPEED_PATTERN:
+            return tr("Time-varying pattern for pump speed")
+        if self is Field.INITIAL_STATUS:
+            return tr("Initial operating status (open/closed/active)")
+        if self is Field.INITIAL_SETTING:
+            return tr("Initial valve setting or pump speed")
+        if self is Field.HEADLOSS_CURVE:
+            return tr("Head loss curve for general purpose valve")
+        if self is Field.INITIAL_QUALITY:
+            return tr("Initial water quality concentration")
+        if self is Field.MIXING_FRACTION:
+            return tr("Fraction of tank volume for mixing model")
+        if self is Field.MIXING_MODEL:
+            return tr("Tank mixing model type")
+        if self is Field.BULK_COEFF:
+            return tr("Bulk reaction coefficient for water quality")
+        if self is Field.WALL_COEFF:
+            return tr("Wall reaction coefficient for pipe quality")
+        if self is Field.MINIMUM_PRESSURE:
+            return tr("Minimum pressure for pressure-dependent demand")
+        if self is Field.REQUIRED_PRESSURE:
+            return tr("Required pressure for full demand delivery")
+        if self is Field.PRESSURE_EXPONENT:
+            return tr("Pressure exponent for demand calculation")
+        if self is Field.EFFICIENCY:
+            return tr("Pump efficiency curve")
+        if self is Field.ENERGY_PATTERN:
+            return tr("Time-varying pattern for energy costs")
+        if self is Field.ENERGY_PRICE:
+            return tr("Energy price per unit")
+
+        if self is Field.DEMAND:
+            return tr("Water demand at junction")
+        if self is Field.HEAD:
+            return tr("Hydraulic head at node")
+        if self is Field.PRESSURE:
+            return tr("Water pressure at node")
+        if self is Field.FLOWRATE:
+            return tr("Water flow rate through link")
+        if self is Field.HEADLOSS:
+            return tr("Head loss across link")
+        if self is Field.VELOCITY:
+            return tr("Water velocity in link")
+        if self is Field.QUALITY:
+            return tr("Water quality concentration")
+        if self is Field.REACTION_RATE:
+            return tr("Rate of water quality reaction")
+        raise ValueError  # pragma: no cover
