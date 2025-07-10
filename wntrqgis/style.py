@@ -37,6 +37,7 @@ from wntrqgis.elements import (
     ResultLayer,
     _AbstractValueMap,
 )
+from wntrqgis.i18n import tr
 
 
 def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Literal["extended"] | None = None):
@@ -56,6 +57,7 @@ def _setup_fields(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
             field_styler = _FieldStyler(Field(field.name().lower()), layer_type)
         except ValueError:
             continue
+
         layer.setEditorWidgetSetup(i, field_styler.editor_widget)
         layer.setDefaultValueDefinition(i, field_styler.default_value)
         layer.setFieldAlias(i, field_styler.alias)
@@ -149,19 +151,53 @@ class _FieldStyler:
         if self.field_type is Field.NAME:
             return (
                 "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')",
-                "Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces",
+                tr("Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"),
             )
         if self.field_type is Field.DIAMETER and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
-            return "diameter > 0", "Diameter must be greater than 0"
+            return "diameter > 0", tr("Diameter must be greater than 0")
         if self.field_type is Field.ROUGHNESS:
-            return "roughness > 0", "Roughness must be greater than 0"
+            return "roughness > 0", tr("Roughness must be greater than 0")
         if self.field_type is Field.LENGTH:
-            return "length is NULL  OR  length > 0", "Length must be empty/NULL (will be calculated) or greater than 0"
+            return "length is NULL  OR  length > 0", tr(
+                "Length must be empty/NULL (will be calculated) or greater than 0"
+            )
 
         if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
-            return "minor_loss >= 0", "Minor loss must be greater than or equal to 0"
+            return "minor_loss >= 0", tr("Minor loss must be greater than or equal to 0")
         if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
-            return "base_speed > 0", "Base speed must be greater than 0"
+            return "base_speed > 0", tr("Base speed must be greater than 0")
+        if self.field_type is Field.POWER and self.layer_type is ModelLayer.PUMPS:
+            return "if( upper(pump_type) is 'POWER', power > 0, true)", tr(
+                "Power pumps must have a power greater than 0"
+            )
+
+        if self.field_type.python_type is PatternType:
+            return (
+                f"wntr_check_pattern({self.field_type.value}) IS NOT false",
+                tr("Patterns must be a string of numbers separated by spaces"),
+            )
+
+        curve_message = tr("Curves must be a list of tuples, e.g. (1,2), (3,4)")
+
+        if self.field_type is Field.PUMP_CURVE:
+            return (
+                "if( upper(pump_type) is 'HEAD', wntr_check_curve(pump_curve) IS true, true) ",
+                tr("Head pumps must have a pump curve. {curve_description}").format(
+                    curve_description=curve_message,
+                ),
+            )
+
+        if self.field_type is Field.HEADLOSS_CURVE:
+            return (
+                "if( upper(valve_type) is 'GPV', wntr_check_curve(headloss_curve) IS true, true) ",
+                tr("General Purpose Valves must have a headloss curve. {curve_description}").format(
+                    curve_description=curve_message,
+                ),
+            )
+
+        if self.field_type.python_type is CurveType:
+            return (f"wntr_check_curve({self.field_type.value}) IS NOT false", curve_message)
+
         return None, None
 
 
