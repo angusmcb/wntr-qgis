@@ -998,19 +998,36 @@ class _FromGis:
             if not self.crs:
                 self.crs = source.sourceCrs()
 
-            source_df = self._source_to_df(source)
+            df = self._source_to_df(source)
 
-            if not source_df.shape[0]:
+            if df.empty:
                 continue
 
-            source_df.columns = [shapefile_name_map.get(col, col) for col in source_df.columns]
+            df.columns = [shapefile_name_map.get(col, col) for col in df.columns]
+
+            self._check_for_required_fields(df, model_layer)
+
+            df = self._fix_column_types(df)
+
+            df = self._convert_dataframe(df, model_layer)
+
+            if model_layer is ModelLayer.JUNCTIONS:
+                df = self._process_junctions(df)
+            elif model_layer is ModelLayer.RESERVOIRS:
+                df = self._process_reservoirs(df)
+            elif model_layer is ModelLayer.TANKS:
+                df = self._process_tanks(df)
+            elif model_layer is ModelLayer.PUMPS:
+                df = self._do_pump_patterns_curves(df)
+            elif model_layer is ModelLayer.VALVES:
+                df = self._do_valve_patterns_curves(df)
 
             if model_layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]:
-                source_df["node_type"] = model_layer.name[:-1].title()
-                node_dfs.append(source_df)
+                df["node_type"] = model_layer.field_type
+                node_dfs.append(df)
             else:
-                source_df["link_type"] = model_layer.name[:-1].title()
-                link_dfs.append(source_df)
+                df["link_type"] = model_layer.field_type
+                link_dfs.append(df)
 
         try:
             node_df = pd.concat(node_dfs, sort=False, ignore_index=True)
@@ -1023,23 +1040,14 @@ class _FromGis:
             msg = tr("There are no links in the model")
             raise NetworkModelError(msg) from ValueError
 
-        node_df = self._fix_column_types(node_df)
-        link_df = self._fix_column_types(link_df)
+        node_df["name"] = self._fill_names(node_df)
+        link_df["name"] = self._fill_names(link_df)
 
-        self._fill_names(node_df)
-        self._fill_names(link_df)
-
-        self._check_for_duplicate_names(node_df)
-        self._check_for_duplicate_names(link_df)
-
-        node_df = self._convert_dataframe(node_df, ModelLayer.TANKS)  # hack as I know tanks is needed for diameter
-        link_df = self._convert_dataframe(link_df)
+        self._check_for_duplicate_names(node_df["name"])
+        self._check_for_duplicate_names(link_df["name"])
 
         node_df = self._process_node_geometry(node_df)
         link_df = self._process_link_geometry(link_df)
-
-        node_df = self._do_node_patterns_curves(node_df)
-        link_df = self._do_link_patterns_curves(link_df)
 
         wn_dict: dict[str, Any] = {}
         wn_dict["nodes"] = self._to_dict(node_df)
@@ -1104,31 +1112,31 @@ class _FromGis:
         return source_df
 
     def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
-        null_geometry = df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
+        null_geometry = df["geometry"].map(lambda geometry: geometry.isNull()).sum()
         if null_geometry:
             msg = tr("in nodes, %n feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
-        for geometry, name in df.loc[:, ["geometry", "name"]].itertuples(index=False):
-            self._spatial_index.add_node(geometry, name)
+        df.apply(lambda row: self._spatial_index.add_node(row["geometry"], row["name"]), axis=1)
 
-        df.loc[:, "coordinates"] = df.loc[:, "geometry"].apply(self._get_point_coordinates)
+        df["coordinates"] = df["geometry"].apply(self._get_point_coordinates)
 
         return df.drop(columns="geometry")
 
     def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
-        null_geometry = link_df.loc[:, "geometry"].map(lambda geometry: geometry.isNull()).sum()
+        null_geometry = link_df["geometry"].map(lambda geometry: geometry.isNull()).sum()
         if null_geometry:
             msg = tr("in links, %n feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
         snapped_data = []
         try:
-            for geometry, name in link_df.loc[:, ["geometry", "name"]].itertuples(index=False):  # noqa: B007
+            for geometry, name in link_df[["geometry", "name"]].itertuples(index=False):  # noqa: B007
                 snapped_data.append(self._spatial_index.snap_link(geometry))
         except RuntimeError as e:
             msg = tr("problem snapping the feature {name}: {exception}").format(name=name, exception=e)
             raise NetworkModelError(msg) from None
+
         link_df[["geometry", "start_node_name", "end_node_name"]] = snapped_data
 
         link_df["vertices"] = link_df["geometry"].map(
@@ -1152,7 +1160,7 @@ class _FromGis:
             )
             raise NetworkModelError(msg)
 
-        attribute_lengths = pipe_df.loc[:, "length"]
+        attribute_lengths = pipe_df["length"]
 
         has_attr_length = attribute_lengths.notna()
 
@@ -1186,21 +1194,23 @@ class _FromGis:
 
         return attribute_lengths.fillna(calculated_lengths)
 
-    def _fill_names(self, df: pd.DataFrame) -> None:
-        if "name" not in df.columns:
-            df["name"] = pd.NA
+    def _fill_names(self, df: pd.DataFrame) -> pd.Series:
+        if "name" in df.columns:
+            name_series = df["name"].astype("string").str.strip()
+        else:
+            name_series = pd.Series(index=df.index, dtype="string")
 
-        df["name"] = df["name"].astype("string").str.strip()
-
-        existing_names = set(df["name"].dropna())
-        mask = (df["name"].isna()) | (df["name"] == "")
+        existing_names = set(name_series.dropna())
+        mask = (name_series.isna()) | (name_series == "")
         number_of_names_required = mask.sum()
 
         name_iterator = map(str, itertools.count(1))
         valid_name_iterator = filter(lambda name: name not in existing_names, name_iterator)
-        new_names = list(itertools.islice(valid_name_iterator, number_of_names_required))
+        new_names = np.array(list(itertools.islice(valid_name_iterator, number_of_names_required)))
 
-        df.loc[mask, "name"] = new_names
+        name_series[mask] = new_names
+
+        return name_series
 
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
@@ -1214,163 +1224,169 @@ class _FromGis:
 
         return length
 
-    def _do_node_patterns_curves(self, node_df: pd.DataFrame) -> pd.DataFrame:
-        for layer in [ModelLayer.JUNCTIONS, ModelLayer.TANKS, ModelLayer.RESERVOIRS]:
-            layer_items = node_df["node_type"] == layer.field_type
-            if layer_items.any():
-                for field in layer.wq_fields():
-                    if not field.field_group & FieldGroup.REQUIRED:
-                        continue
-                    if field.value not in node_df:
-                        raise RequiredFieldError(layer, field)
-                    if node_df.loc[layer_items, field.value].hasnans:
-                        raise RequiredFieldError(layer, field)
-
-        node_df["demand_pattern_name"] = self.patterns.add_all(
-            node_df.get("demand_pattern"), ModelLayer.JUNCTIONS, Field.DEMAND_PATTERN
+    def _process_junctions(self, df: pd.DataFrame) -> pd.DataFrame:
+        df["demand_pattern_name"] = self.patterns.add_all(
+            df.get("demand_pattern"), ModelLayer.JUNCTIONS, Field.DEMAND_PATTERN
         )
 
-        if "base_demand" in node_df.columns:
-            has_demand = node_df.loc[:, "base_demand"].notna()
+        if "base_demand" in df.columns:
+            has_demand = df["base_demand"].notna()
 
-            node_df.loc[has_demand, "demand_timeseries_list"] = pd.Series(
-                [
-                    [{"base_val": demand[0], "pattern_name": (demand[1] if pd.notna(demand[1]) else None)}]
-                    for demand in node_df.loc[has_demand, ["base_demand", "demand_pattern_name"]].itertuples(
-                        index=False, name=None
-                    )
+            def make_demand_list(row):
+                return [
+                    {
+                        "base_val": row["base_demand"],
+                        "pattern_name": (row["demand_pattern_name"] if pd.notna(row["demand_pattern_name"]) else None),
+                    }
                 ]
+
+            df.loc[has_demand, "demand_timeseries_list"] = df.loc[has_demand].apply(make_demand_list, axis=1)
+
+        return df.drop(columns=["base_demand", "demand_pattern", "demand_pattern_name"], errors="ignore")
+
+    def _process_tanks(self, df: pd.DataFrame) -> pd.DataFrame:
+        if "vol_curve" in df:
+            df["vol_curve_name"] = self.curves.add_volume(df["vol_curve"])
+
+            df = df.drop(columns=["vol_curve"])
+
+        return df
+
+    def _process_reservoirs(self, df: pd.DataFrame) -> pd.DataFrame:
+        if "head_pattern" in df:
+            df["head_pattern_name"] = self.patterns.add_all(
+                df.get("head_pattern"), ModelLayer.RESERVOIRS, Field.HEAD_PATTERN
             )
 
-        # tanks volume curve
-        if "vol_curve" in node_df:
-            node_df["vol_curve_name"] = self.curves.add_volume(node_df["vol_curve"])
+            df = df.drop(columns=["head_pattern"])
 
-        # reservoir head pattern
-        if "head_pattern" in node_df:
-            node_df["head_pattern_name"] = self.patterns.add_all(
-                node_df.get("head_pattern"), ModelLayer.RESERVOIRS, Field.HEAD_PATTERN
+        return df
+
+    def _do_valve_patterns_curves(self, df: pd.DataFrame) -> pd.DataFrame:
+        try:
+            df[Field.VALVE_TYPE.value] = df[Field.VALVE_TYPE.value].str.upper()
+        except (KeyError, AttributeError):
+            raise ValveTypeError from None
+
+        if not df[Field.VALVE_TYPE.value].isin(ValveType._member_names_).all():
+            raise ValveTypeError from None
+
+        pressure_valves = df[Field.VALVE_TYPE.value].isin([ValveType.PRV.name, ValveType.PSV.name, ValveType.PBV.name])
+        fcvs = df[Field.VALVE_TYPE.value] == ValveType.FCV.name
+        tcvs = df[Field.VALVE_TYPE.value] == ValveType.TCV.name
+        gpvs = df[Field.VALVE_TYPE.value] == ValveType.GPV.name
+
+        if pressure_valves.any() or fcvs.any() or tcvs.any():
+            if "initial_setting" not in df:
+                raise ValveInitialSettingError
+
+            if df.loc[(pressure_valves | fcvs | tcvs), "initial_setting"].hasnans:
+                raise ValveInitialSettingError
+
+            df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
+                df.loc[pressure_valves, "initial_setting"].array, field=wntr.epanet.HydParam.Pressure
             )
 
-        return node_df.drop(
-            columns=["vol_curve", "head_pattern", "base_demand", "demand_pattern", "demand_pattern_name"],
-            errors="ignore",
-        )
-
-    def _do_link_patterns_curves(self, link_df: pd.DataFrame) -> pd.DataFrame:
-        valves = link_df["link_type"] == "Valve"
-
-        if valves.any():
-            try:
-                link_df[Field.VALVE_TYPE.value] = link_df[Field.VALVE_TYPE.value].str.upper()
-            except (KeyError, AttributeError):
-                raise ValveTypeError from None
-
-            if not link_df.loc[valves, Field.VALVE_TYPE.value].isin(ValveType._member_names_).all():
-                raise ValveTypeError from None
-
-            pressure_valves = link_df[Field.VALVE_TYPE.value].isin(
-                [ValveType.PRV.name, ValveType.PSV.name, ValveType.PBV.name]
-            )
-            fcvs = link_df[Field.VALVE_TYPE.value] == ValveType.FCV.name
-            tcvs = link_df[Field.VALVE_TYPE.value] == ValveType.TCV.name
-            gpvs = link_df[Field.VALVE_TYPE.value] == ValveType.GPV.name
-
-            if pressure_valves.any() or fcvs.any() or tcvs.any():
-                if "initial_setting" not in link_df:
-                    raise ValveInitialSettingError
-
-                if link_df.loc[(pressure_valves | fcvs | tcvs), "initial_setting"].hasnans:
-                    raise ValveInitialSettingError
-
-                link_df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
-                    link_df.loc[pressure_valves, "initial_setting"].array, field=wntr.epanet.HydParam.Pressure
-                )
-
-                link_df.loc[fcvs, "initial_setting"] = self._converter.to_si(
-                    link_df.loc[fcvs, "initial_setting"].array, field=wntr.epanet.HydParam.Flow
-                )
-
-            if gpvs.any():
-                if "headloss_curve" not in link_df:
-                    raise GpvMissingCurveError
-
-                link_df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(link_df.loc[gpvs, "headloss_curve"])
-
-                if link_df.loc[gpvs, "headloss_curve_name"].hasnans:
-                    raise GpvMissingCurveError
-
-        pumps = link_df["link_type"] == "Pump"
-
-        if pumps.any():
-            try:
-                link_df.loc[pumps, Field.PUMP_TYPE.value] = link_df.loc[pumps, Field.PUMP_TYPE.value].str.upper()
-            except (KeyError, AttributeError):
-                raise PumpTypeError from None
-
-            if not link_df.loc[pumps, Field.PUMP_TYPE.value].isin(PumpTypes._member_names_).all():
-                raise PumpTypeError
-
-            power_pumps = link_df[Field.PUMP_TYPE.value] == PumpTypes.POWER.name
-            head_pumps = link_df[Field.PUMP_TYPE.value] == PumpTypes.HEAD.name
-
-            if power_pumps.any():
-                if Field.POWER.value not in link_df:
-                    raise PumpPowerError
-                if link_df.loc[power_pumps, Field.POWER.value].hasnans:
-                    raise PumpPowerError
-                if (link_df.loc[power_pumps, Field.POWER.value] <= 0).any():
-                    raise PumpPowerError
-
-            if head_pumps.any():
-                if Field.PUMP_CURVE.value not in link_df:
-                    raise PumpCurveMissingError
-
-                link_df["pump_curve_name"] = self.curves.add_head(link_df[Field.PUMP_CURVE.value])
-
-                if link_df.loc[head_pumps, "pump_curve_name"].hasnans:
-                    raise PumpCurveMissingError
-
-        if "speed_pattern" in link_df:
-            link_df["speed_pattern_name"] = self.patterns.add_all(
-                link_df.get("speed_pattern"), ModelLayer.PUMPS, Field.SPEED_PATTERN
+            df.loc[fcvs, "initial_setting"] = self._converter.to_si(
+                df.loc[fcvs, "initial_setting"].array, field=wntr.epanet.HydParam.Flow
             )
 
-        if "energy_pattern" in link_df:
-            link_df["energy_pattern"] = self.patterns.add_all(
-                link_df.get("energy_pattern"), ModelLayer.PUMPS, Field.ENERGY_PATTERN
-            )
+        if gpvs.any():
+            if "headloss_curve" not in df:
+                raise GpvMissingCurveError
 
-        for layer in [ModelLayer.PIPES, ModelLayer.VALVES, ModelLayer.PUMPS]:
-            layer_items = link_df["link_type"] == layer.field_type
-            if layer_items.any():
-                for field in layer.wq_fields():
-                    if not field.field_group & FieldGroup.REQUIRED:
-                        continue
-                    if field.value not in link_df:
-                        raise RequiredFieldError(layer, field)
-                    if link_df.loc[layer_items, field.value].hasnans:
-                        raise RequiredFieldError(layer, field)
+            df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(df.loc[gpvs, "headloss_curve"])
 
-        return link_df.drop(
+            if df.loc[gpvs, "headloss_curve_name"].hasnans:
+                raise GpvMissingCurveError
+
+        return df.drop(
             columns=["headloss_curve", "pump_curve", "speed_pattern"],
             errors="ignore",
         )
 
-    def _check_for_duplicate_names(self, df: pd.DataFrame) -> None:
+    def _do_pump_patterns_curves(self, df: pd.DataFrame) -> pd.DataFrame:
+        try:
+            df[Field.PUMP_TYPE.value] = df[Field.PUMP_TYPE.value].str.upper()
+        except (KeyError, AttributeError):
+            raise PumpTypeError from None
+
+        if not df[Field.PUMP_TYPE.value].isin(PumpTypes._member_names_).all():
+            raise PumpTypeError
+
+        power_pumps = df[Field.PUMP_TYPE.value] == PumpTypes.POWER.name
+        head_pumps = df[Field.PUMP_TYPE.value] == PumpTypes.HEAD.name
+
+        if power_pumps.any():
+            if Field.POWER.value not in df:
+                raise PumpPowerError
+            if df.loc[power_pumps, Field.POWER.value].hasnans:
+                raise PumpPowerError
+            if (df.loc[power_pumps, Field.POWER.value] <= 0).any():
+                raise PumpPowerError
+
+        if head_pumps.any():
+            if Field.PUMP_CURVE.value not in df:
+                raise PumpCurveMissingError
+
+            df["pump_curve_name"] = self.curves.add_head(df[Field.PUMP_CURVE.value])
+
+            if df.loc[head_pumps, "pump_curve_name"].hasnans:
+                raise PumpCurveMissingError
+
+        if "speed_pattern" in df:
+            df["speed_pattern_name"] = self.patterns.add_all(
+                df.get("speed_pattern"), ModelLayer.PUMPS, Field.SPEED_PATTERN
+            )
+
+        if "energy_pattern" in df:
+            df["energy_pattern"] = self.patterns.add_all(
+                df.get("energy_pattern"), ModelLayer.PUMPS, Field.ENERGY_PATTERN
+            )
+
+        return df.drop(
+            columns=["headloss_curve", "pump_curve", "speed_pattern"],
+            errors="ignore",
+        )
+
+    def _check_for_required_fields(self, df: pd.DataFrame, layer: ModelLayer) -> None:
+        """Check if all required fields for the layer are present in the dataframe.
+
+        Args:
+            df: DataFrame to check.
+            layer: ModelLayer to check against.
+
+        Raises:
+            RequiredFieldError: If any required field is missing.
+        """
+        if df.empty:
+            return
+
+        for field in layer.wq_fields():
+            if not field.field_group & FieldGroup.REQUIRED:
+                continue
+            if field.value not in df:
+                raise RequiredFieldError(layer, field)
+            if df[field.value].hasnans:
+                raise RequiredFieldError(layer, field)
+
+    def _check_for_duplicate_names(self, name_series: pd.Series) -> None:
         """Check for duplicate 'name' entries in the dataframe.
 
         Args:
-            df: DataFrame to check for duplicates.
+            name_series: Series to check for duplicates.
 
         Raises:
             NetworkModelError: If duplicates are found.
         """
-        if "name" in df.columns:
-            duplicates = df.loc[df["name"].duplicated(), "name"]
-            if not duplicates.empty:
-                msg = tr("Duplicate names found: ") + ", ".join(duplicates.unique())
-                raise NetworkModelError(msg)
+
+        duplicates = name_series.duplicated()
+
+        if not duplicates.any():
+            return
+
+        msg = tr("Duplicate names found: ") + ", ".join(name_series[duplicates].unique())
+        raise NetworkModelError(msg)
 
 
 @needs_wntr_pandas

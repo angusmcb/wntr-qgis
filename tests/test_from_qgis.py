@@ -5,7 +5,15 @@ import types
 from typing import Any
 
 import pytest
-from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsGeometry, QgsPointXY, QgsProject, QgsVectorLayer
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsFeature,
+    QgsGeometry,
+    QgsPointXY,
+    QgsProject,
+    QgsVectorLayer,
+    edit,
+)
 
 import wntrqgis
 
@@ -77,6 +85,11 @@ def add_line(layer: QgsVectorLayer, points: list[tuple[float, float]], fields: l
     feature.setAttributes(fields)
     layer.dataProvider().addFeature(feature)
     layer.updateExtents()
+
+
+def delete_all_features(layer: QgsVectorLayer):
+    with edit(layer):
+        layer.deleteFeatures(layer.allFeatureIds())
 
 
 @pytest.fixture
@@ -210,20 +223,19 @@ def test_no_pipes(all_layers):
     assert isinstance(wn, wntr.network.WaterNetworkModel)
 
 
-def test_no_links():
-    all_layers = {"JUNCTIONS": layer("point", [("name", str)]), "PIPES": layer("linestring", [("name", str)])}
-    add_point(all_layers["JUNCTIONS"], (1, 1), ["J1"])
+def test_no_links(simple_layers):
+    delete_all_features(simple_layers["PIPES"])
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="There are no links in the model"):
-        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
-def test_no_nodes():
-    all_layers = {"JUNCTIONS": layer("point"), "PIPES": layer("linestring", [("name", str)])}
-    add_line(all_layers["PIPES"], [(1, 1)], ["P1"])
+def test_no_nodes(simple_layers):
+    delete_all_features(simple_layers["JUNCTIONS"])
+    delete_all_features(simple_layers["TANKS"])
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="There are no nodes in the model"):
-        wntrqgis.from_qgis(all_layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 def test_wntr_error(simple_layers):
@@ -337,16 +349,16 @@ def test_from_qgis_invalid_headloss_with_wn(simple_layers):
 
 
 def test_duplicate_names():
-    junction_layer = layer("point", [("name", str)])
-    add_point(junction_layer, (1, 1), ["J1"])
-    add_point(junction_layer, (2, 2), ["J1"])  # Conflict: same name as the first junction
-    add_point(junction_layer, (3, 3), ["J1"])
-    add_point(junction_layer, (3, 3), ["J2"])
-    add_point(junction_layer, (3, 3), ["J2"])
+    junction_layer = layer("point", [("name", str), ("elevation", float)])
+    add_point(junction_layer, (1, 1), ["J1", 0])
+    add_point(junction_layer, (2, 2), ["J1", 0])  # Conflict: same name as the first junction
+    add_point(junction_layer, (3, 3), ["J1", 0])
+    add_point(junction_layer, (3, 3), ["J2", 0])
+    add_point(junction_layer, (3, 3), ["J2", 0])
 
-    pipe_layer = layer("linestring", [("name", str)])
-    add_line(pipe_layer, [(1, 1), (2, 2)], ["P1"])
-    add_line(pipe_layer, [(2, 2), (3, 3)], ["P1"])  # Conflict: same name as the first pipe
+    pipe_layer = layer("LineString", [("name", str), ("diameter", float), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (2, 2)], ["P1", 1, 1])
+    add_line(pipe_layer, [(2, 2), (3, 3)], ["P1", 1, 1])  # Conflict: same name as the first pipe
 
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
@@ -520,13 +532,12 @@ def test_snap_length(layers_that_snap):
 
 
 def test_too_far_to_snap():
-    junction_layer = layer("point", [("name", str), ("base_demand", float), ("length", float)])
+    junction_layer = layer("point", [("name", str), ("elevation", float)])
     add_point(junction_layer, (1, 1), ["J1", 1])
-    tank_layer = layer("point", [("name", str)])
-    add_point(tank_layer, (1000, 1000), ["T1"])
-    pipe_layer = layer("linestring", [("name", str), ("roughness", float)])
-    add_line(pipe_layer, [(1, 1), (900, 900)], ["P1", 100])
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer, "TANKS": tank_layer}
+    add_point(junction_layer, (1000, 1000), ["J2", 1])
+    pipe_layer = layer("linestring", [("name", str), ("diameter", float), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (900, 900)], ["P1", 100, 100])
+    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="nearest node to snap to is too far"):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
@@ -670,17 +681,14 @@ def test_float_attributes(float_attr, expected_result, field_type):
 @pytest.mark.parametrize(
     ("float_attr", "attr_type"), [("not_a_float", str), (["not", "a", "float"], list[str]), ([1], list[int])]
 )
-def test_float_error(float_attr, attr_type):
-    junction_layer = layer("point")
-    add_point(junction_layer, (1, 1))
-    add_point(junction_layer, (4, 5))
-    pipe_layer = layer("linestring", [("name", str), ("diameter", attr_type)])
-    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr])
+def test_float_error(simple_layers, float_attr, attr_type):
+    pipe_layer = layer("linestring", [("name", str), ("diameter", attr_type), ("roughness", float)])
+    add_line(pipe_layer, [(1, 1), (4, 5)], ["P1", float_attr, 1.0])
 
-    layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
+    simple_layers["PIPES"] = pipe_layer
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="Problem in column diameter: "):
-        wntrqgis.from_qgis(layers, "LPS", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.fixture
@@ -1227,7 +1235,7 @@ def test_pressure_valve_initial_setting_conversion_valves_bad_values(valve_layer
 
 @pytest.mark.parametrize("valve_type", [None])
 def test_valve_type_not_specified(valve_layers):
-    with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
+    with pytest.raises(wntrqgis.interface.RequiredFieldError, match="valve_type"):
         wntrqgis.from_qgis(valve_layers, "SI", "H-W")
 
 
@@ -1240,15 +1248,6 @@ def test_valve_type_wrong_type(valve_layers):
 @pytest.mark.parametrize("valve_type", [0, 1, 1.0, True, False])
 def test_valve_type_is_number(valve_layers):
     with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
-        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
-
-
-def test_with_no_valve_type_column(valve_layers):
-    valve_layer = layer("linestring", [("name", str)])
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1"])
-    valve_layers["VALVES"] = valve_layer
-
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="valve_type"):
         wntrqgis.from_qgis(valve_layers, "SI", "H-W")
 
 
