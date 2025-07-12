@@ -381,30 +381,32 @@ class Writer:
         for f in field_names:
             is_list_field = False
             try:
-                dtype = Field[f.upper()].python_type
-                is_list_field = bool(Field[f.upper()].field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD)
-                comment = Field[f.upper()].description
+                field = Field[f.upper()]
+                dtype = field.python_type
+                is_list_field = bool(field.field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD)
+                comment = field.description
+
             except KeyError:
                 dtype = dtypes[f]
                 comment = ""
 
             if is_list_field and self._timestep is None:
-                qgs_fields.append(
-                    QgsField(
-                        f.lower(),
-                        self._get_qgs_field_type(list),
-                        subType=self._get_qgs_field_type(float),
-                        comment=comment,
-                    )
+                qgs_field = QgsField(
+                    f.lower(),
+                    self._get_qgs_field_type(list),
+                    subType=self._get_qgs_field_type(float),
+                    comment=comment,
                 )
+
             else:
-                qgs_fields.append(
-                    QgsField(
-                        f.lower(),
-                        self._get_qgs_field_type(dtype),
-                        comment=comment,
-                    )
+                qgs_field = QgsField(
+                    f.lower(),
+                    self._get_qgs_field_type(dtype),
+                    comment=comment,
                 )
+
+            qgs_fields.append(qgs_field)
+
         return qgs_fields
 
     def write(self, layer: ModelLayer | ResultLayer, sink: QgsFeatureSink) -> None:
