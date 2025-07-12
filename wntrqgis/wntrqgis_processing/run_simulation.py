@@ -151,10 +151,8 @@ in other software.
         """
         Get the simulation duration from the parameters.
         """
-        duration = self.parameterAsDouble(parameters, self.DURATION, context)
-        if duration < 0:
-            raise QgsProcessingException(tr("Simulation duration must be greater than or equal to 0."))
-        return duration
+
+        return self.parameterAsDouble(parameters, self.DURATION, context)
 
     def prepareAlgorithm(self, parameters, context, feedback):  # noqa: N802
         if QThread.currentThread() == QCoreApplication.instance().thread():
@@ -198,10 +196,7 @@ in other software.
 
             sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
 
-            try:
-                crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
-            except AttributeError:
-                raise QgsProcessingException(tr("A junctions layer is required.")) from None
+            crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
 
             try:
                 wntrqgis.from_qgis(sources, flow_unit.name, wn=wn, project=context.project(), crs=crs)
