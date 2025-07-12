@@ -97,18 +97,23 @@ def duration():
 
 
 @pytest.fixture
-def run_result(processing, run_alg, import_layers, feedback, duration):
+def run_alg_params(import_layers, duration):
+    return {
+        "RESULT_NODES": "TEMPORARY_OUTPUT",
+        "RESULT_LINKS": "TEMPORARY_OUTPUT",
+        "OUTPUT_INP": "TEMPORARY_OUTPUT",
+        "UNITS": 0,
+        "HEADLOSS_FORMULA": 0,
+        "DURATION": duration,
+        **import_layers,
+    }
+
+
+@pytest.fixture
+def run_result(processing, run_alg, run_alg_params, feedback):
     return processing.run(
         run_alg,
-        {
-            "RESULT_NODES": "TEMPORARY_OUTPUT",
-            "RESULT_LINKS": "TEMPORARY_OUTPUT",
-            "OUTPUT_INP": "TEMPORARY_OUTPUT",
-            "UNITS": 0,
-            "HEADLOSS_FORMULA": 0,
-            "DURATION": duration,
-            **import_layers,
-        },
+        run_alg_params,
         feedback=feedback,
     )
 
@@ -413,6 +418,15 @@ def test_alg_import_inp_bad_units(processing, import_alg, import_alg_params):
         processing.run(import_alg, import_alg_params)
 
 
+def test_alg_import_inp_preprocess(processing, import_alg, import_alg_params):
+    example = "ky1.inp"
+    import_alg_params["INPUT"] = example
+    processed_params = import_alg.preprocessParameters(import_alg_params)
+
+    assert example in processed_params["INPUT"]
+    assert Path(processed_params["INPUT"]).is_file()
+
+
 @pytest.mark.parametrize(
     "inp",
     [
@@ -444,6 +458,20 @@ def test_run_link_fields(run_result):
         "quality",
         "reaction_rate",
     ]
+
+
+@pytest.mark.parametrize("duration", [-1])
+def test_run_negative_duration(processing, run_alg, run_alg_params):
+    with pytest.raises(QgsProcessingException, match="Incorrect parameter value for DURATION"):
+        processing.run(run_alg, run_alg_params)
+
+
+def test_run_no_junctions(processing, run_alg, run_alg_params):
+    del run_alg_params["JUNCTIONS"]
+    with pytest.raises(
+        QgsProcessingException, match="Could not load source layer for JUNCTIONS: no value specified for parameter"
+    ):
+        processing.run(run_alg, run_alg_params)
 
 
 @pytest.mark.parametrize("inp", ["single_pipe_warning.inp"])
