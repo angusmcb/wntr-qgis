@@ -1363,8 +1363,6 @@ class _FromGis:
         Raises:
             RequiredFieldError: If any required field is missing.
         """
-        if df.empty:
-            return
 
         for field in layer.wq_fields():
             if not field.field_group & FieldGroup.REQUIRED:
