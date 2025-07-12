@@ -134,6 +134,60 @@ def output_file(tmp_path, output_type):
     return get_file_string
 
 
+def test_display_name_import_inp(import_alg):
+    assert import_alg.displayName() == "Import from Epanet INP file"
+
+
+def test_display_name_run_simulation(run_alg):
+    assert run_alg.displayName() == "Run Simulation"
+
+
+def test_display_name_template_layers(template_alg):
+    assert template_alg.displayName() == "Create Template Layers"
+
+
+def test_icon_import_inp(import_alg, assert_valid_qicon):
+    icon = import_alg.icon()
+    assert_valid_qicon(icon)
+
+
+def test_icon_run_simulation(run_alg, assert_valid_qicon):
+    icon = run_alg.icon()
+    assert_valid_qicon(icon)
+
+
+def test_icon_template_layers(template_alg, assert_valid_qicon):
+    icon = template_alg.icon()
+    assert_valid_qicon(icon)
+
+
+def test_name_import_inp(import_alg):
+    assert import_alg.name() == "importinp"
+
+
+def test_name_run_simulation(run_alg):
+    assert run_alg.name() == "run"
+
+
+def test_name_template_layers(template_alg):
+    assert template_alg.name() == "templatelayers"
+
+
+def test_help_import_inp(import_alg):
+    help_string = import_alg.shortHelpString()
+    assert isinstance(help_string, str)
+
+
+def test_help_run_simulation(run_alg):
+    help_string = run_alg.shortHelpString()
+    assert isinstance(help_string, str)
+
+
+def test_help_template_layers(template_alg):
+    help_string = template_alg.shortHelpString()
+    assert isinstance(help_string, str)
+
+
 def test_template_layers(template_result):
     assert list(template_result.keys()) == ["JUNCTIONS", "PIPES", "PUMPS", "RESERVOIRS", "TANKS", "VALVES"]
 
@@ -342,6 +396,14 @@ def test_alg_import_inp_no_file(processing, import_alg, import_alg_params):
 
     with pytest.raises(QgsProcessingException, match="inp file does not exist"):
         processing.run(import_alg, import_alg_params)
+
+
+def test_alg_import_inp_no_unit(processing, import_alg, import_alg_params):
+    import_alg_params["UNITS"] = None
+
+    processing.run(import_alg, import_alg_params)
+
+    # how to check that the units are set correctly?
 
 
 def test_alg_import_inp_bad_units(processing, import_alg, import_alg_params):
