@@ -1,15 +1,26 @@
-import math
+from __future__ import annotations
 
-from qgis.core import qgsfunction
+import math
+from typing import TYPE_CHECKING, Any
+
+from qgis.core import QgsExpression, QgsExpressionContext, QgsFeature, qgsfunction
 
 import wntrqgis.interface
+
+if TYPE_CHECKING:
+    from qgis.PyQt.QtCore import QDateTime
 
 GROUP = "Water Network Tools for Resilience"
 
 
 # qgis 3.28 errors if 'feature' and 'parent' are not included
-@qgsfunction(group=GROUP)
-def wntr_result_at_current_time(column, feature, parent, context):  # noqa ARG001
+@qgsfunction(group=GROUP, referenced_columns=[])
+def wntr_result_at_current_time(
+    field_value: Any,
+    feature: QgsFeature,  # noqa: ARG001
+    parent: QgsExpression,
+    context: QgsExpressionContext | None,
+) -> float | None | Any:
     """
     Gets an individual result for the specified parameter.
 
@@ -28,25 +39,40 @@ def wntr_result_at_current_time(column, feature, parent, context):  # noqa ARG00
     </ul>
     """
 
-    if context.variable("map_start_time") is None:
-        return column[0]
-    map_start_time = context.variable("map_start_time").toSecsSinceEpoch()
+    if not isinstance(field_value, list):
+        return field_value
+
+    if not isinstance(context, QgsExpressionContext):
+        return field_value[0]
+
+    map_start_time: QDateTime | Any = context.variable("map_start_time")
+
+    if map_start_time is None:
+        return field_value[0]
+
+    try:
+        map_start_time_seconds = map_start_time.toSecsSinceEpoch()
+    except AttributeError as e:
+        msg = "Map start time is not a valid date/time."
+        parent.setEvalErrorString(msg)
+        raise TypeError(msg) from e
+
     animation_start_time = context.variable("animation_start_time").toSecsSinceEpoch()
 
     report_timestep = 3600
 
-    timestep = (map_start_time - animation_start_time) / report_timestep
+    timestep = (map_start_time_seconds - animation_start_time) / report_timestep
 
-    if timestep < 0 or math.floor(timestep) + 1 > len(column):
+    if timestep < 0 or math.floor(timestep) + 1 > len(field_value):
         return None
 
-    start_value = column[math.floor(timestep)]
-    end_value = column[math.ceil(timestep)]
+    start_value = field_value[math.floor(timestep)]
+    end_value = field_value[math.ceil(timestep)]
 
     return start_value + (timestep - math.floor(timestep)) * (end_value - start_value)
 
 
-@qgsfunction(group=GROUP)
+@qgsfunction(group=GROUP, referenced_columns=[])
 def wntr_check_pattern(pattern, feature, parent, context):  # noqa ARG001
     """
     Checks if the input is a valid pattern string.
@@ -73,7 +99,7 @@ def wntr_check_pattern(pattern, feature, parent, context):  # noqa ARG001
         return True
 
 
-@qgsfunction(group=GROUP)
+@qgsfunction(group=GROUP, referenced_columns=[])
 def wntr_check_curve(curve):
     """
     Checks if the input is a valid curve string.
