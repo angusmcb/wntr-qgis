@@ -8,7 +8,7 @@ from qgis.core import QgsExpression, QgsExpressionContext, QgsFeature, qgsfuncti
 import wntrqgis.interface
 from wntrqgis.i18n import tr
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from qgis.PyQt.QtCore import QDateTime
 
 GROUP = "Water Network Tools for Resilience"
@@ -44,26 +44,29 @@ def wntr_result_at_current_time(
         return field_value
 
     if not isinstance(context, QgsExpressionContext):
-        return field_value[0]
+        parent.setEvalErrorString(tr("Expression context is not set."))
+        return None
 
     map_start_time: QDateTime | Any = context.variable("map_start_time")
 
     if map_start_time is None:
         return field_value[0]
 
-    try:
-        map_start_time_seconds = map_start_time.toSecsSinceEpoch()
-    except AttributeError:
-        parent.setEvalErrorString("Map start time is not a valid date/time.")
-        return None
+    map_start_seconds = map_start_time.toSecsSinceEpoch()
 
-    animation_start_time = context.variable("animation_start_time").toSecsSinceEpoch()
+    animation_start_time = context.variable("animation_start_time")
+
+    try:
+        animation_start_seconds = animation_start_time.toSecsSinceEpoch()
+    except AttributeError:
+        parent.setEvalErrorString(tr("Animation start time is not set."))
+        return None
 
     report_timestep = 3600
 
-    timestep = (map_start_time_seconds - animation_start_time) / report_timestep
+    timestep = (map_start_seconds - animation_start_seconds) / report_timestep
 
-    if timestep < 0 or math.floor(timestep) + 1 > len(field_value):
+    if timestep < 0 or timestep + 1 > len(field_value):
         msg = tr("Requested time ({timestep}) is outside of the range of results.").format(timestep=timestep)
         parent.setEvalErrorString(msg)
         return None
