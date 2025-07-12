@@ -252,21 +252,31 @@ class Plugin:
 class ProcessingRunnerAction(QAction):
     success_message: str = ""
 
-    def __init__(self, algorithm: QgsProcessingAlgorithm):
+    def __init__(self, algorithm: QgsProcessingAlgorithm) -> None:
         super().__init__()
 
         self.algorithm = algorithm
         self.setIcon(IconWithLogo(algorithm.icon()))
         self.triggered.connect(self.run)
 
-    def run(self):
+    def run(self) -> None:
+        self.feedback = ProcessingFeedbackWithLogging()
+
         self.context = QgsProcessingContext()
         self.context.setProject(QgsProject.instance())
-        self.feedback = ProcessingFeedbackWithLogging()
+        self.context.setFeedback(self.feedback)
+
+        self.algorithm = self.algorithm.create()
 
         try:
             parameters = self.get_parameters()
         except CantGetParametersException:
+            return
+
+        ok, msg = self.algorithm.checkParameterValues(parameters, self.context)
+
+        if not ok:
+            self.display_error(msg)
             return
 
         if not self.isEnabled():
@@ -298,19 +308,19 @@ class ProcessingRunnerAction(QAction):
         self.show_success_message()
 
     def on_executed_with_error(self):
-        iface.messageBar().pushMessage(
-            title=tr("Error"),
-            text=self.feedback.errors[0],
-            showMore=self.feedback.textLog(),
-            level=Qgis.MessageLevel.Critical,
-            duration=0,
-        )
+        self.display_error(self.feedback.errors[0], self.feedback.textLog())
 
         QgsApplication.messageLog().logMessage(
             self.feedback.errors[0] + "\n" + self.feedback.textLog(),
             MESSAGE_CATEGORY,
             Qgis.MessageLevel.Critical,
         )
+
+    def display_error(self, error_text: str, show_more: str | None = None) -> None:
+        params = {"title": tr("Error"), "text": error_text, "level": Qgis.MessageLevel.Critical, "duration": 0}
+        if show_more:
+            params["showMore"] = show_more
+        iface.messageBar().pushMessage(**params)
 
     def show_success_message(self):
         """Show the success message in the message bar."""
@@ -350,7 +360,15 @@ class RunAction(ProcessingRunnerAction):
         project_settings = ProjectSettings()
 
         saved_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
-        input_layers = {layer_type.name: saved_layers.get(layer_type.name) for layer_type in ModelLayer}
+        input_layers = {
+            layer_type.name: saved_layers.get(layer_type.name)
+            for layer_type in ModelLayer
+            if QgsProject.instance().mapLayer(saved_layers.get(layer_type.name))
+        }
+
+        if not len(input_layers):
+            self.display_error("Set the layers that will be part of the model before running it.")
+            raise CantGetParametersException
 
         result_layers = {layer.results_name: TemporaryOutputLayerDefinition() for layer in ResultLayer}
 
