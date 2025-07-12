@@ -47,34 +47,31 @@ def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Li
     layer.setLabeling(styler.labeling)
     styler.setup_extended_period()
 
-    _setup_fields(layer, layer_type)
-
-
-def _setup_fields(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer):
     field: QgsField
     for i, field in enumerate(layer.fields()):
         try:
-            field_styler = _FieldStyler(Field(field.name().lower()), layer_type)
+            field_styler = _FieldStyler(Field(field.name().lower()), layer_type, theme)
         except ValueError:
             continue
 
+        layer.setFieldAlias(i, field_styler.alias)
         layer.setEditorWidgetSetup(i, field_styler.editor_widget)
         layer.setDefaultValueDefinition(i, field_styler.default_value)
-        layer.setFieldAlias(i, field_styler.alias)
         layer.setConstraintExpression(i, *field_styler.constraint)
 
 
 class _FieldStyler:
-    def __init__(self, field_type: Field, layer_type: ModelLayer | ResultLayer):
+    def __init__(self, field_type: Field, layer_type: ModelLayer | ResultLayer, theme: str | None) -> None:
         self.field_type = field_type
         self.layer_type = layer_type
+        self.theme = theme
 
     @property
     def editor_widget(self) -> QgsEditorWidgetSetup:
         # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
         python_type_class = self.field_type.python_type
 
-        if python_type_class is float:
+        if python_type_class is float and self.theme != "extended":
             config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
             if self.field_type.field_group & FieldGroup.REQUIRED:
                 config["AllowNull"] = False
@@ -82,6 +79,10 @@ class _FieldStyler:
                 "Range",
                 config,
             )
+
+        if python_type_class is float and self.theme == "extended":
+            return QgsEditorWidgetSetup("List", {})
+
         if python_type_class is bool:
             return QgsEditorWidgetSetup(
                 "CheckBox",
@@ -100,6 +101,7 @@ class _FieldStyler:
             )
         if issubclass(python_type_class, str):
             return QgsEditorWidgetSetup("TextEdit", {"IsMultiline": False, "UseHtml": False})
+
         raise KeyError  # pragma: no cover
 
     @property
