@@ -1,6 +1,5 @@
 import pytest
 from qgis.core import QgsProcessingProvider, QgsProcessingRegistry
-from qgis.PyQt.QtGui import QIcon
 
 from wntrqgis.wntrqgis_processing.provider import Provider
 
