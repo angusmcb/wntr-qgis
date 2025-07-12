@@ -9,10 +9,9 @@ def test_processing_provider():
     assert isinstance(Provider(), QgsProcessingProvider)
 
 
-def test_processing_provider_icon():
+def test_processing_provider_icon(assert_valid_qicon):
     icon = Provider().icon()
-    assert isinstance(icon, QIcon)
-    assert not icon.isNull()
+    assert_valid_qicon(icon)
 
 
 def test_processing_provider_name():
