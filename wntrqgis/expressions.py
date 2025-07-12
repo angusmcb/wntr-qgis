@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from qgis.core import QgsExpression, QgsExpressionContext, QgsFeature, qgsfunction
 
 import wntrqgis.interface
+from wntrqgis.i18n import tr
 
 if TYPE_CHECKING:
     from qgis.PyQt.QtCore import QDateTime
@@ -52,10 +53,9 @@ def wntr_result_at_current_time(
 
     try:
         map_start_time_seconds = map_start_time.toSecsSinceEpoch()
-    except AttributeError as e:
-        msg = "Map start time is not a valid date/time."
-        parent.setEvalErrorString(msg)
-        raise TypeError(msg) from e
+    except AttributeError:
+        parent.setEvalErrorString("Map start time is not a valid date/time.")
+        return None
 
     animation_start_time = context.variable("animation_start_time").toSecsSinceEpoch()
 
@@ -64,6 +64,8 @@ def wntr_result_at_current_time(
     timestep = (map_start_time_seconds - animation_start_time) / report_timestep
 
     if timestep < 0 or math.floor(timestep) + 1 > len(field_value):
+        msg = tr("Requested time ({timestep}) is outside of the range of results.").format(timestep=timestep)
+        parent.setEvalErrorString(msg)
         return None
 
     start_value = field_value[math.floor(timestep)]
