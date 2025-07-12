@@ -19,6 +19,7 @@ from unittest.mock import Mock
 
 import pytest
 from qgis.gui import QgsLayerTreeView, QgsMessageBar
+from qgis.PyQt.QtGui import QIcon
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -72,5 +73,16 @@ def bad_inp(test_inp_dir):
 def get_example():
     def _(file_name: str):
         return str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / file_name)
+
+    return _
+
+
+@pytest.fixture
+def assert_valid_qicon():
+    def _(icon: QIcon):
+        assert isinstance(icon, QIcon)
+        assert not icon.isNull()
+        pixmap = icon.pixmap(128)
+        assert not pixmap.isNull()
 
     return _
