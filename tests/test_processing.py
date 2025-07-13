@@ -208,21 +208,25 @@ def test_name_export_inp(export_alg):
 def test_help_import_inp(import_alg):
     help_string = import_alg.shortHelpString()
     assert isinstance(help_string, str)
+    assert help_string
 
 
 def test_help_run_simulation(run_alg):
     help_string = run_alg.shortHelpString()
     assert isinstance(help_string, str)
+    assert help_string
 
 
 def test_help_template_layers(template_alg):
     help_string = template_alg.shortHelpString()
     assert isinstance(help_string, str)
+    assert help_string
 
 
 def test_help_export_inp(export_alg):
     help_string = export_alg.shortHelpString()
     assert isinstance(help_string, str)
+    assert help_string
 
 
 def test_template_layers(template_result):
