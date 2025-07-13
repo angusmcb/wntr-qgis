@@ -6,7 +6,7 @@ from qgis.core import QgsProcessingException, QgsProcessingFeedback, QgsProject,
 
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
-from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
+from wntrqgis.wntrqgis_processing.run_simulation import ExportInpFile, RunSimulation
 
 
 # the examples are store in the plugin folder as they are used in the plugin
@@ -28,6 +28,11 @@ def import_alg():
 @pytest.fixture
 def run_alg():
     return RunSimulation().create()
+
+
+@pytest.fixture
+def export_alg():
+    return ExportInpFile().create()
 
 
 @pytest.fixture
@@ -119,6 +124,15 @@ def run_result(processing, run_alg, run_alg_params, feedback):
 
 
 @pytest.fixture
+def export_result(processing, export_alg, run_alg_params, feedback):
+    return processing.run(
+        export_alg,
+        run_alg_params,
+        feedback=feedback,
+    )
+
+
+@pytest.fixture
 def output_file(tmp_path, output_type):
     i = 0
 
@@ -151,6 +165,10 @@ def test_display_name_template_layers(template_alg):
     assert template_alg.displayName() == "Create Template Layers"
 
 
+def test_display_name_export_inp(export_alg):
+    assert export_alg.displayName() == "Export Inp File"
+
+
 def test_icon_import_inp(import_alg, assert_valid_qicon):
     icon = import_alg.icon()
     assert_valid_qicon(icon)
@@ -166,6 +184,11 @@ def test_icon_template_layers(template_alg, assert_valid_qicon):
     assert_valid_qicon(icon)
 
 
+def test_icon_export_inp(export_alg, assert_valid_qicon):
+    icon = export_alg.icon()
+    assert_valid_qicon(icon)
+
+
 def test_name_import_inp(import_alg):
     assert import_alg.name() == "importinp"
 
@@ -176,6 +199,10 @@ def test_name_run_simulation(run_alg):
 
 def test_name_template_layers(template_alg):
     assert template_alg.name() == "templatelayers"
+
+
+def test_name_export_inp(export_alg):
+    assert export_alg.name() == "export"
 
 
 def test_help_import_inp(import_alg):
@@ -190,6 +217,11 @@ def test_help_run_simulation(run_alg):
 
 def test_help_template_layers(template_alg):
     help_string = template_alg.shortHelpString()
+    assert isinstance(help_string, str)
+
+
+def test_help_export_inp(export_alg):
+    help_string = export_alg.shortHelpString()
     assert isinstance(help_string, str)
 
 
@@ -487,13 +519,13 @@ def test_pipe_length_warning(run_result, feedback):
 
 @pytest.mark.parametrize(("inp", "duration"), [("Net3.simplified.inp", 24), ("valves.inp", 0)])
 @pytest.mark.parametrize("output_type", ["TEMPORARY_OUTPUT", "gpkg", "geojson", "shp"])
-def test_inp_results_match(run_result, inp_file):
+def test_inp_results_match(export_result, inp_file):
     import wntr
 
     wn = wntr.network.read_inpfile(inp_file)
     in_results = wntr.sim.EpanetSimulator(wn).run_sim()
 
-    wn = wntr.network.read_inpfile(run_result["OUTPUT_INP"])
+    wn = wntr.network.read_inpfile(export_result["OUTPUT_INP"])
     out_results = wntr.sim.EpanetSimulator(wn).run_sim()
 
     assert_frame_equal(in_results.node["demand"], out_results.node["demand"], rtol=0.005)
