@@ -3,7 +3,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
 from wntrqgis.wntrqgis_processing.import_inp import ImportInp
-from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
+from wntrqgis.wntrqgis_processing.run_simulation import ExportInpFile, RunSimulation
 
 
 class Provider(QgsProcessingProvider):
@@ -20,3 +20,4 @@ class Provider(QgsProcessingProvider):
         self.addAlgorithm(RunSimulation())
         self.addAlgorithm(ImportInp())
         self.addAlgorithm(TemplateLayers())
+        self.addAlgorithm(ExportInpFile())

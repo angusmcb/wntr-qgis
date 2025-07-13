@@ -21,7 +21,7 @@ def test_processing_provider_id():
     assert Provider().id() == "wntr"
 
 
-@pytest.mark.parametrize("algorithm", ["importinp", "run", "templatelayers"])
+@pytest.mark.parametrize("algorithm", ["importinp", "run", "templatelayers", "export"])
 def test_processing_alg_loaded(algorithm):
     provider = Provider()
     provider.refreshAlgorithms()
