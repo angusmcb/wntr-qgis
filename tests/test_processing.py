@@ -439,8 +439,7 @@ def test_alg_import_inp_preprocess(processing, import_alg, import_alg_params):
     ],
 )
 def test_run_example_inps(run_result):
-    assert list(run_result.keys()) == ["OUTPUT_INP", "RESULT_LINKS", "RESULT_NODES"]
-    assert Path(run_result["OUTPUT_INP"]).exists()
+    assert list(run_result.keys()) == ["RESULT_LINKS", "RESULT_NODES"]
     assert isinstance(run_result["RESULT_NODES"], QgsVectorLayer)
     assert isinstance(run_result["RESULT_LINKS"], QgsVectorLayer)
 
