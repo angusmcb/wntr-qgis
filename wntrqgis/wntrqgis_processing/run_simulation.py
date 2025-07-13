@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from qgis.core import (
+    QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsProcessingContext,
     QgsProcessingException,
@@ -51,35 +52,17 @@ if TYPE_CHECKING:
     import wntr
 
 
-class RunSimulation(WntrQgisProcessingBase):
+class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
     UNITS = "UNITS"
     DURATION = "DURATION"
     HEADLOSS_FORMULA = "HEADLOSS_FORMULA"
     OUTPUT_INP = "OUTPUT_INP"
 
-    def createInstance(self):  # noqa N802
-        return RunSimulation()
-
-    def name(self):
-        return "run"
-
-    def displayName(self):  # noqa N802
-        return tr("Run Simulation")
-
-    def shortHelpString(self):  # noqa N802
-        return tr("""
-This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), \
-combine them with the chosen options, and run a simulation on WNTR.
-The output files are a layer of 'nodes' (junctions, tanks, reservoirs) and \
-'links' (pipes, valves, pumps).
-Optionally, you can also output an EPANET '.inp' file which can be run / viewed \
-in other software.
-            """)
-
-    def icon(self):
-        return QIcon("wntrqgis:run.svg")
-
     def initAlgorithm(self, config=None):  # noqa N802
+        self.init_input_parameters()
+        self.init_output_parameters()
+
+    def init_input_parameters(self):
         project_settings = ProjectSettings(QgsProject.instance())
 
         default_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
@@ -126,6 +109,10 @@ in other software.
         param.setGuiDefaultValueOverride(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         self.addParameter(param)
 
+    def init_output_parameters(self):
+        pass
+
+    def init_output_files_parameters(self):
         self.addParameter(
             QgsProcessingParameterFeatureSink(ResultLayer.NODES.results_name, tr("Simulation Results - Nodes"))
         )
@@ -133,10 +120,9 @@ in other software.
             QgsProcessingParameterFeatureSink(ResultLayer.LINKS.results_name, tr("Simulation Results - Links"))
         )
 
+    def init_export_inp_parameter(self):
         self.addParameter(
-            QgsProcessingParameterFileDestination(
-                self.OUTPUT_INP, tr("Output .inp file"), optional=True, createByDefault=False
-            )
+            QgsProcessingParameterFileDestination(self.OUTPUT_INP, tr("Output .inp file"), fileFilter="*.inp")
         )
 
     def _get_flow_unit(self, parameters: dict[str, Any], context: QgsProcessingContext) -> FlowUnit:
@@ -207,7 +193,9 @@ in other software.
         else:
             feedback.pushInfo(describe_pipes(wn)[1])
 
-    def prepareAlgorithm(self, parameters, context, feedback):  # noqa: N802
+    def prepareAlgorithm(  # noqa: N802
+        self, parameters: dict[str, Any], context: QgsProcessingContext, feedback: QgsProcessingFeedback
+    ) -> None:
         if QThread.currentThread() == QCoreApplication.instance().thread():
             project_settings = ProjectSettings()
             layers = {
@@ -222,6 +210,93 @@ in other software.
 
         return super().prepareAlgorithm(parameters, context, feedback)
 
+    def write_output_result_layers(
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        wn: wntr.network.WaterNetworkModel,
+        sim_results: wntr.sim.SimulationResults,
+    ) -> dict[str, str]:
+        outputs: dict[str, str] = {}
+
+        flow_unit = self._get_flow_unit(parameters, context)
+
+        result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
+
+        crs = self._get_crs(parameters, context)
+
+        group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
+        style_theme = "extended" if wn.options.time.duration > 0 else None
+
+        for layer_type in ResultLayer:
+            fields = result_writer.get_qgsfields(layer_type)
+
+            (sink, layer_id) = self.parameterAsSink(
+                parameters, layer_type.results_name, context, fields, layer_type.qgs_wkb_type, crs
+            )
+
+            result_writer.write(layer_type, sink)
+
+            outputs[layer_type.results_name] = layer_id
+
+            if not context.willLoadLayerOnCompletion(layer_id):
+                continue
+
+            post_processor = LayerPostProcessor(layer_type, style_theme)
+
+            layer_details = context.layerToLoadOnCompletionDetails(layer_id)
+            layer_details.setPostProcessor(post_processor)
+            layer_details.groupName = group_name
+            layer_details.layerSortKey = 1 if layer_type is ResultLayer.LINKS else 2
+
+            self.post_processors[layer_id] = post_processor
+
+        return outputs
+
+    def write_inp_file(
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+        wn: wntr.network.WaterNetworkModel,
+    ) -> dict[str, str]:
+        import wntr
+
+        inp_file = self.parameterAsFile(parameters, self.OUTPUT_INP, context)
+
+        wntr.network.write_inpfile(wn, inp_file)
+
+        feedback.pushInfo(tr(".inp file written to: {file_path}").format(file_path=inp_file))
+
+        return {self.OUTPUT_INP: inp_file}
+
+
+class RunSimulation(_ModelCreatorAlgorithm):
+    def createInstance(self):  # noqa N802
+        return RunSimulation()
+
+    def name(self):
+        return "run"
+
+    def displayName(self):  # noqa N802
+        return tr("Run Simulation")
+
+    def shortHelpString(self):  # noqa N802
+        return tr("""
+This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), \
+combine them with the chosen options, and run a simulation on WNTR.
+The output files are a layer of 'nodes' (junctions, tanks, reservoirs) and \
+'links' (pipes, valves, pumps).
+Optionally, you can also output an EPANET '.inp' file which can be run / viewed \
+in other software.
+            """)
+
+    def icon(self):
+        return QIcon("wntrqgis:run.svg")
+
+    def init_output_parameters(self):
+        self.init_output_files_parameters()
+
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
@@ -230,24 +305,14 @@ in other software.
     ) -> dict:
         progress = ProgressTracker(feedback)
 
-        self._ensure_wntr(progress)
-        # only import wntr-using modules once we are sure wntr is installed.
-        import wntr
-
-        progress.update_progress(Progression.PREPARING_MODEL)
-
         with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
+            self._ensure_wntr(progress)
+
+            progress.update_progress(Progression.PREPARING_MODEL)
+
             wn = self._get_wn(parameters, context)
 
             self._describe_model(wn, feedback)
-
-            outputs: dict[str, str] = {}
-
-            inp_file = self.parameterAsFile(parameters, self.OUTPUT_INP, context)
-            if inp_file:
-                wntr.network.write_inpfile(wn, inp_file)
-                outputs[self.OUTPUT_INP] = inp_file
-                feedback.pushInfo(".inp file written to: " + inp_file)
 
             progress.update_progress(Progression.RUNNING_SIMULATION)
 
@@ -255,37 +320,59 @@ in other software.
 
             progress.update_progress(Progression.CREATING_OUTPUTS)
 
-            flow_unit = self._get_flow_unit(parameters, context)
+            outputs = self.write_output_result_layers(parameters, context, wn, sim_results)
 
-            result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
+        progress.update_progress(Progression.FINISHED_PROCESSING)
 
-            crs = self._get_crs(parameters, context)
+        return outputs
 
-            group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
-            style_theme = "extended" if wn.options.time.duration > 0 else None
 
-            for layer_type in ResultLayer:
-                fields = result_writer.get_qgsfields(layer_type)
+class ExportInpFile(_ModelCreatorAlgorithm):
+    def createInstance(self):  # noqa N802
+        return ExportInpFile()
 
-                (sink, layer_id) = self.parameterAsSink(
-                    parameters, layer_type.results_name, context, fields, layer_type.qgs_wkb_type, crs
-                )
+    def name(self):
+        return "export"
 
-                result_writer.write(layer_type, sink)
+    def displayName(self):  # noqa N802
+        return tr("Export Inp File")
 
-                outputs[layer_type.results_name] = layer_id
+    def shortHelpString(self):  # noqa N802
+        return tr("""
+This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), \
+combine them with the chosen options, and run a simulation on WNTR.
+The output files are a layer of 'nodes' (junctions, tanks, reservoirs) and \
+'links' (pipes, valves, pumps).
+Optionally, you can also output an EPANET '.inp' file which can be run / viewed \
+in other software.
+            """)
 
-                if not context.willLoadLayerOnCompletion(layer_id):
-                    continue
+    def icon(self):
+        return QgsApplication.getThemeIcon("mActionFileSave.svg")
 
-                post_processor = LayerPostProcessor(layer_type, style_theme)
+    def init_output_parameters(self):
+        self.init_export_inp_parameter()
 
-                layer_details = context.layerToLoadOnCompletionDetails(layer_id)
-                layer_details.setPostProcessor(post_processor)
-                layer_details.groupName = group_name
-                layer_details.layerSortKey = 1 if layer_type is ResultLayer.LINKS else 2
+    def processAlgorithm(  # noqa N802
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ) -> dict:
+        progress = ProgressTracker(feedback)
 
-                self.post_processors[layer_id] = post_processor
+        with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
+            self._ensure_wntr(progress)
+
+            progress.update_progress(Progression.PREPARING_MODEL)
+
+            wn = self._get_wn(parameters, context)
+
+            self._describe_model(wn, feedback)
+
+            progress.update_progress(Progression.CREATING_OUTPUTS)
+
+            outputs = self.write_inp_file(parameters, context, feedback, wn)
 
         progress.update_progress(Progression.FINISHED_PROCESSING)
 
