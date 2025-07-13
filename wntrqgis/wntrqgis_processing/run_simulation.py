@@ -22,6 +22,7 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProcessingLayerPostProcessorInterface,
     QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFeatureSource,
@@ -43,6 +44,7 @@ from wntrqgis.elements import (
 from wntrqgis.i18n import tr
 from wntrqgis.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
 from wntrqgis.settings import ProjectSettings, SettingKey
+from wntrqgis.style import style
 from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
 
 if TYPE_CHECKING:
@@ -255,32 +257,49 @@ in other software.
 
             flow_unit = self._get_flow_unit(parameters, context)
 
-            result_writer = Writer(wn, sim_results, units=flow_unit.name)
-
-            layers = {}
+            result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
 
             crs = self._get_crs(parameters, context)
 
-            for lyr in ResultLayer:
-                (sink, outputs[lyr.results_name]) = self.parameterAsSink(
-                    parameters,
-                    lyr.results_name,
-                    context,
-                    result_writer.get_qgsfields(lyr),
-                    lyr.qgs_wkb_type,
-                    crs,
+            group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
+            style_theme = "extended" if wn.options.time.duration > 0 else None
+
+            for layer_type in ResultLayer:
+                fields = result_writer.get_qgsfields(layer_type)
+
+                (sink, layer_id) = self.parameterAsSink(
+                    parameters, layer_type.results_name, context, fields, layer_type.qgs_wkb_type, crs
                 )
-                layers[lyr] = outputs[lyr.results_name]
-                result_writer.write(lyr, sink)
+
+                result_writer.write(layer_type, sink)
+
+                outputs[layer_type.results_name] = layer_id
+
+                if not context.willLoadLayerOnCompletion(layer_id):
+                    continue
+
+                post_processor = LayerPostProcessor(layer_type, style_theme)
+
+                layer_details = context.layerToLoadOnCompletionDetails(layer_id)
+                layer_details.setPostProcessor(post_processor)
+                layer_details.groupName = group_name
+                layer_details.layerSortKey = 1 if layer_type is ResultLayer.LINKS else 2
+
+                self.post_processors[layer_id] = post_processor
 
         progress.update_progress(Progression.FINISHED_PROCESSING)
 
-        group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
-        style_theme = "extended" if wn.options.time.duration > 0 else None
-
-        self._setup_postprocessing(context, layers, group_name, False, style_theme, True)
-
         return outputs
+
+
+class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+    def __init__(self, layer_type: ResultLayer, style_theme=None):
+        super().__init__()
+        self.layer_type = layer_type
+        self.style_theme = style_theme
+
+    def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
+        style(layer, self.layer_type, self.style_theme)
 
 
 @contextmanager
