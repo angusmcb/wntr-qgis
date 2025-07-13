@@ -15,9 +15,10 @@ import logging
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any
 
 from qgis.core import (
+    QgsCoordinateReferenceSystem,
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
@@ -43,6 +44,9 @@ from wntrqgis.i18n import tr
 from wntrqgis.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
+
+if TYPE_CHECKING:
+    import wntr
 
 
 class RunSimulation(WntrQgisProcessingBase):
@@ -154,6 +158,53 @@ in other software.
 
         return self.parameterAsDouble(parameters, self.DURATION, context)
 
+    def _get_crs(self, parameters: dict[str, Any], context: QgsProcessingContext) -> QgsCoordinateReferenceSystem:
+        junction_source = self.parameterAsSource(parameters, ModelLayer.JUNCTIONS.name, context)
+        return junction_source.sourceCrs()
+
+    def _get_wn(self, parameters: dict[str, Any], context: QgsProcessingContext) -> wntr.network.WaterNetworkModel:
+        flow_unit = self._get_flow_unit(parameters, context)
+
+        headloss = self._get_headloss_formula(parameters, context).value
+
+        sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
+
+        crs = self._get_crs(parameters, context)
+
+        try:
+            wn = wntrqgis.from_qgis(sources, flow_unit.name, headloss, project=context.project(), crs=crs)
+            check_network(wn)
+        except NetworkModelError as e:
+            raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
+
+        wn.options.time.duration = self._get_duration(parameters, context) * 3600
+        wn.options.hydraulic.inpfile_units = flow_unit.name
+
+        return wn
+
+    def _run_simulation(self, wn: wntr.network.WaterNetworkModel) -> wntr.sim.SimulationResults:
+        """
+        Run the simulation on the given WaterNetworkModel.
+        """
+
+        import wntr
+
+        temp_folder = Path(QgsProcessingUtils.tempFolder()) / "wntr"
+        sim = wntr.sim.EpanetSimulator(wn)
+        try:
+            sim_results = sim.run_sim(file_prefix=str(temp_folder))
+        except wntr.epanet.exceptions.EpanetException as e:
+            raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
+
+        return sim_results
+
+    def _describe_model(self, wn: wntr.network.WaterNetworkModel, feedback: QgsProcessingFeedback) -> None:
+        feedback.pushInfo(describe_network(wn))
+        if hasattr(feedback, "pushFormattedMessage"):  # QGIS > 3.32
+            feedback.pushFormattedMessage(*describe_pipes(wn))
+        else:
+            feedback.pushInfo(describe_pipes(wn)[1])
+
     def prepareAlgorithm(self, parameters, context, feedback):  # noqa: N802
         if QThread.currentThread() == QCoreApplication.instance().thread():
             project_settings = ProjectSettings()
@@ -184,31 +235,9 @@ in other software.
         progress.update_progress(Progression.PREPARING_MODEL)
 
         with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
-            # add to model order to be: options, patterns/cruves, nodes, then links
-            wn = wntr.network.WaterNetworkModel()
+            wn = self._get_wn(parameters, context)
 
-            flow_unit = self._get_flow_unit(parameters, context)
-            wn.options.hydraulic.inpfile_units = flow_unit.name
-
-            wn.options.hydraulic.headloss = self._get_headloss_formula(parameters, context).value
-
-            wn.options.time.duration = self._get_duration(parameters, context) * 3600
-
-            sources = {lyr.name: self.parameterAsSource(parameters, lyr.name, context) for lyr in ModelLayer}
-
-            crs = sources[ModelLayer.JUNCTIONS.name].sourceCrs()
-
-            try:
-                wntrqgis.from_qgis(sources, flow_unit.name, wn=wn, project=context.project(), crs=crs)
-                check_network(wn)
-            except NetworkModelError as e:
-                raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
-
-            feedback.pushInfo(describe_network(wn))
-            if hasattr(feedback, "pushFormattedMessage"):  # QGIS > 3.32
-                feedback.pushFormattedMessage(*describe_pipes(wn))
-            else:
-                feedback.pushInfo(describe_pipes(wn)[1])
+            self._describe_model(wn, feedback)
 
             outputs: dict[str, str] = {}
 
@@ -220,22 +249,17 @@ in other software.
 
             progress.update_progress(Progression.RUNNING_SIMULATION)
 
-            temp_folder = Path(QgsProcessingUtils.tempFolder()) / "wntr"
-            sim = wntr.sim.EpanetSimulator(wn)
-            try:
-                sim_results = sim.run_sim(file_prefix=str(temp_folder))
-            except wntr.epanet.exceptions.EpanetException as e:
-                raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
+            sim_results = self._run_simulation(wn)
 
             progress.update_progress(Progression.CREATING_OUTPUTS)
 
-            flow_unit_literal = cast(
-                Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"], flow_unit.name
-            )
+            flow_unit = self._get_flow_unit(parameters, context)
 
-            result_writer = Writer(wn, sim_results, units=flow_unit_literal)
+            result_writer = Writer(wn, sim_results, units=flow_unit.name)
 
             layers = {}
+
+            crs = self._get_crs(parameters, context)
 
             for lyr in ResultLayer:
                 (sink, outputs[lyr.results_name]) = self.parameterAsSink(
@@ -251,16 +275,10 @@ in other software.
 
         progress.update_progress(Progression.FINISHED_PROCESSING)
 
-        finish_time = time.strftime("%X")
+        group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
         style_theme = "extended" if wn.options.time.duration > 0 else None
-        self._setup_postprocessing(
-            context,
-            layers,
-            tr("Simulation Results ({finish_time})").format(finish_time=finish_time),
-            False,
-            style_theme,
-            True,
-        )
+
+        self._setup_postprocessing(context, layers, group_name, False, style_theme, True)
 
         return outputs
 
