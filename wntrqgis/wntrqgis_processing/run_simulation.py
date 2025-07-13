@@ -150,7 +150,9 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         junction_source = self.parameterAsSource(parameters, ModelLayer.JUNCTIONS.name, context)
         return junction_source.sourceCrs()
 
-    def _get_wn(self, parameters: dict[str, Any], context: QgsProcessingContext) -> wntr.network.WaterNetworkModel:
+    def _get_wn(
+        self, parameters: dict[str, Any], context: QgsProcessingContext, feedback: QgsProcessingFeedback
+    ) -> wntr.network.WaterNetworkModel:
         flow_unit = self._get_flow_unit(parameters, context)
 
         headloss = self._get_headloss_formula(parameters, context).value
@@ -160,7 +162,8 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         crs = self._get_crs(parameters, context)
 
         try:
-            wn = wntrqgis.from_qgis(sources, flow_unit.name, headloss, project=context.project(), crs=crs)
+            with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
+                wn = wntrqgis.from_qgis(sources, flow_unit.name, headloss, project=context.project(), crs=crs)
             check_network(wn)
         except NetworkModelError as e:
             raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
@@ -170,7 +173,9 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
 
         return wn
 
-    def _run_simulation(self, wn: wntr.network.WaterNetworkModel) -> wntr.sim.SimulationResults:
+    def _run_simulation(
+        self, feedback: QgsProcessingFeedback, wn: wntr.network.WaterNetworkModel
+    ) -> wntr.sim.SimulationResults:
         """
         Run the simulation on the given WaterNetworkModel.
         """
@@ -180,7 +185,8 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         temp_folder = Path(QgsProcessingUtils.tempFolder()) / "wntr"
         sim = wntr.sim.EpanetSimulator(wn)
         try:
-            sim_results = sim.run_sim(file_prefix=str(temp_folder))
+            with logger_to_feedback("wntr", feedback):
+                sim_results = sim.run_sim(file_prefix=str(temp_folder))
         except wntr.epanet.exceptions.EpanetException as e:
             raise QgsProcessingException(tr("Epanet error: {exception}").format(exception=e)) from None
 
@@ -214,6 +220,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
         wn: wntr.network.WaterNetworkModel,
         sim_results: wntr.sim.SimulationResults,
     ) -> dict[str, str]:
@@ -221,7 +228,8 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
 
         flow_unit = self._get_flow_unit(parameters, context)
 
-        result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
+        with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
+            result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
 
         crs = self._get_crs(parameters, context)
 
@@ -305,22 +313,21 @@ in other software.
     ) -> dict:
         progress = ProgressTracker(feedback)
 
-        with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
-            self._ensure_wntr(progress)
+        self._ensure_wntr(progress)
 
-            progress.update_progress(Progression.PREPARING_MODEL)
+        progress.update_progress(Progression.PREPARING_MODEL)
 
-            wn = self._get_wn(parameters, context)
+        wn = self._get_wn(parameters, context, feedback)
 
-            self._describe_model(wn, feedback)
+        self._describe_model(wn, feedback)
 
-            progress.update_progress(Progression.RUNNING_SIMULATION)
+        progress.update_progress(Progression.RUNNING_SIMULATION)
 
-            sim_results = self._run_simulation(wn)
+        sim_results = self._run_simulation(feedback, wn)
 
-            progress.update_progress(Progression.CREATING_OUTPUTS)
+        progress.update_progress(Progression.CREATING_OUTPUTS)
 
-            outputs = self.write_output_result_layers(parameters, context, wn, sim_results)
+        outputs = self.write_output_result_layers(parameters, context, feedback, wn, sim_results)
 
         progress.update_progress(Progression.FINISHED_PROCESSING)
 
@@ -361,18 +368,17 @@ in other software.
     ) -> dict:
         progress = ProgressTracker(feedback)
 
-        with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
-            self._ensure_wntr(progress)
+        self._ensure_wntr(progress)
 
-            progress.update_progress(Progression.PREPARING_MODEL)
+        progress.update_progress(Progression.PREPARING_MODEL)
 
-            wn = self._get_wn(parameters, context)
+        wn = self._get_wn(parameters, context, feedback)
 
-            self._describe_model(wn, feedback)
+        self._describe_model(wn, feedback)
 
-            progress.update_progress(Progression.CREATING_OUTPUTS)
+        progress.update_progress(Progression.CREATING_OUTPUTS)
 
-            outputs = self.write_inp_file(parameters, context, feedback, wn)
+        outputs = self.write_inp_file(parameters, context, feedback, wn)
 
         progress.update_progress(Progression.FINISHED_PROCESSING)
 
