@@ -2,6 +2,7 @@ import pytest
 from pytest_qgis import QgisBot
 from qgis.core import QgsGeometry
 
+import wntrqgis.expressions  # noqa: F401
 from wntrqgis import from_qgis, to_qgis
 
 
