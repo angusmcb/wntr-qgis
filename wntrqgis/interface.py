@@ -1105,12 +1105,7 @@ class _FromGis:
     def _process_pipe_length(self, pipe_df: pd.DataFrame) -> pd.Series:
         calculated_lengths = pipe_df["geometry"].map(self._get_length).astype("float")
         if calculated_lengths.isna().any():
-            msg = tr(
-                "cannot calculate length of %n pipe(s) (probably due to a problem with the selected coordinate reference system)",  # noqa: E501
-                "",
-                calculated_lengths.isna().sum(),
-            )
-            raise NetworkModelError(msg)
+            raise PipeMeasuringError(calculated_lengths.isna().sum())
 
         mismatch = self._get_mismatches(calculated_lengths, pipe_df["length"])
 
@@ -1629,4 +1624,15 @@ class NullGeometryError(NetworkModelError):
                 "",
                 null_geometry_count,
             ).format(layer_name=layer.friendly_name)
+        )
+
+
+class PipeMeasuringError(NetworkModelError):
+    def __init__(self, number_of_problems: int):
+        super().__init__(
+            tr(
+                "cannot calculate length of %n pipe(s) (probably due to a problem with the selected coordinate reference system)",  # noqa: E501
+                "",
+                number_of_problems,
+            )
         )

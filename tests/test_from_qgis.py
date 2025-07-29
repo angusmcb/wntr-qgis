@@ -261,7 +261,7 @@ def test_unmeasurable_pipe(qgis_new_project):
         def transformContext():  # noqa: N802
             return QgsProject.instance().transformContext()
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="cannot calculate length of"):
+    with pytest.raises(wntrqgis.interface.PipeMeasuringError, match="cannot calculate length of"):
         wntrqgis.from_qgis(layers, "LPS", "H-W", project=ProjectMock)
 
 
