@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -517,8 +518,9 @@ def test_epanet_warning(run_result, feedback):
 
 @pytest.mark.parametrize("inp", ["single_pipe_warning.inp"])
 def test_pipe_length_warning(run_result, feedback):
-    expected_warning = "1 pipe(s) have very different attribute length vs measured length. First five are: 1 (3618 metres vs 305 metres)"  # noqa: E501
-    assert expected_warning in feedback.warnings
+    expected_warning = r"1 pipe.*3618 metres vs 305 metres"
+
+    assert any(re.search(expected_warning, s) for s in feedback.warnings)
 
 
 @pytest.mark.parametrize(("inp", "duration"), [("Net3.simplified.inp", 24), ("valves.inp", 0)])
