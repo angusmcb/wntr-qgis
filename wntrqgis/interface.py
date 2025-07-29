@@ -1055,15 +1055,7 @@ class _FromGis:
         node_df = self._process_node_geometry(node_df)
         link_df = self._process_link_geometry(link_df)
 
-        wn_dict: dict[str, Any] = {}
-        wn_dict["nodes"] = self._to_dict(node_df)
-        wn_dict["links"] = self._to_dict(link_df)
-
-        logging.getLogger("wntr.network.io").setLevel(logging.CRITICAL)
-        try:
-            wn = wntr.network.from_dict(wn_dict, wn)
-        except Exception as e:
-            raise WntrError(e) from e
+        return self._to_wntr(wn, node_df, link_df)
 
     def _to_dict(self, df: pd.DataFrame) -> list[dict]:
         columns = df.columns.tolist()
@@ -1071,6 +1063,20 @@ class _FromGis:
             {k: v for k, v in zip(columns, m) if not (v is pd.NA or v != v or v is None)}  # noqa: PLR0124
             for m in df.itertuples(index=False, name=None)
         ]
+
+    def _to_wntr(
+        self, wn: wntr.network.WaterNetworkModel, node_df: pd.DataFrame, link_df: pd.DataFrame
+    ) -> wntr.network.WaterNetworkModel:
+        """Convert the node and link dataframes to a WNTR WaterNetworkModel"""
+        wn_dict: dict[str, Any] = {}
+        wn_dict["nodes"] = self._to_dict(node_df)
+        wn_dict["links"] = self._to_dict(link_df)
+
+        logging.getLogger("wntr.network.io").setLevel(logging.CRITICAL)
+        try:
+            return wntr.network.from_dict(wn_dict, wn)
+        except Exception as e:
+            raise WntrError(e) from e
 
     def _source_to_df(self, source: QgsFeatureSource):
         column_names = [name.lower() for name in source.fields().names()]
