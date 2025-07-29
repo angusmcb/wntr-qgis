@@ -1166,39 +1166,45 @@ class _FromGis:
             )
             raise NetworkModelError(msg)
 
-        attribute_lengths = pipe_df["length"]
+        mismatch = self._get_mismatches(calculated_lengths, pipe_df["length"])
 
-        has_attr_length = attribute_lengths.notna()
+        if mismatch.any():
+            self.mismatch_warning(pipe_df["name"], calculated_lengths, pipe_df["length"])
 
-        mismatch = ~np.isclose(
-            calculated_lengths.loc[has_attr_length],
-            attribute_lengths.loc[has_attr_length],
+        return pipe_df["length"].fillna(calculated_lengths)
+
+    def _get_mismatches(self, calculated_lengths: pd.Series, attribute_lengths: pd.Series) -> pd.Series:
+        """Get a boolean series indicating which rows have a mismatch between calculated and attribute lengths."""
+
+        return attribute_lengths.notna() & ~np.isclose(
+            calculated_lengths,
+            attribute_lengths,
             rtol=0.05,
             atol=10,
         )
 
-        if mismatch.any():
-            examples = pd.concat(
-                [pipe_df["name"], calculated_lengths, attribute_lengths],
-                axis=1,
-                ignore_index=True,
+    def mismatch_warning(self, names: pd.Series, calculated_lengths: pd.Series, attribute_lengths: pd.Series):
+        mismatch = self._get_mismatches(calculated_lengths, attribute_lengths)
+        examples = pd.concat(
+            [names, calculated_lengths, attribute_lengths],
+            axis=1,
+            ignore_index=True,
+        )
+        examples.columns = pd.Index(["name", "attribute_length", "calculated_length"])
+        examples = examples.loc[mismatch]
+        examples = examples.head(5)
+        number_of_mismatches = mismatch.sum()
+        msg = tr(
+            "%n pipe(s) have very different attribute length vs measured length. First five are: ",
+            "",
+            number_of_mismatches,
+        )
+        msg += ", ".join(
+            examples.apply(
+                tr("{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)").format_map, axis=1
             )
-            examples.columns = pd.Index(["name", "attribute_length", "calculated_length"])
-            examples = examples.loc[has_attr_length].loc[mismatch]
-            examples = examples.head(5)
-            number_of_mismatches = mismatch.sum()
-            msg = tr(
-                "%n pipe(s) have very different attribute length vs measured length. First five are: ",
-                "",
-                number_of_mismatches,
-            ) + ", ".join(
-                examples.apply(
-                    tr("{name} ({attribute_length:.0f} metres vs {calculated_length:.0f} metres)").format_map, axis=1
-                )
-            )
-            logger.warning(msg)
-
-        return attribute_lengths.fillna(calculated_lengths)
+        )
+        logger.warning(msg)
 
     def _fill_names(self, df: pd.DataFrame) -> pd.Series:
         if "name" in df.columns:
