@@ -539,7 +539,7 @@ def test_too_far_to_snap():
     add_line(pipe_layer, [(1, 1), (900, 900)], ["P1", 100, 100])
     layers = {"JUNCTIONS": junction_layer, "PIPES": pipe_layer}
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="nearest node to snap to is too far"):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="too far away to snap to"):
         wntrqgis.from_qgis(layers, "LPS", "H-W")
 
 

@@ -28,9 +28,7 @@ from qgis.core import (
     QgsFields,
     QgsGeometry,
     QgsPoint,
-    QgsPointXY,
     QgsProject,
-    QgsSpatialIndex,
     QgsUnitTypes,
     QgsVectorLayer,
     QgsWkbTypes,
@@ -51,6 +49,7 @@ from wntrqgis.elements import (
     _AbstractValueMap,
 )
 from wntrqgis.i18n import tr
+from wntrqgis.spatial_index import SnapError, SpatialIndex
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
@@ -617,63 +616,6 @@ class Writer:
         raise KeyError(f"Couldn't get qgs field type for {dtype}")  # noqa: EM102, TRY003 # pragma: no cover
 
 
-class _SpatialIndex:
-    def __init__(self) -> None:
-        self._node_spatial_index = QgsSpatialIndex()
-        self._nodelist: list[tuple[QgsPointXY, str]] = []
-
-    def add_node(self, geometry: QgsGeometry, element_name: str):
-        point = geometry.asPoint()
-        feature_id = len(self._nodelist)
-        self._nodelist.append((point, element_name))
-        self._node_spatial_index.addFeature(feature_id, geometry.boundingBox())
-
-    def _snapper(self, line_vertex_point: QgsPointXY, original_length: float):
-        nearest = self._node_spatial_index.nearestNeighbor(line_vertex_point)
-        matched_node_point, matched_node_name = self._nodelist[nearest[0]]
-        snap_distance = matched_node_point.distance(line_vertex_point)
-        if snap_distance > original_length * 0.1:
-            msg = tr("nearest node to snap to is too far ({matched_node_name}).").format(
-                matched_node_name=matched_node_name
-            )
-            # Line length:{original_length} Snap Distance: {snap_distance}"
-            raise RuntimeError(msg)
-        return (matched_node_point, matched_node_name)
-
-    def snap_link(
-        self,
-        geometry: QgsGeometry,
-    ):
-        try:
-            vertices = geometry.asPolyline()
-        except TypeError:
-            msg = tr("All links must be single part lines")
-            raise RuntimeError(msg) from None
-        except ValueError:
-            msg = tr("All links must have valid geometry")
-            raise RuntimeError(msg) from None
-
-        start_point = vertices.pop(0)
-        end_point = vertices.pop()
-        original_length = geometry.length()
-        try:
-            (new_start_point, start_node_name) = self._snapper(start_point, original_length)
-            (new_end_point, end_node_name) = self._snapper(end_point, original_length)
-        except RuntimeError as e:
-            msg = tr("couldn't snap: {exception}").format(exception=e)
-            raise RuntimeError(msg) from None
-
-        if start_node_name == end_node_name:
-            msg = tr("connects to the same node on both ends ({start_node_name})").format(
-                start_node_name=start_node_name
-            )
-            raise RuntimeError(msg)
-
-        snapped_geometry = QgsGeometry.fromPolylineXY([new_start_point, *vertices, new_end_point])
-
-        return snapped_geometry, start_node_name, end_node_name
-
-
 class _Patterns:
     def __init__(self, wn: wntr.network.model.WaterNetworkModel) -> None:
         self._name_iterator = map(str, itertools.count(2))
@@ -989,7 +931,7 @@ class _FromGis:
 
         self.patterns = _Patterns(wn)
         self.curves = _Curves(wn, self._converter)
-        self._spatial_index = _SpatialIndex()
+        self._spatial_index = SpatialIndex()
 
         node_dfs: list[pd.DataFrame] = []
         link_dfs: list[pd.DataFrame] = []
@@ -1129,7 +1071,7 @@ class _FromGis:
             msg = tr("in nodes, %n feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
-        df.apply(lambda row: self._spatial_index.add_node(row["geometry"], row["name"]), axis=1)
+        self._spatial_index.add_nodes(df["geometry"], df["name"])
 
         df["coordinates"] = df["geometry"].apply(self._get_point_coordinates)
 
@@ -1141,15 +1083,12 @@ class _FromGis:
             msg = tr("in links, %n feature(s) have no geometry", "", null_geometry)
             raise NetworkModelError(msg)
 
-        snapped_data = []
         try:
-            for geometry, name in link_df[["geometry", "name"]].itertuples(index=False):  # noqa: B007
-                snapped_data.append(self._spatial_index.snap_link(geometry))
-        except RuntimeError as e:
-            msg = tr("problem snapping the feature {name}: {exception}").format(name=name, exception=e)
-            raise NetworkModelError(msg) from None
-
-        link_df[["geometry", "start_node_name", "end_node_name"]] = snapped_data
+            link_df[["geometry", "start_node_name", "end_node_name"]] = self._spatial_index.snap_links(
+                link_df["geometry"], link_df["name"]
+            )
+        except SnapError as e:
+            raise NetworkModelError(e) from e
 
         link_df["vertices"] = link_df["geometry"].map(
             lambda geometry: [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
