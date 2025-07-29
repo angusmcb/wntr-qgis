@@ -1154,7 +1154,7 @@ class _FromGis:
             name_series = pd.Series(index=df.index, dtype="string")
 
         existing_names = set(name_series.dropna())
-        mask = (name_series.isna()) | (name_series == "")
+        mask = ((name_series.isna()) | (name_series == "")).array
         number_of_names_required = mask.sum()
 
         name_iterator = map(str, itertools.count(1))
