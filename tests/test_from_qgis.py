@@ -1064,7 +1064,7 @@ def test_null_geometry_point(simple_layers):
         feature.setAttributes(["JXX", 1])
         layer.dataProvider().addFeature(feature)
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in nodes, 2 feature\(s\) have no geometry"):
+    with pytest.raises(wntrqgis.interface.NullGeometryError, match=r"2 feature\(s\) in Junctions with no geometry"):
         wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
@@ -1076,7 +1076,7 @@ def test_null_geometry_link(simple_layers):
         feature.setAttributes(["PX", 100, 100])
         layer.dataProvider().addFeature(feature)
 
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match=r"in links, 1 feature\(s\) have no geometry"):
+    with pytest.raises(wntrqgis.interface.NullGeometryError, match=r"1 feature\(s\) in Pipes with no geometry"):
         wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 

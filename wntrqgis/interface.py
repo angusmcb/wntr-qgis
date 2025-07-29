@@ -931,7 +931,6 @@ class _FromGis:
 
         self.patterns = _Patterns(wn)
         self.curves = _Curves(wn, self._converter)
-        self._spatial_index = SpatialIndex()
 
         node_dfs: list[pd.DataFrame] = []
         link_dfs: list[pd.DataFrame] = []
@@ -950,6 +949,10 @@ class _FromGis:
 
             if df.empty:
                 continue
+
+            null_geometry = df["geometry"].map(lambda geometry: geometry.isNull()).sum()
+            if null_geometry:
+                raise NullGeometryError(null_geometry, model_layer)
 
             df.columns = [shapefile_name_map.get(col, col) for col in df.columns]
 
@@ -993,6 +996,8 @@ class _FromGis:
 
         self._check_for_duplicate_names(node_df["name"])
         self._check_for_duplicate_names(link_df["name"])
+
+        link_df = self.snap_links_to_nodes(node_df, link_df)
 
         node_df = self._process_node_geometry(node_df)
         link_df = self._process_link_geometry(link_df)
@@ -1065,31 +1070,27 @@ class _FromGis:
             source_df[fieldname] = self._converter.to_si(source_df[fieldname].array, field, layer)
         return source_df
 
-    def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
-        null_geometry = df["geometry"].map(lambda geometry: geometry.isNull()).sum()
-        if null_geometry:
-            msg = tr("in nodes, %n feature(s) have no geometry", "", null_geometry)
-            raise NetworkModelError(msg)
+    def snap_links_to_nodes(self, node_df, link_df) -> pd.DataFrame:
+        """Snap the nodes to the links and return the updated node dataframe."""
 
-        self._spatial_index.add_nodes(df["geometry"], df["name"])
-
-        df["coordinates"] = df["geometry"].apply(self._get_point_coordinates)
-
-        return df.drop(columns="geometry")
-
-    def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
-        null_geometry = link_df["geometry"].map(lambda geometry: geometry.isNull()).sum()
-        if null_geometry:
-            msg = tr("in links, %n feature(s) have no geometry", "", null_geometry)
-            raise NetworkModelError(msg)
+        spatial_index = SpatialIndex()
 
         try:
-            link_df[["geometry", "start_node_name", "end_node_name"]] = self._spatial_index.snap_links(
+            spatial_index.add_nodes(node_df["geometry"], node_df["name"])
+            link_df[["geometry", "start_node_name", "end_node_name"]] = spatial_index.snap_links(
                 link_df["geometry"], link_df["name"]
             )
         except SnapError as e:
             raise NetworkModelError(e) from e
 
+        return link_df
+
+    def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
+        df["coordinates"] = df["geometry"].apply(self._get_point_coordinates)
+
+        return df.drop(columns="geometry")
+
+    def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
         link_df["vertices"] = link_df["geometry"].map(
             lambda geometry: [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
         )
@@ -1617,4 +1618,15 @@ class PumpPowerError(PumpError, GenericRequiredFieldError):
             tr("{pump_power_name} ({pump_power}) must be set for all pumps of type POWER").format(
                 pump_power_name=Field.POWER.friendly_name, pump_power=Field.POWER.name.lower()
             )
+        )
+
+
+class NullGeometryError(NetworkModelError):
+    def __init__(self, null_geometry_count: int, layer: ModelLayer) -> None:
+        super().__init__(
+            tr(
+                "There are %n feature(s) in {layer_name} with no geometry. Please check the geometry of your features.",
+                "",
+                null_geometry_count,
+            ).format(layer_name=layer.friendly_name)
         )
