@@ -1154,14 +1154,14 @@ class _FromGis:
             name_series = pd.Series(index=df.index, dtype="string")
 
         existing_names = set(name_series.dropna())
-        mask = ((name_series.isna()) | (name_series == "")).array
+        mask = (name_series.isna()) | (name_series == "")
         number_of_names_required = mask.sum()
 
         name_iterator = map(str, itertools.count(1))
         valid_name_iterator = filter(lambda name: name not in existing_names, name_iterator)
         new_names = np.array(list(itertools.islice(valid_name_iterator, number_of_names_required)))
 
-        name_series[mask] = new_names
+        name_series[mask.array] = new_names
 
         return name_series
 
