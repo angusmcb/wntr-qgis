@@ -241,7 +241,6 @@ class Plugin:
 
     def _append_console_statements(self) -> None:
         """Append the console statements to the QGIS console."""
-        import console  # type: ignore
 
         with contextlib.suppress(ModuleNotFoundError, AttributeError):
             import console
