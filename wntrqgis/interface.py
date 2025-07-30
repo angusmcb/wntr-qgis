@@ -1153,6 +1153,8 @@ class _FromGis:
         else:
             name_series = pd.Series(index=df.index, dtype="object")
 
+        name_series = name_series.fillna(np.NAN)
+
         existing_names = set(name_series.dropna())
         mask = (name_series.isna()) | (name_series == "")
         number_of_names_required = mask.sum()
