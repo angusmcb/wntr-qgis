@@ -575,7 +575,7 @@ class Field(Enum):
         if self is Field.HEAD_PATTERN:
             return tr("Time-varying pattern for reservoir head")
         if self is Field.LENGTH:
-            return tr("Physical length of pipe")
+            return tr("Physical length of pipe. If left blank this will be calculated automatically")
         if self is Field.ROUGHNESS:
             return tr("Pipe roughness coefficient for headloss calculation")
         if self is Field.MINOR_LOSS:
@@ -583,9 +583,9 @@ class Field(Enum):
         if self is Field.CHECK_VALVE:
             return tr("Whether pipe has check valve to prevent backflow")
         if self is Field.PUMP_TYPE:
-            return tr("Type of pump (power or head curve)")
+            return tr("How is pump described (by power or by head curve)")
         if self is Field.PUMP_CURVE:
-            return tr("Head-flow curve for pump performance")
+            return tr("Head-flow curve for pump")
         if self is Field.POWER:
             return tr("Power rating of pump")
         if self is Field.BASE_SPEED:
@@ -593,7 +593,7 @@ class Field(Enum):
         if self is Field.SPEED_PATTERN:
             return tr("Time-varying pattern for pump speed")
         if self is Field.INITIAL_STATUS:
-            return tr("Initial operating status (open/closed/active)")
+            return tr("Initial operating status")
         if self is Field.INITIAL_SETTING:
             return tr("Initial valve setting or pump speed")
         if self is Field.HEADLOSS_CURVE:
@@ -601,7 +601,7 @@ class Field(Enum):
         if self is Field.INITIAL_QUALITY:
             return tr("Initial water quality concentration")
         if self is Field.MIXING_FRACTION:
-            return tr("Fraction of tank volume for mixing model")
+            return tr("Fraction of tank volume for mixing model for two-compartment mixing model")
         if self is Field.MIXING_MODEL:
             return tr("Tank mixing model type")
         if self is Field.BULK_COEFF:
@@ -617,7 +617,7 @@ class Field(Enum):
         if self is Field.EFFICIENCY:
             return tr("Pump efficiency curve")
         if self is Field.ENERGY_PATTERN:
-            return tr("Time-varying pattern for energy costs")
+            return tr("Time-varying pattern for energy price")
         if self is Field.ENERGY_PRICE:
             return tr("Energy price per unit")
 
