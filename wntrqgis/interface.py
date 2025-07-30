@@ -1151,7 +1151,7 @@ class _FromGis:
         if "name" in df.columns:
             name_series = df["name"].astype("string").str.strip()
         else:
-            name_series = pd.Series(index=df.index, dtype="string")
+            name_series = pd.Series(index=df.index, dtype="object")
 
         existing_names = set(name_series.dropna())
         mask = (name_series.isna()) | (name_series == "")
