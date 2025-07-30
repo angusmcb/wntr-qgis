@@ -1161,7 +1161,7 @@ class _FromGis:
         valid_name_iterator = filter(lambda name: name not in existing_names, name_iterator)
         new_names = np.array(list(itertools.islice(valid_name_iterator, number_of_names_required)))
 
-        name_series[mask.array] = new_names
+        name_series[mask] = new_names
 
         return name_series
 
