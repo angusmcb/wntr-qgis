@@ -281,9 +281,6 @@ def test_from_qgis_headloss(simple_layers, headloss):
         ("H-W", "LPS", 100),
         ("D-W", "LPS", 0.1),
         ("C-M", "LPS", 100),
-        ("H-W", "SI", 100),
-        ("D-W", "SI", 100),
-        ("C-M", "SI", 100),
         ("H-W", "GPM", 100),
         ("D-W", "GPM", 0.030480000000000004),
         ("C-M", "GPM", 100),
@@ -309,9 +306,6 @@ def test_roughness_conversion(simple_layers, headloss, unit, expected_roughness)
         ("H-W", "LPS", 100),
         ("D-W", "LPS", 0.1),
         ("C-M", "LPS", 100),
-        ("H-W", "SI", 100),
-        ("D-W", "SI", 100),
-        ("C-M", "SI", 100),
         ("H-W", "GPM", 100),
         ("D-W", "GPM", 0.030480000000000004),
         ("C-M", "GPM", 100),
@@ -407,7 +401,7 @@ def test_name_generation_with_conflicts():
 
 @pytest.mark.parametrize(
     ("unit", "expected_demand"),
-    {("GPM", 6.30901964e-05), ("SI", 1), ("sI", 1), ("LPS", 0.001), ("lps", 0.001), ("CFS", 0.0283168466)},
+    {("GPM", 6.30901964e-05), ("LPS", 0.001), ("lps", 0.001), ("CFS", 0.0283168466)},
 )
 def test_unit_conversion_demand(simple_layers, unit, expected_demand):
     wn = wntrqgis.from_qgis(simple_layers, unit, "H-W")
@@ -938,26 +932,26 @@ def pump_efficiency_curve_layers(simple_layers, curve_string):
 )
 class TestCurveNoConversion:
     def test_head_curve(self, pump_head_curve_layers):
-        wn = wntrqgis.from_qgis(pump_head_curve_layers, "SI", "H-W")
+        wn = wntrqgis.from_qgis(pump_head_curve_layers, "LPS", "H-W")
 
         assert wn.get_link("PUMP1").pump_curve_name == "1"
-        assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50)]
+        assert wn.curves["1"].points == [(0.0, 200.5), (0.02, 50.0)]
 
     def test_volume_curve(self, tank_vol_curve_layers):
-        wn = wntrqgis.from_qgis(tank_vol_curve_layers, "SI", "H-W")
+        wn = wntrqgis.from_qgis(tank_vol_curve_layers, "LPS", "H-W")
 
         assert wn.get_node("T1").vol_curve_name == "1"
         assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50)]
 
     def test_valve_headloss_curve(self, valve_headloss_curve_layers):
-        wn = wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
+        wn = wntrqgis.from_qgis(valve_headloss_curve_layers, "LPS", "H-W")
 
         assert wn.get_link("V1").headloss_curve_name == "1"
-        assert wn.curves["1"].points == [(0.0, 200.5), (20.0, 50)]
+        assert wn.curves["1"].points == [(0.0, 200.5), (0.02, 50.0)]
 
     @pytest.mark.skip("Efficiency curve bug in wntr")
     def test_pump_efficiency_curve(self, pump_efficiency_curve_layers):
-        wn = wntrqgis.from_qgis(pump_efficiency_curve_layers, "SI", "H-W")
+        wn = wntrqgis.from_qgis(pump_efficiency_curve_layers, "LPS", "H-W")
 
         assert wn.get_link("PUMP1").efficiencey.multipliers == "1"
 
@@ -1034,7 +1028,7 @@ class TestCurveError:
 
     def test_valve_headloss_curve(self, valve_headloss_curve_layers, curve_string):
         with pytest.raises(wntrqgis.interface.CurveError, match=re.escape(str(curve_string))):
-            wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
+            wntrqgis.from_qgis(valve_headloss_curve_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("curve_string", [None, "", "  "])
@@ -1046,11 +1040,11 @@ class TestCurveEmpty:
 
     def test_pump_head(self, pump_head_curve_layers):
         with pytest.raises(wntrqgis.interface.PumpCurveMissingError):
-            wntrqgis.from_qgis(pump_head_curve_layers, "SI", "H-W")
+            wntrqgis.from_qgis(pump_head_curve_layers, "LPS", "H-W")
 
     def test_valve_headloss_curve(self, valve_headloss_curve_layers):
         with pytest.raises(wntrqgis.interface.GpvMissingCurveError):
-            wntrqgis.from_qgis(valve_headloss_curve_layers, "SI", "H-W")
+            wntrqgis.from_qgis(valve_headloss_curve_layers, "LPS", "H-W")
 
 
 def test_null_geometry_point(simple_layers):
@@ -1234,19 +1228,19 @@ def test_pressure_valve_initial_setting_conversion_valves_bad_values(valve_layer
 @pytest.mark.parametrize("valve_type", [None])
 def test_valve_type_not_specified(valve_layers):
     with pytest.raises(wntrqgis.interface.RequiredFieldError, match="valve_type"):
-        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+        wntrqgis.from_qgis(valve_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("valve_type", ["not_a_valve_type"])
 def test_valve_type_wrong_type(valve_layers):
     with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
-        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+        wntrqgis.from_qgis(valve_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("valve_type", [0, 1, 1.0, True, False])
 def test_valve_type_is_number(valve_layers):
     with pytest.raises(wntrqgis.interface.ValveTypeError, match="valve_type"):
-        wntrqgis.from_qgis(valve_layers, "SI", "H-W")
+        wntrqgis.from_qgis(valve_layers, "LPS", "H-W")
 
 
 def test_pump_with_no_pump_type(simple_layers):
@@ -1254,7 +1248,7 @@ def test_pump_with_no_pump_type(simple_layers):
     add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1"])
     simple_layers.update({"PUMPS": pump_layer})
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="pump_type"):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("pump_type", ["not_a_type", None, 1, 1.2])
@@ -1263,7 +1257,7 @@ def test_pump_with_wrong_pump_type(simple_layers, pump_type):
     add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", pump_type])
     simple_layers.update({"PUMPS": pump_layer})
     with pytest.raises(wntrqgis.interface.NetworkModelError, match="pump_type"):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 def test_power_pump(simple_layers):
@@ -1271,10 +1265,10 @@ def test_power_pump(simple_layers):
     add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "POWER", 10.1])
     simple_layers.update({"PUMPS": pump_layer})
 
-    wn = wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
     assert wn.get_link("PUMP1").pump_type == "POWER"
-    assert wn.get_link("PUMP1").power == 10.1
+    assert wn.get_link("PUMP1").power == 10100.0
 
 
 def test_head_pump(simple_layers):
@@ -1282,10 +1276,10 @@ def test_head_pump(simple_layers):
     add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP1", "HEAD", "[(0.0, 200.5),(1.0,50)]"])
     simple_layers.update({"PUMPS": pump_layer})
 
-    wn = wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
     assert wn.get_link("PUMP1").pump_type == "HEAD"
-    assert wn.get_link("PUMP1").get_pump_curve().points == [(0.0, 200.5), (1.0, 50)]
+    assert wn.get_link("PUMP1").get_pump_curve().points == [(0.0, 200.5), (0.001, 50)]
 
 
 def test_head_pump_empty_curve(simple_layers):
@@ -1294,7 +1288,7 @@ def test_head_pump_empty_curve(simple_layers):
     simple_layers.update({"PUMPS": pump_layer})
 
     with pytest.raises(wntrqgis.interface.PumpCurveMissingError):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 def test_head_pump_no_curve(simple_layers):
@@ -1303,7 +1297,7 @@ def test_head_pump_no_curve(simple_layers):
     simple_layers.update({"PUMPS": pump_layer})
 
     with pytest.raises(wntrqgis.interface.PumpCurveMissingError):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 def test_head_pump_conversion(simple_layers):
@@ -1324,13 +1318,13 @@ def test_pump_mixed_types(simple_layers):
     add_line(pump_layer, [(1, 1), (4, 5)], ["PUMP2", "HEAD", None, "[(0.0, 200.5),(1.0,50)]"])
     simple_layers.update({"PUMPS": pump_layer})
 
-    wn = wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+    wn = wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
     assert wn.get_link("PUMP1").pump_type == "POWER"
     assert wn.get_link("PUMP2").pump_type == "HEAD"
 
-    assert wn.get_link("PUMP1").power == 10.1
-    assert wn.get_link("PUMP2").get_pump_curve().points == [(0.0, 200.5), (1.0, 50)]
+    assert wn.get_link("PUMP1").power == 10100.0
+    assert wn.get_link("PUMP2").get_pump_curve().points == [(0.0, 200.5), (0.001, 50.0)]
 
 
 def test_power_pump_with_no_power(simple_layers):
@@ -1339,7 +1333,7 @@ def test_power_pump_with_no_power(simple_layers):
     simple_layers.update({"PUMPS": pump_layer})
 
     with pytest.raises(wntrqgis.interface.PumpPowerError):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 def test_power_pump_with_one_missing_power(simple_layers):
@@ -1349,7 +1343,7 @@ def test_power_pump_with_one_missing_power(simple_layers):
     simple_layers.update({"PUMPS": pump_layer})
 
     with pytest.raises(wntrqgis.interface.PumpPowerError):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("power", ["not_a_number"])
@@ -1359,7 +1353,7 @@ def test_power_pump_with_wrong_power_type(simple_layers, power):
     simple_layers.update({"PUMPS": pump_layer})
 
     with pytest.raises(wntrqgis.interface.NetworkModelError, match=str(power)):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")
 
 
 @pytest.mark.parametrize("power", [0, 0.0, -1])
@@ -1369,4 +1363,4 @@ def test_power_pump_with_wrong_power_value(simple_layers, power):
     simple_layers.update({"PUMPS": pump_layer})
 
     with pytest.raises(wntrqgis.interface.PumpPowerError):
-        wntrqgis.from_qgis(simple_layers, "SI", "H-W")
+        wntrqgis.from_qgis(simple_layers, "LPS", "H-W")

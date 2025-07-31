@@ -84,6 +84,38 @@ class DemandType(Enum):
         raise ValueError
 
 
+class Parameter(Enum):
+    Elevation = 0
+    Demand = 1
+    HydraulicHead = 2
+    Pressure = 3
+
+    Quality = 4
+
+    Length = 5
+    PipeDiameter = 6
+    Flow = 7
+    Velocity = 8
+    Headloss = 9
+
+    Power = 15
+
+    Volume = 17
+
+    EmitterCoeff = 31
+    RoughnessCoeff = 32
+    TankDiameter = 33
+    Energy = 34
+
+    LinkQuality = 10
+    ReactionRate = 13
+    Concentration = 35
+    BulkReactionCoeff = 36
+    WallReactionCoeff = 37
+    SourceMassInject = 38
+    WaterAge = 39
+
+
 class _AbstractValueMap(Enum):
     """Abstract enum for value maps"""
 

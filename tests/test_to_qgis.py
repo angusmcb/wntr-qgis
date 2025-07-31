@@ -197,9 +197,9 @@ def test_vol_curve(wn):
 def test_pump_curve(wn):
     wn.add_curve("C1", "HEAD", [(0, 0), (10, 10), (20, 20)])
     wn.add_pump("PUMP1", "J1", "J2", pump_type="head", pump_parameter="C1")
-    layers = wntrqgis.to_qgis(wn, units="SI")
+    layers = wntrqgis.to_qgis(wn, units="LPS")
 
-    check_values(layers["PUMPS"], "pump_curve", ["[(0.0, 0), (10.0, 10), (20.0, 20)]"])
+    check_values(layers["PUMPS"], "pump_curve", ["[(0.0, 0.0), (10000.0, 10.0), (20000.0, 20.0)]"])
 
 
 def test_speed_pattern(wn):
@@ -260,7 +260,7 @@ def test_gpv_curve(wn):
 
     layers = wntrqgis.to_qgis(wn, units="lps")
 
-    check_values(layers["VALVES"], "headloss_curve", ["[(0.0, 0), (10000.0, 10), (20000.0, 20)]"])
+    check_values(layers["VALVES"], "headloss_curve", ["[(0.0, 0.0), (10000.0, 10.0), (20000.0, 20.0)]"])
 
 
 def test_tcv_setting(wn):

@@ -43,6 +43,7 @@ from wntrqgis.elements import (
     FlowUnit,
     HeadlossFormula,
     ModelLayer,
+    Parameter,
     PumpTypes,
     ResultLayer,
     ValveType,
@@ -50,12 +51,12 @@ from wntrqgis.elements import (
 )
 from wntrqgis.i18n import tr
 from wntrqgis.spatial_index import SnapError, SpatialIndex
+from wntrqgis.units import Converter
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
     import pandas as pd
     import numpy as np
-    from numpy.typing import ArrayLike
 
 logger = logging.getLogger(__name__)
 
@@ -89,131 +90,11 @@ def needs_wntr_pandas(func):
 
 
 @needs_wntr_pandas
-class _Converter:
-    """Manages conversion to and from SI units
-
-    Args:
-        flow_units: The set of units which will be converted to/from (or SI units for no conversion)
-        headloss_formula: Used to determine how to handle conversion of the roughness coefficient
-    """
-
-    def __init__(
-        self,
-        flow_units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"],
-        headloss_formula: HeadlossFormula,
-    ):
-        try:
-            self._flow_units = wntr.epanet.FlowUnits[flow_units.upper()]
-        except KeyError as e:
-            raise UnitError(e) from None
-
-        self._darcy_weisbach = headloss_formula is HeadlossFormula.DARCY_WEISBACH
-
-    def to_si(
-        self,
-        value: float | ArrayLike | dict | pd.api.extensions.ExtensionArray,
-        field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
-        layer: ModelLayer | ResultLayer | None = None,
-    ):
-        conversion_param = self._get_wntr_conversion_param(field, layer)
-
-        if not conversion_param:
-            return value
-
-        return wntr.epanet.util.to_si(
-            self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
-        )
-
-    def from_si(
-        self,
-        value: float | ArrayLike | dict | pd.api.extensions.ExtensionArray,
-        field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam,
-        layer: ModelLayer | ResultLayer | None = None,
-    ):
-        conversion_param = self._get_wntr_conversion_param(field, layer)
-
-        if not conversion_param:
-            return value
-
-        return wntr.epanet.util.from_si(
-            self._flow_units, value, param=conversion_param, darcy_weisbach=self._darcy_weisbach
-        )
-
-    def _get_wntr_conversion_param(
-        self, field: Field | wntr.epanet.HydParam | wntr.epanet.QualParam, layer: ModelLayer | ResultLayer | None = None
-    ) -> wntr.epanet.QualParam | wntr.epanet.HydParam | None:
-        QualParam = wntr.epanet.QualParam  # noqa
-        HydParam = wntr.epanet.HydParam  # noqa
-
-        if isinstance(field, (HydParam, QualParam)):
-            return field
-
-        if field.python_type is not float:
-            return None
-
-        if field is Field.ELEVATION:
-            return HydParam.Elevation
-        if field is Field.BASE_DEMAND or field is Field.DEMAND:
-            return HydParam.Demand
-        if field is Field.EMITTER_COEFFICIENT:
-            return HydParam.EmitterCoeff
-        if field in [Field.INITIAL_QUALITY, Field.QUALITY]:
-            return QualParam.Quality
-        if field in [Field.MINIMUM_PRESSURE, Field.REQUIRED_PRESSURE, Field.PRESSURE]:
-            return HydParam.Pressure
-        if field in [
-            Field.INIT_LEVEL,
-            Field.MIN_LEVEL,
-            Field.MAX_LEVEL,
-            Field.BASE_HEAD,
-            Field.HEAD,
-        ]:
-            return HydParam.HydraulicHead
-        if field is Field.DIAMETER and layer is ModelLayer.TANKS:
-            return HydParam.TankDiameter
-        if field is Field.DIAMETER:
-            return HydParam.PipeDiameter
-        if field is Field.MIN_VOL:
-            return HydParam.Volume
-        if field is Field.BULK_COEFF:
-            return QualParam.BulkReactionCoeff
-        if field is Field.LENGTH:
-            return HydParam.Length
-        if field is Field.ROUGHNESS:
-            return HydParam.RoughnessCoeff
-        if field is Field.WALL_COEFF:
-            return QualParam.WallReactionCoeff
-        if field is Field.POWER:
-            return HydParam.Power
-        if field is Field.FLOWRATE:
-            return HydParam.Flow
-        if field is Field.HEADLOSS:
-            if layer is ModelLayer.PIPES:
-                return HydParam.HeadLoss
-            return HydParam.HydraulicHead
-        if field is Field.VELOCITY:
-            return HydParam.Velocity
-
-        if field in [
-            Field.MINOR_LOSS,
-            Field.BASE_SPEED,
-            Field.INITIAL_SETTING,
-            Field.MIXING_FRACTION,
-            Field.PRESSURE_EXPONENT,
-            Field.ENERGY_PRICE,
-            Field.REACTION_RATE,
-        ]:
-            return None
-
-        raise ValueError(field)  # pragma: no cover
-
-
-@needs_wntr_pandas
 def to_qgis(
     wn: wntr.network.WaterNetworkModel | pathlib.Path | str,
     results: wntr.sim.SimulationResults | None = None,
     crs: QgsCoordinateReferenceSystem | str | None = None,
-    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"] | None = None,
+    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "CMD"] | None = None,
     # layers: str | None = None,
     # fields: list | None = None,
     # filename: str | None = None,
@@ -279,10 +160,11 @@ class Writer:
         self,
         wn: wntr.network.WaterNetworkModel,
         results: wntr.sim.SimulationResults | None = None,
-        units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"] | None = None,
+        units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "CMD"] | None = None,
     ) -> None:
         if not units:
             units = wn.options.hydraulic.inpfile_units
+
             units_friendly_name = FlowUnit[units].friendly_name
             logger.warning(
                 tr(
@@ -290,7 +172,12 @@ class Writer:
                 ).format(units_friendly_name=units_friendly_name)
             )
 
-        self._converter = _Converter(units, HeadlossFormula(wn.options.hydraulic.headloss))
+        try:
+            unit = FlowUnit[units.upper()]
+        except KeyError as e:
+            raise FlowUnitError(e) from e
+
+        self._converter = Converter(unit, HeadlossFormula(wn.options.hydraulic.headloss))
 
         self._timestep = None
         if not wn.options.time.duration:
@@ -528,11 +415,9 @@ class Writer:
 
             elif lyr is ModelLayer.VALVES:
                 p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
-                df.loc[p_valves_setting] = self._converter.from_si(
-                    df.loc[p_valves_setting].array, wntr.epanet.HydParam.Pressure
-                )
+                df.loc[p_valves_setting] = self._converter.from_si(df.loc[p_valves_setting].array, Parameter.Pressure)
                 df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
-                    df.loc[df["valve_type"] == "FCV", "initial_setting"].array, wntr.epanet.HydParam.Flow
+                    df.loc[df["valve_type"] == "FCV", "initial_setting"].array, Parameter.Flow
                 )
                 if "headloss_curve" in df:
                     df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
@@ -581,10 +466,10 @@ class Writer:
             type_series = self._types[ResultLayer.LINKS].reindex(converted_df.columns)
 
             converted_df.loc[:, type_series == "Pipe"] = self._converter.from_si(
-                converted_df.loc[:, type_series == "Pipe"], field, ModelLayer.PIPES
+                converted_df.loc[:, type_series == "Pipe"], Parameter.Headloss
             )
             converted_df.loc[:, type_series != "Pipe"] = self._converter.from_si(
-                converted_df.loc[:, type_series != "Pipe"], field
+                converted_df.loc[:, type_series != "Pipe"], Parameter.HydraulicHead
             )
 
         else:
@@ -675,7 +560,7 @@ class _Patterns:
 
 
 class _Curves:
-    def __init__(self, wn: wntr.network.WaterNetworkModel, converter: _Converter) -> None:
+    def __init__(self, wn: wntr.network.WaterNetworkModel, converter: Converter) -> None:
         self._wn = wn
         self._name_iterator = map(str, itertools.count(1))
         self._converter = converter
@@ -718,27 +603,26 @@ class _Curves:
 
     def _convert_points(self, points: list, curve_type: _Curves.Type, conversion_function) -> list[tuple[float, float]]:
         converted_points: list[tuple[float, float]] = []
-        HydParam = wntr.epanet.HydParam  # noqa: N806
 
         if curve_type is _Curves.Type.VOLUME:
             for point in points:
-                x = conversion_function(point[0], HydParam.Length)
-                y = conversion_function(point[1], HydParam.Volume)
+                x = conversion_function(point[0], Parameter.Length)
+                y = conversion_function(point[1], Parameter.Volume)
                 converted_points.append((x, y))
         elif curve_type is _Curves.Type.HEAD:
             for point in points:
-                x = conversion_function(point[0], HydParam.Flow)
-                y = conversion_function(point[1], HydParam.HydraulicHead)
+                x = conversion_function(point[0], Parameter.Flow)
+                y = conversion_function(point[1], Parameter.HydraulicHead)
                 converted_points.append((x, y))
         elif curve_type is _Curves.Type.EFFICIENCY:
             for point in points:
-                x = conversion_function(point[0], HydParam.Flow)
+                x = conversion_function(point[0], Parameter.Flow)
                 y = point[1]
                 converted_points.append((x, y))
         elif curve_type is _Curves.Type.HEADLOSS:
             for point in points:
-                x = conversion_function(point[0], HydParam.Flow)
-                y = conversion_function(point[1], HydParam.HydraulicHead)
+                x = conversion_function(point[0], Parameter.Flow)
+                y = conversion_function(point[1], Parameter.HydraulicHead)
                 converted_points.append((x, y))
         else:
             raise KeyError("Curve type not specified")  # noqa: EM101, TRY003 # pragma: no cover
@@ -811,7 +695,7 @@ class CurveReadError(Exception):
 @needs_wntr_pandas
 def from_qgis(
     layers: dict[Literal["JUNCTIONS", "RESERVOIRS", "TANKS", "PIPES", "VALVES", "PUMPS"], QgsFeatureSource],
-    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "SI"],
+    units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "CMD"],
     headloss: Literal["H-W", "D-W", "C-M"] | None = None,
     wn: wntr.network.WaterNetworkModel | None = None,
     project: QgsProject | None = None,
@@ -861,7 +745,12 @@ def from_qgis(
     #     msg = f"Units {e} is not a known set of units. Possible units are: " + ", ".join(FlowUnit._member_names_)
     #     raise ValueError(msg) from None
 
-    unit_conversion = _Converter(units, headloss_formula_type)
+    try:
+        unit = FlowUnit[units.upper()]
+    except KeyError as e:
+        raise FlowUnitError(e) from e
+
+    unit_conversion = Converter(unit, headloss_formula_type)
 
     reader = _FromGis(unit_conversion, project)
     if crs:
@@ -886,7 +775,7 @@ class _FromGis:
 
     def __init__(
         self,
-        converter: _Converter,
+        converter: Converter,
         project: QgsProject | None = None,
         # transform_context: QgsCoordinateTransformContext | None = None,
         # ellipsoid: str | None = "EPSG:7030",
@@ -1236,11 +1125,11 @@ class _FromGis:
                 raise ValveInitialSettingError
 
             df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
-                df.loc[pressure_valves, "initial_setting"].array, field=wntr.epanet.HydParam.Pressure
+                df.loc[pressure_valves, "initial_setting"].array, field=Parameter.Pressure
             )
 
             df.loc[fcvs, "initial_setting"] = self._converter.to_si(
-                df.loc[fcvs, "initial_setting"].array, field=wntr.epanet.HydParam.Flow
+                df.loc[fcvs, "initial_setting"].array, field=Parameter.Flow
             )
 
         if gpvs.any():
@@ -1427,7 +1316,11 @@ def describe_network(wn: wntr.network.WaterNetworkModel) -> str:
 
 @needs_wntr_pandas
 def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
-    converter = _Converter(wn.options.hydraulic.inpfile_units, HeadlossFormula(wn.options.hydraulic.headloss))
+    try:
+        unit = FlowUnit[wn.options.hydraulic.inpfile_units]
+    except KeyError as e:
+        raise FlowUnitError(e) from e
+    converter = Converter(unit, HeadlossFormula(wn.options.hydraulic.headloss))
 
     pipe_df = pd.DataFrame(
         ((pipe.length, pipe.diameter, pipe.roughness) for _, pipe in wn.pipes()),
@@ -1526,7 +1419,7 @@ class WntrError(NetworkModelError):
         )
 
 
-class UnitError(NetworkModelError, ValueError):
+class FlowUnitError(NetworkModelError, ValueError):
     def __init__(self, exception):
         super().__init__(
             tr("{exception} is not a known set of units. Possible units are: ").format(exception=exception)
