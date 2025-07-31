@@ -96,7 +96,7 @@ class Parameter(Enum):
     PipeDiameter = 6
     Flow = 7
     Velocity = 8
-    Headloss = 9
+    UnitHeadloss = 9
 
     Power = 15
 

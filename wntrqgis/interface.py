@@ -466,7 +466,7 @@ class Writer:
             type_series = self._types[ResultLayer.LINKS].reindex(converted_df.columns)
 
             converted_df.loc[:, type_series == "Pipe"] = self._converter.from_si(
-                converted_df.loc[:, type_series == "Pipe"], Parameter.Headloss
+                converted_df.loc[:, type_series == "Pipe"], Parameter.UnitHeadloss
             )
             converted_df.loc[:, type_series != "Pipe"] = self._converter.from_si(
                 converted_df.loc[:, type_series != "Pipe"], Parameter.HydraulicHead

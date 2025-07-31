@@ -136,7 +136,7 @@ class Converter:
             return Parameter.Flow
         if field is Field.HEADLOSS:
             if layer is ModelLayer.PIPES:
-                return Parameter.Headloss
+                return Parameter.UnitHeadloss
             return Parameter.HydraulicHead
         if field is Field.VELOCITY:
             return Parameter.Velocity
@@ -183,7 +183,7 @@ class Converter:
 
         traditional = self.flow_units in [FlowUnit.CFS, FlowUnit.GPM, FlowUnit.MGD, FlowUnit.IMGD, FlowUnit.AFD]
 
-        if parameter in [Parameter.Demand, Parameter.Flow, Parameter.EmitterCoeff]:
+        if parameter in [Parameter.Demand, Parameter.Flow]:
             return self._flow_unit_factor()
 
         if parameter is Parameter.EmitterCoeff:
@@ -209,13 +209,17 @@ class Converter:
         elif parameter in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
             if traditional:
                 return 0.3048  # ft to m
+            else:
+                return 1.0
 
-        elif parameter is Parameter.Headloss:
+        elif parameter is Parameter.UnitHeadloss:
             return 0.001  # m/1000m or ft/1000ft to unitless
 
         elif parameter is Parameter.Velocity:
             if traditional:
                 return 0.3048  # ft/s to m/s
+            else:
+                return 1.0
 
         elif parameter is Parameter.Energy:
             return 3600000.0  # kW*hr to J
@@ -230,13 +234,18 @@ class Converter:
             if traditional:
                 # psi to m, i.e., psi * (m/ft / psi/ft) = m
                 return 0.3048 / 0.4333
+            else:
+                return 1.0
 
         elif parameter is Parameter.Volume:
             if traditional:
                 return 0.3048**3  # ft3 to m3
+            else:
+                return 1.0
 
         elif parameter in [Parameter.Concentration, Parameter.Quality, Parameter.LinkQuality]:
             return self.mass_units.factor / 0.001  # MASS /L to kg/m3
+
         elif parameter is Parameter.ReactionRate:
             return (self.mass_units.factor / 0.001) / (24 * 3600)  # 1/day to 1/s
 
