@@ -369,8 +369,8 @@ class ModelLayer(_AbstractLayer):
                 Field.SPEED_PATTERN,
                 Field.INITIAL_STATUS,
                 Field.EFFICIENCY,
-                Field.ENERGY_PATTERN,
                 Field.ENERGY_PRICE,
+                Field.ENERGY_PATTERN,
             ],
             ModelLayer.VALVES: [
                 Field.NAME,
@@ -477,8 +477,8 @@ class Field(Enum):
     PRESSURE_EXPONENT = "pressure_exponent", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
     EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
-    ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
+    ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
 
     DEMAND = "demand", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
     HEAD = "head", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
@@ -554,9 +554,9 @@ class Field(Enum):
         if self is Field.MIXING_MODEL:
             return tr("Mixing Model")
         if self is Field.BULK_COEFF:
-            return tr("Bulk Coefficient")
+            return tr("Bulk Reaction Rate Coefficient")
         if self is Field.WALL_COEFF:
-            return tr("Wall Coefficient")
+            return tr("Wall Reaction Rate Coefficient")
         if self is Field.MINIMUM_PRESSURE:
             return tr("Minimum Pressure")
         if self is Field.REQUIRED_PRESSURE:
@@ -564,7 +564,7 @@ class Field(Enum):
         if self is Field.PRESSURE_EXPONENT:
             return tr("Pressure Exponent")
         if self is Field.EFFICIENCY:
-            return tr("Efficiency")
+            return tr("Efficiency Curve")
         if self is Field.ENERGY_PATTERN:
             return tr("Energy Pattern")
         if self is Field.ENERGY_PRICE:
@@ -631,7 +631,7 @@ class Field(Enum):
         if self is Field.PUMP_TYPE:
             return tr("How is pump described (by power or by head curve)")
         if self is Field.PUMP_CURVE:
-            return tr("Head-flow curve for pump")
+            return tr("Flow vs head curve for pump")
         if self is Field.POWER:
             return tr("Power rating of pump")
         if self is Field.BASE_SPEED:
@@ -643,32 +643,32 @@ class Field(Enum):
         if self is Field.INITIAL_SETTING:
             return tr("Initial valve setting or pump speed")
         if self is Field.HEADLOSS_CURVE:
-            return tr("Head loss curve for general purpose valve")
+            return tr("Head loss curve (flow vs head loss) for general purpose valve")
         if self is Field.INITIAL_QUALITY:
-            return tr("Initial water quality concentration")
+            return tr("Initial water quality concentration for water quality analysis")
         if self is Field.MIXING_FRACTION:
             return tr("Fraction of tank volume for mixing model for two-compartment mixing model")
         if self is Field.MIXING_MODEL:
-            return tr("Tank mixing model type")
+            return tr("Tank mixing model type for water quality analysis")
         if self is Field.BULK_COEFF:
-            return tr("Bulk reaction coefficient for water quality")
+            return tr("Bulk reaction rate coefficient for water quality analysis")
         if self is Field.WALL_COEFF:
-            return tr("Wall reaction coefficient for pipe quality")
+            return tr("Wall reaction rate coefficient for water quality analysis")
         if self is Field.MINIMUM_PRESSURE:
             return tr("Minimum pressure for pressure-dependent demand")
         if self is Field.REQUIRED_PRESSURE:
-            return tr("Required pressure for full demand delivery")
+            return tr("Required pressure for full demand delivery in pressure-dependent demand")
         if self is Field.PRESSURE_EXPONENT:
-            return tr("Pressure exponent for demand calculation")
+            return tr("Pressure exponent for demand calculation in pressure-dependent demand")
         if self is Field.EFFICIENCY:
-            return tr("Pump efficiency curve")
+            return tr("Pump efficiency curve (flow vs efficiency) for energy use analysis")
         if self is Field.ENERGY_PATTERN:
             return tr("Time-varying pattern for energy price")
         if self is Field.ENERGY_PRICE:
-            return tr("Energy price per unit")
+            return tr("Energy price per kW hour for energy use analysis")
 
         if self is Field.DEMAND:
-            return tr("Water demand at junction")
+            return tr("Water demand at node")
         if self is Field.HEAD:
             return tr("Hydraulic head at node")
         if self is Field.PRESSURE:
