@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import wntrqgis.elements
 from wntrqgis.elements import Field, FlowUnit, HeadlossFormula, Parameter
 from wntrqgis.units import Converter
 
@@ -20,25 +19,25 @@ def test_converter_to_si():
 
 def test_converter_from_si():
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.from_si(0.3048, wntrqgis.elements.Field.ELEVATION)
+    value = converter.from_si(0.3048, Field.ELEVATION)
     assert value == 1.0
 
 
 def test_converter_to_si_darcy_weisbach():
     converter = Converter(FlowUnit.LPS, HeadlossFormula.DARCY_WEISBACH)
-    value = converter.to_si(1, wntrqgis.elements.Field.ROUGHNESS)
+    value = converter.to_si(1, Field.ROUGHNESS)
     assert value == 0.001
 
 
 def test_converter_to_si_hazen_williams():
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.to_si(1, wntrqgis.elements.Field.ROUGHNESS)
+    value = converter.to_si(1, Field.ROUGHNESS)
     assert value == 1
 
 
 @pytest.mark.parametrize("field", list(Field))
 def test_get_conversion_param(field):
-    converter = Converter(FlowUnit.LPS, wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
+    converter = Converter(FlowUnit.LPS, HeadlossFormula.HAZEN_WILLIAMS)
 
     conversion_parameter = converter._get_conversion_param(field)
 
