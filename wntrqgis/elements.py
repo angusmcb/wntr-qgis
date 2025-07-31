@@ -24,7 +24,7 @@ class FlowUnit(Enum):
     MGD = auto()
     IMGD = auto()
     AFD = auto()
-    SI = auto()
+    CMD = auto()
 
     @property
     def friendly_name(self):
@@ -46,9 +46,13 @@ class FlowUnit(Enum):
             return tr("Imperial Mega Gallons per Day")
         if self is FlowUnit.AFD:
             return tr("Acre-feet per Day")
-        if self is FlowUnit.SI:
-            return tr("International System of Units (SI)")
+        if self is FlowUnit.CMD:
+            return tr("Cubic Metres per Day")
         raise ValueError  # pragma: no cover
+
+    @property
+    def is_traditional(self):
+        return self in [FlowUnit.CFS, FlowUnit.GPM, FlowUnit.MGD, FlowUnit.IMGD, FlowUnit.AFD]
 
 
 class HeadlossFormula(Enum):

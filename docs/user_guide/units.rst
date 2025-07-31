@@ -75,24 +75,3 @@ For reference, :numref:`table-epanet-units` includes unit conversions.
    +----------------------+-------------------------------------+------------------------------------+
    | Water age            |   hours                             | hours                              |
    +----------------------+-------------------------------------+------------------------------------+
-
-
-WNTR works using pure SI units, and it is also possible to select 'SI' as a unit set. This will use the following units:
-
-* Acceleration = :math:`\rm g` (:math:`\rm g \equiv 9.80665 m/s^2`)
-* Concentration = :math:`\rm kg/m^3`
-* Demand = :math:`\rm m^3/s`
-* Diameter = :math:`\rm m`
-* Elevation = :math:`\rm m`
-* Energy = :math:`\rm J`
-* Flow rate = :math:`\rm m^3/s`
-* Head = :math:`\rm m`
-* Headloss = :math:`\rm m`
-* Length = :math:`\rm m`
-* Mass = :math:`\rm kg`
-* Mass injection = :math:`\rm kg/s`
-* Power = :math:`\rm W`
-* Pressure head = :math:`\rm m` (assumes a fluid density of 1000 :math:`\rm kg/m^3`)
-* Time = :math:`\rm s`
-* Velocity = :math:`\rm m/s`
-* Volume = :math:`\rm m^3`

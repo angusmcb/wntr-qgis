@@ -417,7 +417,7 @@ def test_unit_conversion_demand(simple_layers, unit, expected_demand):
 def test_bad_units(simple_layers):
     with pytest.raises(
         ValueError,
-        match="'NON-EXISTANT' is not a known set of units. Possible units are: LPS, LPM, MLD, CMH, CFS, GPM, MGD, IMGD, AFD, SI",  # noqa: E501
+        match="'NON-EXISTANT' is not a known set of units. Possible units are: LPS, LPM, MLD, CMH, CFS, GPM, MGD, IMGD, AFD, CMD",  # noqa: E501
     ):
         wntrqgis.from_qgis(simple_layers, units="Non-existant", headloss="H-W")
 
