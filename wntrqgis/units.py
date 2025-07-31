@@ -61,7 +61,7 @@ class Converter:
         self.flow_units = flow_units
         self.headloss_formula = headloss_formula
         self.mass_units = MassUnits.mg
-        self.reaction_order = 0
+        self.reaction_order = 1
 
     def to_si(
         self,
@@ -198,11 +198,14 @@ class Converter:
             else:
                 return 0.001  # mm to m
 
-        elif parameter is Parameter.RoughnessCoeff and self.headloss_formula is HeadlossFormula.DARCY_WEISBACH:
-            if traditional:
-                return 0.001 * 0.3048  # 1e-3 ft to m
+        elif parameter is Parameter.RoughnessCoeff:
+            if self.headloss_formula is HeadlossFormula.DARCY_WEISBACH:
+                if traditional:
+                    return 0.001 * 0.3048  # 1e-3 ft to m
+                else:
+                    return 0.001  # mm to m
             else:
-                return 0.001  # mm to m
+                return 1.0
 
         elif parameter in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
             if traditional:
@@ -271,7 +274,7 @@ class Converter:
         elif parameter is Parameter.WaterAge:
             return 3600.0  # hr to s
 
-        return 1.0
+        raise ValueError(parameter)  # pragma: no cover
 
     def _flow_unit_factor(self) -> float:
         flow_units = self.flow_units

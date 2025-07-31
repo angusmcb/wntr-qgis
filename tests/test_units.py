@@ -112,3 +112,64 @@ def test_from_si_pandas_dataframe(converter):
     expected = pd.DataFrame({"a": [1000.0, 2000.0], "b": [3000.0, 4000.0]})
     result = converter.from_si(value, Field.FLOWRATE)
     pd.testing.assert_frame_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("param", "expected"),
+    [
+        (Parameter.Flow, 0.001),
+        (Parameter.EmitterCoeff, 0.001),
+        (Parameter.PipeDiameter, 0.001),
+        (Parameter.RoughnessCoeff, 1.0),
+        (Parameter.TankDiameter, 1.0),
+        (Parameter.Elevation, 1.0),
+        (Parameter.HydraulicHead, 1.0),
+        (Parameter.Length, 1.0),
+        (Parameter.UnitHeadloss, 0.001),
+        (Parameter.Velocity, 1.0),
+        (Parameter.Energy, 3600000.0),
+        (Parameter.Power, 1000.0),
+        (Parameter.Pressure, 1.0),
+        (Parameter.Volume, 1.0),
+        (Parameter.Concentration, 0.001),
+        (Parameter.ReactionRate, pytest.approx(1.1574074074074073e-8)),
+        (Parameter.SourceMassInject, pytest.approx(1.6666666666666667e-8)),
+        (Parameter.BulkReactionCoeff, pytest.approx(1.1574074074074073e-05)),
+        (Parameter.WallReactionCoeff, pytest.approx(1.1574074074074074e-05)),
+        (Parameter.WaterAge, 3600.0),
+    ],
+)
+def test_factor_for_parameters(converter, param, expected):
+    factor = converter._factor(param)
+    assert factor == expected
+
+
+@pytest.mark.parametrize(
+    ("param", "expected"),
+    [
+        (Parameter.Flow, 0.0283168466),
+        (Parameter.EmitterCoeff, pytest.approx(0.0283168466 * (0.4333 / 0.3048) ** 0.5)),
+        (Parameter.PipeDiameter, 0.0254),
+        (Parameter.RoughnessCoeff, 1.0),
+        (Parameter.TankDiameter, 0.3048),
+        (Parameter.Elevation, 0.3048),
+        (Parameter.HydraulicHead, 0.3048),
+        (Parameter.Length, 0.3048),
+        (Parameter.UnitHeadloss, 0.001),
+        (Parameter.Velocity, 0.3048),
+        (Parameter.Energy, 3600000.0),
+        (Parameter.Power, 745.699872),
+        (Parameter.Pressure, pytest.approx(0.3048 / 0.4333)),
+        (Parameter.Volume, pytest.approx(0.3048**3)),
+        (Parameter.Concentration, 0.001),
+        (Parameter.ReactionRate, pytest.approx(1.1574074074074073e-8)),
+        (Parameter.SourceMassInject, pytest.approx(1.6666666666666667e-8)),
+        (Parameter.BulkReactionCoeff, pytest.approx(1.1574074074074073e-05)),
+        (Parameter.WallReactionCoeff, pytest.approx(3.527777777777778e-06)),
+        (Parameter.WaterAge, 3600.0),
+    ],
+)
+def test_factor_for_parameters_cfs(param, expected):
+    converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
+    factor = converter._factor(param)
+    assert factor == expected
