@@ -100,12 +100,12 @@ class Converter:
 
         if field is Field.ELEVATION:
             return Parameter.Elevation
-        if field is Field.BASE_DEMAND or field is Field.DEMAND:
-            return Parameter.Demand
+        if field is Field.BASE_DEMAND or field is Field.DEMAND or field is Field.FLOWRATE:
+            return Parameter.Flow
         if field is Field.EMITTER_COEFFICIENT:
             return Parameter.EmitterCoeff
         if field in [Field.INITIAL_QUALITY, Field.QUALITY]:
-            return Parameter.Quality
+            return Parameter.Concentration
         if field in [Field.MINIMUM_PRESSURE, Field.REQUIRED_PRESSURE, Field.PRESSURE]:
             return Parameter.Pressure
         if field in [
@@ -132,8 +132,6 @@ class Converter:
             return Parameter.WallReactionCoeff
         if field is Field.POWER:
             return Parameter.Power
-        if field is Field.FLOWRATE:
-            return Parameter.Flow
         if field is Field.HEADLOSS:
             if layer is ModelLayer.PIPES:
                 return Parameter.UnitHeadloss
@@ -183,7 +181,7 @@ class Converter:
 
         traditional = self.flow_units in [FlowUnit.CFS, FlowUnit.GPM, FlowUnit.MGD, FlowUnit.IMGD, FlowUnit.AFD]
 
-        if parameter in [Parameter.Demand, Parameter.Flow]:
+        if parameter is Parameter.Flow:
             return self._flow_unit_factor()
 
         if parameter is Parameter.EmitterCoeff:
@@ -243,7 +241,7 @@ class Converter:
             else:
                 return 1.0
 
-        elif parameter in [Parameter.Concentration, Parameter.Quality, Parameter.LinkQuality]:
+        elif parameter is Parameter.Concentration:
             return self.mass_units.factor / 0.001  # MASS /L to kg/m3
 
         elif parameter is Parameter.ReactionRate:
@@ -298,6 +296,6 @@ class Converter:
         elif flow_units is FlowUnit.CMD:
             factor = 1.0 / 86400.0
         else:
-            raise ValueError(f"Unknown flow unit: {flow_units}")  # noqa: EM102, TRY003 # pragma: no cover
+            raise ValueError(flow_units)  # pragma: no cover
 
         return factor

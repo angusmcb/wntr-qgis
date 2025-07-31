@@ -86,11 +86,10 @@ class DemandType(Enum):
 
 class Parameter(Enum):
     Elevation = 0
-    Demand = 1
     HydraulicHead = 2
     Pressure = 3
 
-    Quality = 4
+    Concentration = 4
 
     Length = 5
     PipeDiameter = 6
@@ -107,9 +106,7 @@ class Parameter(Enum):
     TankDiameter = 33
     Energy = 34
 
-    LinkQuality = 10
     ReactionRate = 13
-    Concentration = 35
     BulkReactionCoeff = 36
     WallReactionCoeff = 37
     SourceMassInject = 38
