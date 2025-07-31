@@ -36,12 +36,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QThread
 from qgis.PyQt.QtGui import QIcon
 
 import wntrqgis
-from wntrqgis.elements import (
-    FlowUnit,
-    HeadlossFormula,
-    ModelLayer,
-    ResultLayer,
-)
+from wntrqgis.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
 from wntrqgis.i18n import tr
 from wntrqgis.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
 from wntrqgis.settings import ProjectSettings, SettingKey
@@ -57,6 +52,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
     DURATION = "DURATION"
     HEADLOSS_FORMULA = "HEADLOSS_FORMULA"
     OUTPUT_INP = "OUTPUT_INP"
+    DEMAND_TYPE = "DEMAND_TYPE"
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.init_input_parameters()
@@ -109,6 +105,18 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         param.setGuiDefaultValueOverride(project_settings.get(SettingKey.SIMULATION_DURATION, 0))
         self.addParameter(param)
 
+        param = QgsProcessingParameterEnum(
+            self.DEMAND_TYPE,
+            tr("Demand Type"),
+            options=[option.friendly_name for option in DemandType],
+            allowMultiple=False,
+            usesStaticStrings=False,
+            defaultValue=0,
+        )
+        default_demand_type = project_settings.get(SettingKey.DEMAND_TYPE)
+        param.setGuiDefaultValueOverride(list(DemandType).index(default_demand_type) if default_demand_type else None)
+        self.addParameter(param)
+
     def init_output_parameters(self):
         pass
 
@@ -138,6 +146,13 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         """
         headloss_formula_index = self.parameterAsEnum(parameters, self.HEADLOSS_FORMULA, context)
         return list(HeadlossFormula)[headloss_formula_index]
+
+    def _get_demand_type(self, parameters: dict[str, Any], context: QgsProcessingContext) -> DemandType:
+        """
+        Get the demand type from the parameters.
+        """
+        demand_type_index = self.parameterAsEnum(parameters, self.DEMAND_TYPE, context)
+        return list(DemandType)[demand_type_index]
 
     def _get_duration(self, parameters: dict[str, Any], context: QgsProcessingContext) -> float:
         """
@@ -170,6 +185,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
 
         wn.options.time.duration = self._get_duration(parameters, context) * 3600
         wn.options.hydraulic.inpfile_units = flow_unit.name
+        wn.options.hydraulic.demand_model = self._get_demand_type(parameters, context).value
 
         return wn
 
@@ -213,6 +229,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
             project_settings.set(SettingKey.FLOW_UNITS, self._get_flow_unit(parameters, context))
             project_settings.set(SettingKey.HEADLOSS_FORMULA, self._get_headloss_formula(parameters, context))
             project_settings.set(SettingKey.SIMULATION_DURATION, self._get_duration(parameters, context))
+            project_settings.set(SettingKey.DEMAND_TYPE, self._get_demand_type(parameters, context))
 
         return super().prepareAlgorithm(parameters, context, feedback)
 

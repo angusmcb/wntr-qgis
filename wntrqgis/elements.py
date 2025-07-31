@@ -67,6 +67,19 @@ class HeadlossFormula(Enum):
         raise ValueError  # pragma: no cover
 
 
+class DemandType(Enum):
+    FIXED = "DD"
+    PRESSURE_DEPENDENT = "PDD"
+
+    @property
+    def friendly_name(self):
+        if self is DemandType.FIXED:
+            return tr("Fixed Demand")
+        if self is DemandType.PRESSURE_DEPENDENT:
+            return tr("Pressure Dependent Demand")
+        raise ValueError
+
+
 class _AbstractValueMap(Enum):
     """Abstract enum for value maps"""
 

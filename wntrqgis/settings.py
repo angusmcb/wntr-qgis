@@ -6,7 +6,7 @@ from typing import Any
 
 from qgis.core import QgsExpressionContextUtils, QgsProject
 
-from wntrqgis.elements import FlowUnit, HeadlossFormula
+from wntrqgis.elements import DemandType, FlowUnit, HeadlossFormula
 
 
 class SettingKey(str, Enum):
@@ -16,6 +16,7 @@ class SettingKey(str, Enum):
     MODEL_LAYERS = "model_layers", dict
     HEADLOSS_FORMULA = "headloss_formula", HeadlossFormula
     SIMULATION_DURATION = "simulation_duration", float
+    DEMAND_TYPE = "demand_type", DemandType
 
     def __new__(cls, *args):
         obj = str.__new__(cls, [args[0]])

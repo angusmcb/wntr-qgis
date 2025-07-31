@@ -40,12 +40,7 @@ from qgis.utils import iface
 import wntrqgis
 import wntrqgis.expressions
 from wntrqgis.dependency_management import WntrInstaller
-from wntrqgis.elements import (
-    FlowUnit,
-    HeadlossFormula,
-    ModelLayer,
-    ResultLayer,
-)
+from wntrqgis.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
 from wntrqgis.i18n import tr
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
@@ -171,6 +166,7 @@ class Plugin:
         run_menu.addMenu(SettingMenu(tr("Headloss Formula"), run_menu, SettingKey.HEADLOSS_FORMULA))
         run_menu.addMenu(SettingMenu(tr("Units"), run_menu, SettingKey.FLOW_UNITS))
         run_menu.addMenu(DurationSettingMenu(tr("Duration (hours)"), run_menu))
+        run_menu.addMenu(SettingMenu(tr("Demand Type"), run_menu, SettingKey.DEMAND_TYPE))
 
         run_button = QToolButton(self.object)
         run_button.setMenu(run_menu)
@@ -377,14 +373,18 @@ class RunAction(ProcessingRunnerAction):
         headloss_formula = project_settings.get(SettingKey.HEADLOSS_FORMULA, HeadlossFormula.HAZEN_WILLIAMS)
         headloss_formula_id = list(HeadlossFormula).index(headloss_formula)
 
+        demand_type = project_settings.get(SettingKey.DEMAND_TYPE, DemandType.FIXED)
+        demand_type_id = list(DemandType).index(demand_type)
+
         duration = project_settings.get(SettingKey.SIMULATION_DURATION, 0)
 
         self.set_success_message(flow_units, headloss_formula)
 
         return {
-            "UNITS": flow_unit_id,
-            "HEADLOSS_FORMULA": headloss_formula_id,
-            "DURATION": duration,
+            RunSimulation.UNITS: flow_unit_id,
+            RunSimulation.HEADLOSS_FORMULA: headloss_formula_id,
+            RunSimulation.DURATION: duration,
+            RunSimulation.DEMAND_TYPE: demand_type_id,
             **result_layers,
             **input_layers,
         }
