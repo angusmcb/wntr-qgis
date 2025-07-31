@@ -251,6 +251,7 @@ class ProcessingRunnerAction(QAction):
         super().__init__()
 
         self.algorithm = algorithm
+        self.setText(algorithm.displayName())
         self.setIcon(IconWithLogo(algorithm.icon()))
         self.triggered.connect(self.run)
 
@@ -348,7 +349,6 @@ class GeopackageOutputLayerDefinition(QgsProcessingOutputLayerDefinition):
 class RunAction(ProcessingRunnerAction):
     def __init__(self):
         super().__init__(RunSimulation())
-        self.setText(tr("Run Simulation"))
         self.setToolTip(tr("Run the simulation with the current settings."))
 
     def get_parameters(self) -> dict:
@@ -404,7 +404,7 @@ class LoadTemplateToMemoryAction(ProcessingRunnerAction):
 
     def get_parameters(self) -> dict:
         layer_dict = {layer.value: TemporaryOutputLayerDefinition() for layer in ModelLayer}
-        return {"CRS": QgsProject.instance().crs(), **layer_dict}
+        return {TemplateLayers.CRS: QgsProject.instance().crs(), **layer_dict}
 
 
 class LoadTemplateToGeopackageAction(ProcessingRunnerAction):
@@ -426,14 +426,12 @@ class LoadTemplateToGeopackageAction(ProcessingRunnerAction):
         layer_dict = {
             layer.value: GeopackageOutputLayerDefinition(geopackage_path, layer.value.lower()) for layer in ModelLayer
         }
-        return {"CRS": None, **layer_dict}
+        return {TemplateLayers.CRS: None, **layer_dict}
 
 
 class LoadInpAction(ProcessingRunnerAction):
     def __init__(self):
         super().__init__(ImportInp())
-        self.setText(tr("Load from .inp file"))
-        self.setToolTip(tr("Load a network from an EPANET .inp file."))
         self.success_message = tr("Loaded .inp file")
 
     def get_parameters(self) -> dict:
@@ -443,7 +441,7 @@ class LoadInpAction(ProcessingRunnerAction):
 
         layer_dict = {layer.value: TemporaryOutputLayerDefinition() for layer in ModelLayer}
 
-        return {"INPUT": filepath, "CRS": crs, **layer_dict}
+        return {ImportInp.INPUT: filepath, ImportInp.CRS: crs, **layer_dict}
 
     def get_filepath(self) -> str:
         """Get the file path from the user."""
