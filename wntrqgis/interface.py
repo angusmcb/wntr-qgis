@@ -1103,7 +1103,13 @@ class _FromGis:
         return link_df.drop(columns="geometry")
 
     def _process_pipe_length(self, pipe_df: pd.DataFrame) -> pd.Series:
-        calculated_lengths = pipe_df["geometry"].map(self._get_length).astype("float")
+        calculated_lengths = pipe_df["geometry"].map(self._measurer.measureLength).astype("float")
+
+        if self._measurer.lengthUnits() != QGIS_DISTANCE_UNIT_METERS:
+            calculated_lengths = calculated_lengths.apply(
+                self._measurer.convertLengthMeasurement, args=(QGIS_DISTANCE_UNIT_METERS,)
+            )
+
         if calculated_lengths.isna().any():
             raise PipeMeasuringError(calculated_lengths.isna().sum())
 
@@ -1169,14 +1175,6 @@ class _FromGis:
     def _get_point_coordinates(self, geometry: QgsGeometry):
         point = geometry.constGet()
         return point.x(), point.y()
-
-    def _get_length(self, geometry: QgsGeometry):
-        length = self._measurer.measureLength(geometry)
-
-        if self._measurer.lengthUnits() != QGIS_DISTANCE_UNIT_METERS:
-            length = self._measurer.convertLengthMeasurement(length, QGIS_DISTANCE_UNIT_METERS)
-
-        return length
 
     def _process_junctions(self, df: pd.DataFrame) -> pd.DataFrame:
         df["demand_pattern_name"] = self.patterns.add_all(
