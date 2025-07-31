@@ -1,6 +1,7 @@
 import pytest
 
 from wntrqgis.elements import (
+    DemandType,
     Field,
     FlowUnit,
     HeadlossFormula,
@@ -15,7 +16,18 @@ from wntrqgis.elements import (
 
 @pytest.mark.parametrize(
     "enum",
-    [FlowUnit, HeadlossFormula, PumpTypes, InitialStatus, ValveType, TankMixingModel, ModelLayer, ResultLayer, Field],
+    [
+        FlowUnit,
+        HeadlossFormula,
+        PumpTypes,
+        InitialStatus,
+        ValveType,
+        TankMixingModel,
+        ModelLayer,
+        ResultLayer,
+        Field,
+        DemandType,
+    ],
 )
 def test_friendly_name(enum):
     for member in enum:
