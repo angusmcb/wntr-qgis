@@ -418,9 +418,9 @@ class Writer:
 
             elif lyr is ModelLayer.VALVES:
                 p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
-                df.loc[p_valves_setting] = self._converter.from_si(df.loc[p_valves_setting].array, Parameter.Pressure)
+                df.loc[p_valves_setting] = self._converter.from_si(df.loc[p_valves_setting], Parameter.Pressure)
                 df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
-                    df.loc[df["valve_type"] == "FCV", "initial_setting"].array, Parameter.Flow
+                    df.loc[df["valve_type"] == "FCV", "initial_setting"], Parameter.Flow
                 )
                 if "headloss_curve" in df:
                     df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
@@ -434,7 +434,7 @@ class Writer:
                     continue
                 if not isinstance(parameter, Parameter):
                     continue
-                df[fieldname] = self._converter.from_si(df[fieldname].array, parameter)
+                df[fieldname] = self._converter.from_si(df[fieldname], parameter)
 
         return dfs
 
@@ -965,7 +965,7 @@ class _FromGis:
                 continue
             if not isinstance(parameter, Parameter):
                 continue
-            source_df[fieldname] = self._converter.to_si(source_df[fieldname].array, parameter)
+            source_df[fieldname] = self._converter.to_si(source_df[fieldname], parameter)
         return source_df
 
     def snap_links_to_nodes(self, node_df, link_df) -> pd.DataFrame:

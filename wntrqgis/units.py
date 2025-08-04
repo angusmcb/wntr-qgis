@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from wntrqgis.elements import FlowUnit, HeadlossFormula, Parameter
 
 if TYPE_CHECKING:
+    import numpy as np
     import pandas as pd
-    from numpy.typing import ArrayLike
 
 
 class MassUnits(enum.Enum):
@@ -49,7 +49,7 @@ class Converter:
     """Manages conversion to and from SI units
 
     Args:
-        flow_units: The set of units which will be converted to/from (or SI units for no conversion)
+        flow_units: The set of units which will be converted to/from
         headloss_formula: Used to determine how to handle conversion of the roughness coefficient
     """
 
@@ -65,45 +65,22 @@ class Converter:
 
     def to_si(
         self,
-        value: float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame,
+        value: float | np.ndarray[float] | pd.Series[float] | pd.DataFrame,
         parameter: Parameter,
-    ) -> float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame:
+    ) -> float | np.ndarray[float] | pd.Series[float] | pd.DataFrame:
         return value * self._factor(parameter)
 
     def from_si(
         self,
-        value: float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame,
+        value: float | np.ndarray[float] | pd.Series[float] | pd.DataFrame,
         parameter: Parameter,
-    ) -> float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame:
+    ) -> float | np.ndarray[float] | pd.Series[float] | pd.DataFrame:
         return value / self._factor(parameter)
 
     def _factor(
         self,
         parameter: Parameter,
     ) -> float:
-        """Convert from EPANET units groups to SI units.
-
-        If converting roughness, specify if the Darcy-Weisbach equation is
-        used using the darcy_weisbach parameter. Otherwise, that parameter
-        can be safely ignored/omitted for any other conversion.
-
-        Parameters
-        ----------
-        flow_units : FlowUnits
-            The flow units to use in the conversion
-        data : array-like
-            The EPANET-units data to be converted (scalar, array or dictionary)
-        darcy_weisbach : bool, optional
-            Set to ``True`` if converting roughness coefficients for use with Darcy-Weisbach
-            formula.
-
-        Returns
-        -------
-        float
-            The data values converted to SI standard units.
-
-        """
-
         if parameter is Parameter.Flow:
             return self._flow_unit_factor()
 
