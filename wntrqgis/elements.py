@@ -112,6 +112,45 @@ class Parameter(Enum):
     SourceMassInject = 38
     WaterAge = 39
 
+    @property
+    def friendly_name(self):
+        if self is Parameter.Flow:
+            return tr("*flow unit*")
+        if self is Parameter.EmitterCoeff:
+            return tr("*flow unit* / sqrt(m) or *flow unit* / sqrt(psi)")
+        elif self is Parameter.PipeDiameter:
+            return tr("mm or inches")
+        elif self is Parameter.RoughnessCoeff:
+            return tr("unitless or mm or 1e-3 feet")
+        elif self in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
+            return tr("metres or feet")
+        elif self is Parameter.UnitHeadloss:
+            return tr("m/1000m or ft/1000 ft")
+        elif self is Parameter.Velocity:
+            return tr("metres/second or feet/second")
+        elif self is Parameter.Energy:
+            return tr("kW hours")
+        elif self is Parameter.Power:
+            return tr("kW or hp")
+        elif self is Parameter.Pressure:
+            return tr("metres or psi")
+        elif self is Parameter.Volume:
+            return tr("cubic metres or cubic feet")
+        elif self is Parameter.Concentration:
+            return tr("mg/litre")
+        elif self is Parameter.ReactionRate:
+            return tr("mg/litre/day")
+        elif self is Parameter.SourceMassInject:
+            return tr("mg / minute")
+        elif self is Parameter.BulkReactionCoeff:
+            return tr(" ")
+        elif self is Parameter.WallReactionCoeff:
+            return tr("mg/m2/day or m/square feet/day or metres/day or feet/day")
+        elif self is Parameter.WaterAge:
+            return tr("hours")
+
+        raise ValueError(self)  # pragma: no cover
+
 
 class _AbstractValueMap(Enum):
     """Abstract enum for value maps"""
