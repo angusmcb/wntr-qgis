@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any, Literal
 
 from qgis.core import (
@@ -33,6 +32,7 @@ from wntrqgis.elements import (
     FieldGroup,
     InitialStatus,
     ModelLayer,
+    Parameter,
     PatternType,
     ResultLayer,
     _AbstractValueMap,
@@ -71,7 +71,9 @@ class _FieldStyler:
         # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
         python_type_class = self.field_type.python_type
 
-        if python_type_class is float and self.theme != "extended":
+        is_float = python_type_class is float or isinstance(python_type_class, Parameter)
+
+        if is_float and self.theme != "extended":
             config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
             if self.field_type.field_group & FieldGroup.REQUIRED:
                 config["AllowNull"] = False
@@ -80,7 +82,7 @@ class _FieldStyler:
                 config,
             )
 
-        if python_type_class is float and self.theme == "extended":
+        if is_float and self.theme == "extended":
             return QgsEditorWidgetSetup("List", {})
 
         if python_type_class is bool:
@@ -131,8 +133,11 @@ class _FieldStyler:
         if self.field_type.python_type is InitialStatus and self.layer_type in [ModelLayer.PUMPS, ModelLayer.PIPES]:
             return QgsDefaultValue(f"'{InitialStatus.OPEN.value}'")
 
-        if issubclass(self.field_type.python_type, Enum):
-            return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).value}'")
+        try:
+            if issubclass(self.field_type.python_type, _AbstractValueMap):
+                return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).value}'")
+        except TypeError:
+            pass
 
         if self.field_type.python_type in [str, CurveType, PatternType]:
             return QgsDefaultValue("''")  # because 'NULL' doesn't look nice

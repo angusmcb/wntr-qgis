@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from wntrqgis.elements import Field, FlowUnit, HeadlossFormula, ModelLayer, Parameter, ResultLayer
+from wntrqgis.elements import FlowUnit, HeadlossFormula, Parameter
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -61,100 +61,25 @@ class Converter:
         self.flow_units = flow_units
         self.headloss_formula = headloss_formula
         self.mass_units = MassUnits.mg
-        self.reaction_order = 1
+        self.wall_reaction_order = 1
 
     def to_si(
         self,
         value: float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame,
-        field: Field | Parameter,
-        layer: ModelLayer | ResultLayer | None = None,
+        parameter: Parameter,
     ) -> float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame:
-        conversion_param = self._get_conversion_param(field, layer)
-
-        if not conversion_param:
-            return value
-
-        return value * self._factor(conversion_param)
+        return value * self._factor(parameter)
 
     def from_si(
         self,
         value: float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame,
-        field: Field | Parameter,
-        layer: ModelLayer | ResultLayer | None = None,
+        parameter: Parameter,
     ) -> float | ArrayLike | pd.api.extensions.ExtensionArray | pd.Series | pd.DataFrame:
-        conversion_param = self._get_conversion_param(field, layer)
-
-        if not conversion_param:
-            return value
-
-        return value / self._factor(conversion_param)
-
-    def _get_conversion_param(
-        self, field: Field | Parameter, layer: ModelLayer | ResultLayer | None = None
-    ) -> Parameter | None:
-        if isinstance(field, Parameter):
-            return field
-
-        if field.python_type is not float:
-            return None
-
-        if field is Field.ELEVATION:
-            return Parameter.Elevation
-        if field is Field.BASE_DEMAND or field is Field.DEMAND or field is Field.FLOWRATE:
-            return Parameter.Flow
-        if field is Field.EMITTER_COEFFICIENT:
-            return Parameter.EmitterCoeff
-        if field in [Field.INITIAL_QUALITY, Field.QUALITY]:
-            return Parameter.Concentration
-        if field in [Field.MINIMUM_PRESSURE, Field.REQUIRED_PRESSURE, Field.PRESSURE]:
-            return Parameter.Pressure
-        if field in [
-            Field.INIT_LEVEL,
-            Field.MIN_LEVEL,
-            Field.MAX_LEVEL,
-            Field.BASE_HEAD,
-            Field.HEAD,
-        ]:
-            return Parameter.HydraulicHead
-        if field is Field.DIAMETER and layer is ModelLayer.TANKS:
-            return Parameter.TankDiameter
-        if field is Field.DIAMETER:
-            return Parameter.PipeDiameter
-        if field is Field.MIN_VOL:
-            return Parameter.Volume
-        if field is Field.BULK_COEFF:
-            return Parameter.BulkReactionCoeff
-        if field is Field.LENGTH:
-            return Parameter.Length
-        if field is Field.ROUGHNESS:
-            return Parameter.RoughnessCoeff
-        if field is Field.WALL_COEFF:
-            return Parameter.WallReactionCoeff
-        if field is Field.POWER:
-            return Parameter.Power
-        if field is Field.HEADLOSS:
-            if layer is ModelLayer.PIPES:
-                return Parameter.UnitHeadloss
-            return Parameter.HydraulicHead
-        if field is Field.VELOCITY:
-            return Parameter.Velocity
-
-        if field in [
-            Field.MINOR_LOSS,
-            Field.BASE_SPEED,
-            Field.INITIAL_SETTING,
-            Field.MIXING_FRACTION,
-            Field.PRESSURE_EXPONENT,
-            Field.ENERGY_PRICE,
-            Field.REACTION_RATE,
-        ]:
-            return None
-
-        raise ValueError(field)  # pragma: no cover
+        return value / self._factor(parameter)
 
     def _factor(
         self,
-        parameter,
+        parameter: Parameter,
     ) -> float:
         """Convert from EPANET units groups to SI units.
 
@@ -179,13 +104,11 @@ class Converter:
 
         """
 
-        traditional = self.flow_units in [FlowUnit.CFS, FlowUnit.GPM, FlowUnit.MGD, FlowUnit.IMGD, FlowUnit.AFD]
-
         if parameter is Parameter.Flow:
             return self._flow_unit_factor()
 
         if parameter is Parameter.EmitterCoeff:
-            if traditional:
+            if self.traditional:
                 # flowunit/sqrt(psi) to flowunit/sqrt(m), i.e.,
                 # flowunit/sqrt(psi) * sqrt(psi/ft / m/ft ) = flowunit/sqrt(m)
                 return self._flow_unit_factor() * (0.4333 / 0.3048) ** 0.5
@@ -193,14 +116,14 @@ class Converter:
                 return self._flow_unit_factor()
 
         elif parameter is Parameter.PipeDiameter:
-            if traditional:
+            if self.traditional:
                 return 0.0254  # in to m
             else:
                 return 0.001  # mm to m
 
         elif parameter is Parameter.RoughnessCoeff:
             if self.headloss_formula is HeadlossFormula.DARCY_WEISBACH:
-                if traditional:
+                if self.traditional:
                     return 0.001 * 0.3048  # 1e-3 ft to m
                 else:
                     return 0.001  # mm to m
@@ -208,7 +131,7 @@ class Converter:
                 return 1.0
 
         elif parameter in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
-            if traditional:
+            if self.traditional:
                 return 0.3048  # ft to m
             else:
                 return 1.0
@@ -217,7 +140,7 @@ class Converter:
             return 0.001  # m/1000m or ft/1000ft to unitless
 
         elif parameter is Parameter.Velocity:
-            if traditional:
+            if self.traditional:
                 return 0.3048  # ft/s to m/s
             else:
                 return 1.0
@@ -226,20 +149,20 @@ class Converter:
             return 3600000.0  # kW*hr to J
 
         elif parameter is Parameter.Power:
-            if traditional:
+            if self.traditional:
                 return 745.699872  # hp to W (Nm/s)
             else:
                 return 1000.0  # kW to W (Nm/s)
 
         elif parameter is Parameter.Pressure:
-            if traditional:
+            if self.traditional:
                 # psi to m, i.e., psi * (m/ft / psi/ft) = m
                 return 0.3048 / 0.4333
             else:
                 return 1.0
 
         elif parameter is Parameter.Volume:
-            if traditional:
+            if self.traditional:
                 return 0.3048**3  # ft3 to m3
             else:
                 return 1.0
@@ -253,17 +176,17 @@ class Converter:
         elif parameter is Parameter.SourceMassInject:
             return self.mass_units.factor / 60.0  # MASS /min to kg/s
 
-        elif parameter is Parameter.BulkReactionCoeff and self.reaction_order == 1:
+        elif parameter is Parameter.BulkReactionCoeff:
             return 1 / 86400.0  # per day to per second
 
-        elif parameter is Parameter.WallReactionCoeff and self.reaction_order == 0:
-            if traditional:
+        elif parameter is Parameter.WallReactionCoeff and self.wall_reaction_order == 0:
+            if self.traditional:
                 return self.mass_units.factor * 0.092903 / 86400.0  # M/ft2/d to SI
             else:
                 return self.mass_units.factor / 86400.0  # M/m2/day to M/m2/s
 
-        elif parameter is Parameter.WallReactionCoeff and self.reaction_order == 1:
-            if traditional:
+        elif parameter is Parameter.WallReactionCoeff and self.wall_reaction_order == 1:
+            if self.traditional:
                 return 0.3048 / 86400.0  # ft/d to m/s
             else:
                 return 1.0 / 86400.0  # m/day to m/s
@@ -302,3 +225,7 @@ class Converter:
             raise ValueError(flow_units)  # pragma: no cover
 
         return factor
+
+    @property
+    def traditional(self):
+        return self.flow_units in [FlowUnit.CFS, FlowUnit.GPM, FlowUnit.MGD, FlowUnit.IMGD, FlowUnit.AFD]

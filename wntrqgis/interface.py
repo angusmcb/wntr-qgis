@@ -396,6 +396,9 @@ class Writer:
                 if "vol_curve_name" in df:
                     df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
                     df.drop(columns="vol_curve_name", inplace=True)  # noqa: PD002
+                if "diameter" in df:
+                    df["tank_diameter"] = df["diameter"]
+                    df.drop(columns=["diameter"], inplace=True)  # noqa: PD002
 
             elif lyr is ModelLayer.PUMPS:
                 # not all pumps will have a pump curve (power pumps)!
@@ -426,10 +429,12 @@ class Writer:
 
             for fieldname in df.select_dtypes(include=["float"]):
                 try:
-                    field = Field[str(fieldname).upper()]
+                    parameter = Field[str(fieldname).upper()].python_type
                 except KeyError:
                     continue
-                df[fieldname] = self._converter.from_si(df[fieldname].array, field, lyr)
+                if not isinstance(parameter, Parameter):
+                    continue
+                df[fieldname] = self._converter.from_si(df[fieldname].array, parameter)
 
         return dfs
 
@@ -472,8 +477,10 @@ class Writer:
                 converted_df.loc[:, type_series != "Pipe"], Parameter.HydraulicHead
             )
 
+        elif isinstance(field.python_type, Parameter):
+            converted_df = self._converter.from_si(df, field.python_type)
         else:
-            converted_df = self._converter.from_si(df, field)
+            converted_df = df
 
         return converted_df
 
@@ -489,7 +496,7 @@ class Writer:
         if is_abstract_value_map or pd.api.types.is_string_dtype(dtype):
             return QMetaType.Type.QString if USE_QMETATYPE else QVariant.String
 
-        if pd.api.types.is_float_dtype(dtype):
+        if isinstance(dtype, Parameter) or pd.api.types.is_float_dtype(dtype):
             return QMetaType.Type.Double if USE_QMETATYPE else QVariant.Double
 
         if pd.api.types.is_bool_dtype(dtype):
@@ -849,7 +856,7 @@ class _FromGis:
 
             df = self._fix_column_types(df)
 
-            df = self._convert_dataframe(df, model_layer)
+            df = self._convert_dataframe(df)
 
             if model_layer is ModelLayer.JUNCTIONS:
                 df = self._process_junctions(df)
@@ -941,7 +948,7 @@ class _FromGis:
                 continue
 
             try:
-                if expected_type is float:
+                if expected_type is float or isinstance(expected_type, Parameter):
                     source_df[column_name] = pd.to_numeric(source_df[column_name])
                 elif expected_type is bool:
                     source_df[column_name] = pd.to_numeric(source_df[column_name]).astype("Int64").astype("object")
@@ -950,13 +957,15 @@ class _FromGis:
                 raise NetworkModelError(msg) from None
         return source_df
 
-    def _convert_dataframe(self, source_df: pd.DataFrame, layer: ModelLayer | None = None) -> pd.DataFrame:
+    def _convert_dataframe(self, source_df: pd.DataFrame) -> pd.DataFrame:
         for fieldname in source_df.select_dtypes(include=[np.number]):
             try:
-                field = Field[str(fieldname).upper()]
+                parameter = Field[str(fieldname).upper()].python_type
             except KeyError:
                 continue
-            source_df[fieldname] = self._converter.to_si(source_df[fieldname].array, field, layer)
+            if not isinstance(parameter, Parameter):
+                continue
+            source_df[fieldname] = self._converter.to_si(source_df[fieldname].array, parameter)
         return source_df
 
     def snap_links_to_nodes(self, node_df, link_df) -> pd.DataFrame:
@@ -1091,6 +1100,10 @@ class _FromGis:
 
             df = df.drop(columns=["vol_curve"])
 
+        if "tank_diameter" in df:
+            df["diameter"] = df["tank_diameter"]
+            df = df.drop(columns=["tank_diameter"])
+
         return df
 
     def _process_reservoirs(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -1125,12 +1138,10 @@ class _FromGis:
                 raise ValveInitialSettingError
 
             df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
-                df.loc[pressure_valves, "initial_setting"].array, field=Parameter.Pressure
+                df.loc[pressure_valves, "initial_setting"], Parameter.Pressure
             )
 
-            df.loc[fcvs, "initial_setting"] = self._converter.to_si(
-                df.loc[fcvs, "initial_setting"].array, field=Parameter.Flow
-            )
+            df.loc[fcvs, "initial_setting"] = self._converter.to_si(df.loc[fcvs, "initial_setting"], Parameter.Flow)
 
         if gpvs.any():
             if "headloss_curve" not in df:
@@ -1326,9 +1337,9 @@ def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
         ((pipe.length, pipe.diameter, pipe.roughness) for _, pipe in wn.pipes()),
         columns=["length", "diameter", "roughness"],
     )
-    pipe_df["length"] = converter.from_si(pipe_df["length"], Field.LENGTH)
-    pipe_df["diameter"] = converter.from_si(pipe_df["diameter"], Field.DIAMETER)
-    pipe_df["roughness"] = converter.from_si(pipe_df["roughness"], Field.ROUGHNESS)
+    pipe_df["length"] = converter.from_si(pipe_df["length"], Parameter.Length)
+    pipe_df["diameter"] = converter.from_si(pipe_df["diameter"], Parameter.PipeDiameter)
+    pipe_df["roughness"] = converter.from_si(pipe_df["roughness"], Parameter.RoughnessCoeff)
 
     formatted_df = pd.concat(
         [

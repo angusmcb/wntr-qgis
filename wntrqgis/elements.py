@@ -373,7 +373,7 @@ class ModelLayer(_AbstractLayer):
                 Field.INIT_LEVEL,
                 Field.MIN_LEVEL,
                 Field.MAX_LEVEL,
-                Field.DIAMETER,
+                Field.TANK_DIAMETER,
                 Field.MIN_VOL,
                 Field.VOL_CURVE,
                 Field.OVERFLOW,
@@ -478,57 +478,62 @@ class Field(Enum):
         return self._field_group
 
     NAME = "name", str, FieldGroup.BASE
-    ELEVATION = "elevation", float, FieldGroup.BASE | FieldGroup.REQUIRED
-    BASE_DEMAND = "base_demand", float, FieldGroup.BASE
+    ELEVATION = "elevation", Parameter.Elevation, FieldGroup.BASE | FieldGroup.REQUIRED
+    BASE_DEMAND = "base_demand", Parameter.Flow, FieldGroup.BASE
     DEMAND_PATTERN = "demand_pattern", PatternType, FieldGroup.BASE
-    EMITTER_COEFFICIENT = "emitter_coefficient", float, FieldGroup.BASE
-    INIT_LEVEL = "init_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
-    MIN_LEVEL = "min_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
-    MAX_LEVEL = "max_level", float, FieldGroup.BASE | FieldGroup.REQUIRED
+    EMITTER_COEFFICIENT = "emitter_coefficient", Parameter.EmitterCoeff, FieldGroup.BASE
+    INIT_LEVEL = "init_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
+    MIN_LEVEL = "min_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
+    MAX_LEVEL = "max_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
     VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
-    DIAMETER = "diameter", float, FieldGroup.BASE | FieldGroup.REQUIRED
-    MIN_VOL = "min_vol", float, FieldGroup.BASE
+    DIAMETER = "diameter", Parameter.PipeDiameter, FieldGroup.BASE | FieldGroup.REQUIRED
+    TANK_DIAMETER = "tank_diameter", Parameter.TankDiameter, FieldGroup.BASE | FieldGroup.REQUIRED
+    MIN_VOL = "min_vol", Parameter.Volume, FieldGroup.BASE
     VOL_CURVE = "vol_curve", CurveType, FieldGroup.BASE
     OVERFLOW = "overflow", bool, FieldGroup.BASE
-    BASE_HEAD = "base_head", float, FieldGroup.BASE | FieldGroup.REQUIRED
+    BASE_HEAD = "base_head", Parameter.Elevation, FieldGroup.BASE | FieldGroup.REQUIRED
     HEAD_PATTERN = "head_pattern", PatternType, FieldGroup.BASE
-    LENGTH = "length", float, FieldGroup.BASE
-    ROUGHNESS = "roughness", float, FieldGroup.BASE | FieldGroup.REQUIRED
+    LENGTH = "length", Parameter.Length, FieldGroup.BASE
+    ROUGHNESS = "roughness", Parameter.RoughnessCoeff, FieldGroup.BASE | FieldGroup.REQUIRED
     MINOR_LOSS = "minor_loss", float, FieldGroup.BASE
     CHECK_VALVE = "check_valve", bool, FieldGroup.BASE
     PUMP_TYPE = "pump_type", PumpTypes, FieldGroup.BASE | FieldGroup.REQUIRED
     PUMP_CURVE = "pump_curve", CurveType, FieldGroup.BASE
-    POWER = "power", float, FieldGroup.BASE
+    POWER = "power", Parameter.Power, FieldGroup.BASE
     BASE_SPEED = "base_speed", float, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", PatternType, FieldGroup.BASE
     INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
     INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
     HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
 
-    INITIAL_QUALITY = "initial_quality", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    INITIAL_QUALITY = "initial_quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_MODEL = "mixing_model", TankMixingModel, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS
-    BULK_COEFF = "bulk_coeff", float, FieldGroup.WATER_QUALITY_ANALYSIS
-    WALL_COEFF = "wall_coeff", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    BULK_COEFF = "bulk_coeff", Parameter.BulkReactionCoeff, FieldGroup.WATER_QUALITY_ANALYSIS
+    WALL_COEFF = "wall_coeff", Parameter.WallReactionCoeff, FieldGroup.WATER_QUALITY_ANALYSIS
 
-    MINIMUM_PRESSURE = "minimum_pressure", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
-    REQUIRED_PRESSURE = "required_pressure", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
+    MINIMUM_PRESSURE = "minimum_pressure", Parameter.Pressure, FieldGroup.PRESSURE_DEPENDENT_DEMAND
+    REQUIRED_PRESSURE = "required_pressure", Parameter.Pressure, FieldGroup.PRESSURE_DEPENDENT_DEMAND
     PRESSURE_EXPONENT = "pressure_exponent", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
     EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
     ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
 
-    DEMAND = "demand", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    HEAD = "head", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    PRESSURE = "pressure", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    DEMAND = "demand", Parameter.Flow, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEAD = "head", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    PRESSURE = "pressure", Parameter.Pressure, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
-    FLOWRATE = "flowrate", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    FLOWRATE = "flowrate", Parameter.Flow, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
     HEADLOSS = "headloss", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    VELOCITY = "velocity", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    VELOCITY = "velocity", Parameter.Velocity, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
-    QUALITY = "quality", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    REACTION_RATE = "reaction_rate", float, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    QUALITY = "quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    REACTION_RATE = (
+        "reaction_rate",
+        Parameter.ReactionRate,
+        FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD,
+    )
 
     @property
     def friendly_name(self):
@@ -552,6 +557,8 @@ class Field(Enum):
             return tr("Valve Type")
         if self is Field.DIAMETER:
             return tr("Diameter")
+        if self is Field.TANK_DIAMETER:
+            return tr("Diameter")
         if self is Field.MIN_VOL:
             return tr("Minimum Volume")
         if self is Field.VOL_CURVE:
@@ -573,9 +580,9 @@ class Field(Enum):
         if self is Field.PUMP_TYPE:
             return tr("Pump Type")
         if self is Field.PUMP_CURVE:
-            return tr("Pump Curve")
+            return tr("Pump Curve (for 'head' pumps)")
         if self is Field.POWER:
-            return tr("Power")
+            return tr("Power (for 'power' pumps)")
         if self is Field.BASE_SPEED:
             return tr("Base Speed")
         if self is Field.SPEED_PATTERN:
@@ -648,7 +655,9 @@ class Field(Enum):
         if self is Field.VALVE_TYPE:
             return tr("Type of valve (PRV, PSV, PBV, FCV, TCV, GPV)")
         if self is Field.DIAMETER:
-            return tr("Internal diameter of pipe or tank")
+            return tr("Internal diameter of pipe")
+        if self is Field.TANK_DIAMETER:
+            return tr("Diameter of tank")
         if self is Field.MIN_VOL:
             return tr("Minimum volume of water in tank")
         if self is Field.VOL_CURVE:

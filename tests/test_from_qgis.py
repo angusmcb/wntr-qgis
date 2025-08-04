@@ -104,7 +104,7 @@ def simple_layers() -> dict[str, QgsVectorLayer]:
             ("min_level", float),
             ("max_level", float),
             ("init_level", float),
-            ("diameter", float),
+            ("tank_diameter", float),
         ],
     )
     add_point(tank_layer, (4, 5), ["T1", 1.0, 0, 1, 0.1, 5.0])
@@ -121,7 +121,13 @@ def all_layers() -> dict[str, QgsVectorLayer]:
 
     tank_layer = layer(
         "point",
-        [("elevation", float), ("min_level", float), ("max_level", float), ("init_level", float), ("diameter", float)],
+        [
+            ("elevation", float),
+            ("min_level", float),
+            ("max_level", float),
+            ("init_level", float),
+            ("tank_diameter", float),
+        ],
     )
     add_point(tank_layer, (3, 3), [0, 0, 1, 0.5, 5.0])
 
@@ -192,7 +198,7 @@ def test_minimum_attributes(all_layers):
         ("TANKS", "min_level"),
         ("TANKS", "max_level"),
         ("TANKS", "init_level"),
-        ("TANKS", "diameter"),
+        ("TANKS", "tank_diameter"),
         ("RESERVOIRS", "base_head"),
         ("PIPES", "diameter"),
         ("PIPES", "roughness"),
@@ -374,7 +380,7 @@ def test_name_generation_with_conflicts():
             ("min_level", float),
             ("max_level", float),
             ("init_level", float),
-            ("diameter", float),
+            ("tank_diameter", float),
         ],
     )
     add_point(tanks, (5, 1), ["xx", 1, 1, 1, 1, 1])
@@ -491,7 +497,7 @@ def mixed_crs_layers():
             ("min_level", float),
             ("max_level", float),
             ("init_level", float),
-            ("diameter", float),
+            ("tank_diameter", float),
         ],
         "EPSG:32616",
     )
@@ -606,7 +612,7 @@ def test_boolean_attributes(bool_attr, expected_result):
             ("min_level", float),
             ("max_level", float),
             ("init_level", float),
-            ("diameter", float),
+            ("tank_diameter", float),
             ("overflow", bool_attr),
         ],
     )
@@ -648,7 +654,7 @@ def test_float_attributes(float_attr, expected_result, field_type):
         "point",
         [
             ("name", str),
-            ("diameter", float),
+            ("tank_diameter", float),
             ("elevation", float),
             ("min_level", float),
             ("max_level", float),
@@ -886,7 +892,7 @@ def tank_vol_curve_layers(simple_layers, curve_string):
         [
             ("name", str),
             ("elevation", float),
-            ("diameter", float),
+            ("tank_diameter", float),
             ("max_level", float),
             ("min_level", float),
             ("init_level", float),
