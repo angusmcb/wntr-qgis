@@ -11,6 +11,16 @@ def converter():
     return Converter(FlowUnit.LPS, HeadlossFormula.HAZEN_WILLIAMS)
 
 
+def test_factory():
+    import wntr
+
+    wn = wntr.network.WaterNetworkModel()
+
+    c = Converter.from_wn(wn)
+
+    assert isinstance(c, Converter)
+
+
 def test_converter_to_si():
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
     value = converter.to_si(1.0, Parameter.Elevation)

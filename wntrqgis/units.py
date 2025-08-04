@@ -8,6 +8,7 @@ from wntrqgis.elements import FlowUnit, HeadlossFormula, Parameter
 if TYPE_CHECKING:
     import numpy as np
     import pandas as pd
+    import wntr
 
 
 class MassUnits(enum.Enum):
@@ -62,6 +63,13 @@ class Converter:
         self.headloss_formula = headloss_formula
         self.mass_units = MassUnits.mg
         self.wall_reaction_order = 1
+
+    @classmethod
+    def from_wn(cls, wn: wntr.network.WaterNetworkModel) -> Converter:
+        flow_units = FlowUnit[wn.options.hydraulic.inpfile_units.upper()]
+        headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
+        converter = cls(flow_units, headloss_formula)
+        return converter
 
     def to_si(
         self,
