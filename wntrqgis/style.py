@@ -75,6 +75,10 @@ class _FieldStyler:
 
         if is_float and self.theme != "extended":
             config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
+
+            if isinstance(python_type_class, Parameter):
+                config["Suffix"] = "  " + python_type_class.friendly_name
+
             if self.field_type.field_group & FieldGroup.REQUIRED:
                 config["AllowNull"] = False
             return QgsEditorWidgetSetup(
