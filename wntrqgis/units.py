@@ -90,10 +90,10 @@ class Converter:
         self,
         parameter: Parameter,
     ) -> float:
-        if parameter is Parameter.Flow:
+        if parameter is Parameter.FLOW:
             return self._flow_unit_factor()
 
-        if parameter is Parameter.EmitterCoeff:
+        if parameter is Parameter.EMITTER_COEFFICIENT:
             if self.traditional:
                 # flowunit/sqrt(psi) to flowunit/sqrt(m), i.e.,
                 # flowunit/sqrt(psi) * sqrt(psi/ft / m/ft ) = flowunit/sqrt(m)
@@ -101,13 +101,13 @@ class Converter:
             else:
                 return self._flow_unit_factor()
 
-        elif parameter is Parameter.PipeDiameter:
+        elif parameter is Parameter.PIPE_DIAMETER:
             if self.traditional:
                 return 0.0254  # in to m
             else:
                 return 0.001  # mm to m
 
-        elif parameter is Parameter.RoughnessCoeff:
+        elif parameter is Parameter.ROUGHNESS_COEFFICIENT:
             if self.headloss_formula is HeadlossFormula.DARCY_WEISBACH:
                 if self.traditional:
                     return 0.001 * 0.3048  # 1e-3 ft to m
@@ -116,71 +116,71 @@ class Converter:
             else:
                 return 1.0
 
-        elif parameter in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
+        elif parameter in [Parameter.TANK_DIAMETER, Parameter.ELEVATION, Parameter.HYDRAULIC_HEAD, Parameter.LENGTH]:
             if self.traditional:
                 return 0.3048  # ft to m
             else:
                 return 1.0
 
-        elif parameter is Parameter.UnitHeadloss:
+        elif parameter is Parameter.UNIT_HEADLOSS:
             return 0.001  # m/1000m or ft/1000ft to unitless
 
-        elif parameter is Parameter.Velocity:
+        elif parameter is Parameter.VELOCITY:
             if self.traditional:
                 return 0.3048  # ft/s to m/s
             else:
                 return 1.0
 
-        elif parameter is Parameter.Energy:
+        elif parameter is Parameter.ENERGY:
             return 3600000.0  # kW*hr to J
 
-        elif parameter is Parameter.Power:
+        elif parameter is Parameter.POWER:
             if self.traditional:
                 return 745.699872  # hp to W (Nm/s)
             else:
                 return 1000.0  # kW to W (Nm/s)
 
-        elif parameter is Parameter.Pressure:
+        elif parameter is Parameter.PRESSURE:
             if self.traditional:
                 # psi to m, i.e., psi * (m/ft / psi/ft) = m
                 return 0.3048 / 0.4333
             else:
                 return 1.0
 
-        elif parameter is Parameter.Volume:
+        elif parameter is Parameter.VOLUME:
             if self.traditional:
                 return 0.3048**3  # ft3 to m3
             else:
                 return 1.0
 
-        elif parameter is Parameter.Concentration:
+        elif parameter is Parameter.CONCENTRATION:
             return self.mass_units.factor / 0.001  # MASS /L to kg/m3
 
-        elif parameter is Parameter.ReactionRate:
+        elif parameter is Parameter.REACTION_RATE:
             return (self.mass_units.factor / 0.001) / (24 * 3600)  # 1/day to 1/s
 
-        elif parameter is Parameter.SourceMassInject:
+        elif parameter is Parameter.SOURCE_MASS_INJECTION:
             return self.mass_units.factor / 60.0  # MASS /min to kg/s
 
-        elif parameter is Parameter.BulkReactionCoeff:
+        elif parameter is Parameter.BULK_REACTION_COEFFICIENT:
             return 1 / 86400.0  # per day to per second
 
-        elif parameter is Parameter.WallReactionCoeff and self.wall_reaction_order == 0:
+        elif parameter is Parameter.WALL_REACTION_COEFFICIENT and self.wall_reaction_order == 0:
             if self.traditional:
                 return self.mass_units.factor * 0.092903 / 86400.0  # M/ft2/d to SI
             else:
                 return self.mass_units.factor / 86400.0  # M/m2/day to M/m2/s
 
-        elif parameter is Parameter.WallReactionCoeff and self.wall_reaction_order == 1:
+        elif parameter is Parameter.WALL_REACTION_COEFFICIENT and self.wall_reaction_order == 1:
             if self.traditional:
                 return 0.3048 / 86400.0  # ft/d to m/s
             else:
                 return 1.0 / 86400.0  # m/day to m/s
 
-        elif parameter is Parameter.WaterAge:
+        elif parameter is Parameter.WATER_AGE:
             return 3600.0  # hr to s
 
-        elif parameter in [Parameter.Unitless, Parameter.Fraction, Parameter.Currency]:
+        elif parameter in [Parameter.UNITLESS, Parameter.FRACTION, Parameter.CURRENCY]:
             return 1.0
 
         raise ValueError(parameter)  # pragma: no cover
@@ -227,45 +227,45 @@ class UnitNames:
         return tr("*mass*")
 
     def get(self, parameter: Parameter) -> str:
-        if parameter is Parameter.Flow:
+        if parameter is Parameter.FLOW:
             return self.flow_unit_name()
-        if parameter is Parameter.EmitterCoeff:
+        if parameter is Parameter.EMITTER_COEFFICIENT:
             return tr("{flow_unit} / √m or {flow_unit} / √psi").format(flow_unit=self.flow_unit_name())
-        elif parameter is Parameter.PipeDiameter:
+        elif parameter is Parameter.PIPE_DIAMETER:
             return tr("mm or inches")
-        elif parameter is Parameter.RoughnessCoeff:
+        elif parameter is Parameter.ROUGHNESS_COEFFICIENT:
             return tr("unitless, mm, or 10⁻³ ft")
-        elif parameter in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
+        elif parameter in [Parameter.TANK_DIAMETER, Parameter.ELEVATION, Parameter.HYDRAULIC_HEAD, Parameter.LENGTH]:
             return tr("m or ft")
-        elif parameter is Parameter.UnitHeadloss:
+        elif parameter is Parameter.UNIT_HEADLOSS:
             return tr("m/1000 m or ft/1000 ft")
-        elif parameter is Parameter.Velocity:
+        elif parameter is Parameter.VELOCITY:
             return tr("m/s or ft/s")
-        elif parameter is Parameter.Energy:
+        elif parameter is Parameter.ENERGY:
             return tr("kWh")
-        elif parameter is Parameter.Power:
+        elif parameter is Parameter.POWER:
             return tr("kW or hp")
-        elif parameter is Parameter.Pressure:
+        elif parameter is Parameter.PRESSURE:
             return tr("m or psi")
-        elif parameter is Parameter.Volume:
+        elif parameter is Parameter.VOLUME:
             return tr("m³ or ft³")
-        elif parameter is Parameter.Concentration:
+        elif parameter is Parameter.CONCENTRATION:
             return tr("mg/L")
-        elif parameter is Parameter.ReactionRate:
+        elif parameter is Parameter.REACTION_RATE:
             return tr("mg/L/day")
-        elif parameter is Parameter.SourceMassInject:
+        elif parameter is Parameter.SOURCE_MASS_INJECTION:
             return tr("mg/min")
-        elif parameter is Parameter.BulkReactionCoeff:
+        elif parameter is Parameter.BULK_REACTION_COEFFICIENT:
             return tr(" ")
-        elif parameter is Parameter.WallReactionCoeff:
+        elif parameter is Parameter.WALL_REACTION_COEFFICIENT:
             return tr("mg/m²/day,  mg/ft²/day, m/day, or ft/day")
-        elif parameter is Parameter.WaterAge:
+        elif parameter is Parameter.WATER_AGE:
             return tr("hours")
-        elif parameter is Parameter.Unitless:
+        elif parameter is Parameter.UNITLESS:
             return tr("unitless")
-        elif parameter is Parameter.Fraction:
+        elif parameter is Parameter.FRACTION:
             return tr("fraction")
-        elif parameter is Parameter.Currency:
+        elif parameter is Parameter.CURRENCY:
             return tr("currency")
 
         raise ValueError(parameter)  # pragma: no cover
@@ -315,22 +315,22 @@ class SpecificUnitNames(Converter, UnitNames):
         self,
         parameter: Parameter,
     ) -> str:
-        if parameter is Parameter.Flow:
+        if parameter is Parameter.FLOW:
             return self.flow_unit_name()
 
-        if parameter is Parameter.EmitterCoeff:
+        if parameter is Parameter.EMITTER_COEFFICIENT:
             if self.traditional:
                 return tr("{flow_unit}/√psi").format(flow_unit=self.flow_unit_name())
             else:
                 return tr("{flow_unit}/√m").format(flow_unit=self.flow_unit_name())
 
-        elif parameter is Parameter.PipeDiameter:
+        elif parameter is Parameter.PIPE_DIAMETER:
             if self.traditional:
                 return tr("in")
             else:
                 return tr("mm")
 
-        elif parameter is Parameter.RoughnessCoeff:
+        elif parameter is Parameter.ROUGHNESS_COEFFICIENT:
             if self.headloss_formula is HeadlossFormula.DARCY_WEISBACH:
                 if self.traditional:
                     return tr("10⁻³ ft")  # 1e-3 ft to m
@@ -339,41 +339,41 @@ class SpecificUnitNames(Converter, UnitNames):
             else:
                 return tr("unitless")
 
-        elif parameter in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
+        elif parameter in [Parameter.TANK_DIAMETER, Parameter.ELEVATION, Parameter.HYDRAULIC_HEAD, Parameter.LENGTH]:
             if self.traditional:
                 return tr("ft")  # ft to m
             else:
                 return tr("m")
 
-        elif parameter is Parameter.UnitHeadloss:
+        elif parameter is Parameter.UNIT_HEADLOSS:
             if self.traditional:
                 return tr("ft/1000 ft  ")  # ft to m
             else:
                 return tr("m/1000 m")  # m/1000m or ft/1000ft to unitless
 
-        elif parameter is Parameter.Velocity:
+        elif parameter is Parameter.VELOCITY:
             if self.traditional:
                 return tr("ft/s")
             else:
                 return tr("m/s")
 
-        elif parameter is Parameter.Energy:
+        elif parameter is Parameter.ENERGY:
             return tr("kWhr")
 
-        elif parameter is Parameter.Power:
+        elif parameter is Parameter.POWER:
             if self.traditional:
                 return tr("hp")  # hp to W (Nm/s)
             else:
                 return tr("kW")  # kW to W (Nm/s)
 
-        elif parameter is Parameter.Pressure:
+        elif parameter is Parameter.PRESSURE:
             if self.traditional:
                 # psi to m, i.e., psi * (m/ft / psi/ft) = m
                 return tr("psi")
             else:
                 return tr("m")
 
-        elif parameter is Parameter.Volume:
+        elif parameter is Parameter.VOLUME:
             if self.traditional:
                 return tr("ft³")
             else:
@@ -381,37 +381,37 @@ class SpecificUnitNames(Converter, UnitNames):
 
         mass = self.mass_unit_name()
 
-        if parameter is Parameter.Concentration:
+        if parameter is Parameter.CONCENTRATION:
             return tr("{mass_unit}/L").format(mass_unit=mass)
 
-        elif parameter is Parameter.ReactionRate:
+        elif parameter is Parameter.REACTION_RATE:
             return tr("{mass_unit}/L/day").format(mass_unit=mass)
 
-        elif parameter is Parameter.SourceMassInject:
+        elif parameter is Parameter.SOURCE_MASS_INJECTION:
             return tr("{mass_unit}/min").format(mass_unit=mass)  # MASS /min to kg/s
 
-        elif parameter is Parameter.BulkReactionCoeff:
+        elif parameter is Parameter.BULK_REACTION_COEFFICIENT:
             return "  "
 
-        elif parameter is Parameter.WallReactionCoeff and self.wall_reaction_order == 0:
+        elif parameter is Parameter.WALL_REACTION_COEFFICIENT and self.wall_reaction_order == 0:
             if self.traditional:
                 return tr("{mass_unit}/ft²/day").format(mass_unit=mass)  # M/ft2/d to SI
             else:
                 return tr("{mass_unit}/m²/day").format(mass_unit=mass)  # M/m2/day to M/m2/s
 
-        elif parameter is Parameter.WallReactionCoeff and self.wall_reaction_order == 1:
+        elif parameter is Parameter.WALL_REACTION_COEFFICIENT and self.wall_reaction_order == 1:
             if self.traditional:
                 return tr("ft/day")  # ft/d to m/s
             else:
                 return tr("m/day")  # m/day to m/s
 
-        elif parameter is Parameter.WaterAge:
+        elif parameter is Parameter.WATER_AGE:
             return tr("hours")
-        elif parameter is Parameter.Unitless:
+        elif parameter is Parameter.UNITLESS:
             return tr("unitless")
-        elif parameter is Parameter.Fraction:
+        elif parameter is Parameter.FRACTION:
             return tr("fraction")
-        elif parameter is Parameter.Currency:
+        elif parameter is Parameter.CURRENCY:
             return tr("currency")
 
         raise ValueError(parameter)  # pragma: no cover

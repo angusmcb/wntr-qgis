@@ -23,25 +23,25 @@ def test_factory():
 
 def test_converter_to_si():
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.to_si(1.0, Parameter.Elevation)
+    value = converter.to_si(1.0, Parameter.ELEVATION)
     assert value == 0.3048
 
 
 def test_converter_from_si():
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.from_si(0.3048, Parameter.Elevation)
+    value = converter.from_si(0.3048, Parameter.ELEVATION)
     assert value == 1.0
 
 
 def test_converter_to_si_darcy_weisbach():
     converter = Converter(FlowUnit.LPS, HeadlossFormula.DARCY_WEISBACH)
-    value = converter.to_si(1, Parameter.RoughnessCoeff)
+    value = converter.to_si(1, Parameter.ROUGHNESS_COEFFICIENT)
     assert value == 0.001
 
 
 def test_converter_to_si_hazen_williams():
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
-    value = converter.to_si(1, Parameter.RoughnessCoeff)
+    value = converter.to_si(1, Parameter.ROUGHNESS_COEFFICIENT)
     assert value == 1
 
 
@@ -71,7 +71,7 @@ def test_to_si_float(converter):
     value = 10.0
     # FlowUnit.LPS: factor = 0.001
     expected = 0.01
-    result = converter.to_si(value, Parameter.Flow)
+    result = converter.to_si(value, Parameter.FLOW)
     assert result == expected
 
 
@@ -79,75 +79,75 @@ def test_from_si_float(converter):
     value = 10.0
     # FlowUnit.LPS: factor = 0.001
     expected = 10000.0
-    result = converter.from_si(value, Parameter.Flow)
+    result = converter.from_si(value, Parameter.FLOW)
     assert result == expected
 
 
 def test_to_si_numpy_array(converter):
     value = np.array([1.0, 2.0, 3.0])
     expected = np.array([0.001, 0.002, 0.003])
-    result = converter.to_si(value, Parameter.Flow)
+    result = converter.to_si(value, Parameter.FLOW)
     np.testing.assert_array_almost_equal(result, expected)
 
 
 def test_from_si_numpy_array(converter):
     value = np.array([1.0, 2.0, 3.0])
     expected = np.array([1000.0, 2000.0, 3000.0])
-    result = converter.from_si(value, Parameter.Flow)
+    result = converter.from_si(value, Parameter.FLOW)
     np.testing.assert_array_almost_equal(result, expected)
 
 
 def test_to_si_pandas_series(converter):
     value = pd.Series([1.0, 2.0, 3.0])
     expected = pd.Series([0.001, 0.002, 0.003])
-    result = converter.to_si(value, Parameter.Flow)
+    result = converter.to_si(value, Parameter.FLOW)
     pd.testing.assert_series_equal(result, expected)
 
 
 def test_from_si_pandas_series(converter):
     value = pd.Series([1.0, 2.0, 3.0])
     expected = pd.Series([1000.0, 2000.0, 3000.0])
-    result = converter.from_si(value, Parameter.Flow)
+    result = converter.from_si(value, Parameter.FLOW)
     pd.testing.assert_series_equal(result, expected)
 
 
 def test_to_si_pandas_dataframe(converter):
     value = pd.DataFrame({"a": [1.0, 2.0], "b": [3.0, 4.0]})
     expected = pd.DataFrame({"a": [0.001, 0.002], "b": [0.003, 0.004]})
-    result = converter.to_si(value, Parameter.Flow)
+    result = converter.to_si(value, Parameter.FLOW)
     pd.testing.assert_frame_equal(result, expected)
 
 
 def test_from_si_pandas_dataframe(converter):
     value = pd.DataFrame({"a": [1.0, 2.0], "b": [3.0, 4.0]})
     expected = pd.DataFrame({"a": [1000.0, 2000.0], "b": [3000.0, 4000.0]})
-    result = converter.from_si(value, Parameter.Flow)
+    result = converter.from_si(value, Parameter.FLOW)
     pd.testing.assert_frame_equal(result, expected)
 
 
 @pytest.mark.parametrize(
     ("param", "expected"),
     [
-        (Parameter.Flow, 0.001),
-        (Parameter.EmitterCoeff, 0.001),
-        (Parameter.PipeDiameter, 0.001),
-        (Parameter.RoughnessCoeff, 1.0),
-        (Parameter.TankDiameter, 1.0),
-        (Parameter.Elevation, 1.0),
-        (Parameter.HydraulicHead, 1.0),
-        (Parameter.Length, 1.0),
-        (Parameter.UnitHeadloss, 0.001),
-        (Parameter.Velocity, 1.0),
-        (Parameter.Energy, 3600000.0),
-        (Parameter.Power, 1000.0),
-        (Parameter.Pressure, 1.0),
-        (Parameter.Volume, 1.0),
-        (Parameter.Concentration, 0.001),
-        (Parameter.ReactionRate, pytest.approx(1.1574074074074073e-8)),
-        (Parameter.SourceMassInject, pytest.approx(1.6666666666666667e-8)),
-        (Parameter.BulkReactionCoeff, pytest.approx(1.1574074074074073e-05)),
-        (Parameter.WallReactionCoeff, pytest.approx(1.1574074074074074e-05)),
-        (Parameter.WaterAge, 3600.0),
+        (Parameter.FLOW, 0.001),
+        (Parameter.EMITTER_COEFFICIENT, 0.001),
+        (Parameter.PIPE_DIAMETER, 0.001),
+        (Parameter.ROUGHNESS_COEFFICIENT, 1.0),
+        (Parameter.TANK_DIAMETER, 1.0),
+        (Parameter.ELEVATION, 1.0),
+        (Parameter.HYDRAULIC_HEAD, 1.0),
+        (Parameter.LENGTH, 1.0),
+        (Parameter.UNIT_HEADLOSS, 0.001),
+        (Parameter.VELOCITY, 1.0),
+        (Parameter.ENERGY, 3600000.0),
+        (Parameter.POWER, 1000.0),
+        (Parameter.PRESSURE, 1.0),
+        (Parameter.VOLUME, 1.0),
+        (Parameter.CONCENTRATION, 0.001),
+        (Parameter.REACTION_RATE, pytest.approx(1.1574074074074073e-8)),
+        (Parameter.SOURCE_MASS_INJECTION, pytest.approx(1.6666666666666667e-8)),
+        (Parameter.BULK_REACTION_COEFFICIENT, pytest.approx(1.1574074074074073e-05)),
+        (Parameter.WALL_REACTION_COEFFICIENT, pytest.approx(1.1574074074074074e-05)),
+        (Parameter.WATER_AGE, 3600.0),
     ],
 )
 def test_factor_for_parameters(converter, param, expected):
@@ -158,26 +158,26 @@ def test_factor_for_parameters(converter, param, expected):
 @pytest.mark.parametrize(
     ("param", "expected"),
     [
-        (Parameter.Flow, 0.0283168466),
-        (Parameter.EmitterCoeff, pytest.approx(0.0283168466 * (0.4333 / 0.3048) ** 0.5)),
-        (Parameter.PipeDiameter, 0.0254),
-        (Parameter.RoughnessCoeff, 1.0),
-        (Parameter.TankDiameter, 0.3048),
-        (Parameter.Elevation, 0.3048),
-        (Parameter.HydraulicHead, 0.3048),
-        (Parameter.Length, 0.3048),
-        (Parameter.UnitHeadloss, 0.001),
-        (Parameter.Velocity, 0.3048),
-        (Parameter.Energy, 3600000.0),
-        (Parameter.Power, 745.699872),
-        (Parameter.Pressure, pytest.approx(0.3048 / 0.4333)),
-        (Parameter.Volume, pytest.approx(0.3048**3)),
-        (Parameter.Concentration, 0.001),
-        (Parameter.ReactionRate, pytest.approx(1.1574074074074073e-8)),
-        (Parameter.SourceMassInject, pytest.approx(1.6666666666666667e-8)),
-        (Parameter.BulkReactionCoeff, pytest.approx(1.1574074074074073e-05)),
-        (Parameter.WallReactionCoeff, pytest.approx(3.527777777777778e-06)),
-        (Parameter.WaterAge, 3600.0),
+        (Parameter.FLOW, 0.0283168466),
+        (Parameter.EMITTER_COEFFICIENT, pytest.approx(0.0283168466 * (0.4333 / 0.3048) ** 0.5)),
+        (Parameter.PIPE_DIAMETER, 0.0254),
+        (Parameter.ROUGHNESS_COEFFICIENT, 1.0),
+        (Parameter.TANK_DIAMETER, 0.3048),
+        (Parameter.ELEVATION, 0.3048),
+        (Parameter.HYDRAULIC_HEAD, 0.3048),
+        (Parameter.LENGTH, 0.3048),
+        (Parameter.UNIT_HEADLOSS, 0.001),
+        (Parameter.VELOCITY, 0.3048),
+        (Parameter.ENERGY, 3600000.0),
+        (Parameter.POWER, 745.699872),
+        (Parameter.PRESSURE, pytest.approx(0.3048 / 0.4333)),
+        (Parameter.VOLUME, pytest.approx(0.3048**3)),
+        (Parameter.CONCENTRATION, 0.001),
+        (Parameter.REACTION_RATE, pytest.approx(1.1574074074074073e-8)),
+        (Parameter.SOURCE_MASS_INJECTION, pytest.approx(1.6666666666666667e-8)),
+        (Parameter.BULK_REACTION_COEFFICIENT, pytest.approx(1.1574074074074073e-05)),
+        (Parameter.WALL_REACTION_COEFFICIENT, pytest.approx(3.527777777777778e-06)),
+        (Parameter.WATER_AGE, 3600.0),
     ],
 )
 def test_factor_for_parameters_cfs(param, expected):
@@ -195,29 +195,29 @@ def test_unitnames_flow_unit_name():
 @pytest.mark.parametrize(
     ("param", "expected"),
     [
-        (Parameter.Flow, "*flow*"),
-        (Parameter.EmitterCoeff, "*flow* / √m or *flow* / √psi"),
-        (Parameter.PipeDiameter, "mm or inches"),
-        (Parameter.RoughnessCoeff, "unitless, mm, or 10⁻³ ft"),
-        (Parameter.TankDiameter, "m or ft"),
-        (Parameter.Elevation, "m or ft"),
-        (Parameter.HydraulicHead, "m or ft"),
-        (Parameter.Length, "m or ft"),
-        (Parameter.UnitHeadloss, "m/1000 m or ft/1000 ft"),
-        (Parameter.Velocity, "m/s or ft/s"),
-        (Parameter.Energy, "kWh"),
-        (Parameter.Power, "kW or hp"),
-        (Parameter.Pressure, "m or psi"),
-        (Parameter.Volume, "m³ or ft³"),
-        (Parameter.Concentration, "mg/L"),
-        (Parameter.ReactionRate, "mg/L/day"),
-        (Parameter.SourceMassInject, "mg/min"),
-        (Parameter.BulkReactionCoeff, " "),
-        (Parameter.WallReactionCoeff, "mg/m²/day,  mg/ft²/day, m/day, or ft/day"),
-        (Parameter.WaterAge, "hours"),
-        (Parameter.Unitless, "unitless"),
-        (Parameter.Fraction, "fraction"),
-        (Parameter.Currency, "currency"),
+        (Parameter.FLOW, "*flow*"),
+        (Parameter.EMITTER_COEFFICIENT, "*flow* / √m or *flow* / √psi"),
+        (Parameter.PIPE_DIAMETER, "mm or inches"),
+        (Parameter.ROUGHNESS_COEFFICIENT, "unitless, mm, or 10⁻³ ft"),
+        (Parameter.TANK_DIAMETER, "m or ft"),
+        (Parameter.ELEVATION, "m or ft"),
+        (Parameter.HYDRAULIC_HEAD, "m or ft"),
+        (Parameter.LENGTH, "m or ft"),
+        (Parameter.UNIT_HEADLOSS, "m/1000 m or ft/1000 ft"),
+        (Parameter.VELOCITY, "m/s or ft/s"),
+        (Parameter.ENERGY, "kWh"),
+        (Parameter.POWER, "kW or hp"),
+        (Parameter.PRESSURE, "m or psi"),
+        (Parameter.VOLUME, "m³ or ft³"),
+        (Parameter.CONCENTRATION, "mg/L"),
+        (Parameter.REACTION_RATE, "mg/L/day"),
+        (Parameter.SOURCE_MASS_INJECTION, "mg/min"),
+        (Parameter.BULK_REACTION_COEFFICIENT, " "),
+        (Parameter.WALL_REACTION_COEFFICIENT, "mg/m²/day,  mg/ft²/day, m/day, or ft/day"),
+        (Parameter.WATER_AGE, "hours"),
+        (Parameter.UNITLESS, "unitless"),
+        (Parameter.FRACTION, "fraction"),
+        (Parameter.CURRENCY, "currency"),
     ],
 )
 def test_unitnames_get(param, expected):

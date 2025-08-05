@@ -86,36 +86,29 @@ class DemandType(Enum):
 
 
 class Parameter(Enum):
-    Elevation = 0
-    HydraulicHead = 2
-    Pressure = 3
-
-    Concentration = 4
-
-    Length = 5
-    PipeDiameter = 6
-    Flow = 7
-    Velocity = 8
-    UnitHeadloss = 9
-
-    Power = 15
-
-    Volume = 17
-
-    EmitterCoeff = 31
-    RoughnessCoeff = 32
-    TankDiameter = 33
-    Energy = 34
-
-    ReactionRate = 13
-    BulkReactionCoeff = 36
-    WallReactionCoeff = 37
-    SourceMassInject = 38
-    WaterAge = 39
-
-    Unitless = 40
-    Fraction = 41
-    Currency = 42
+    ELEVATION = auto()
+    HYDRAULIC_HEAD = auto()
+    PRESSURE = auto()
+    CONCENTRATION = auto()
+    LENGTH = auto()
+    PIPE_DIAMETER = auto()
+    FLOW = auto()
+    VELOCITY = auto()
+    UNIT_HEADLOSS = auto()
+    POWER = auto()
+    VOLUME = auto()
+    EMITTER_COEFFICIENT = auto()
+    ROUGHNESS_COEFFICIENT = auto()
+    TANK_DIAMETER = auto()
+    ENERGY = auto()
+    REACTION_RATE = auto()
+    BULK_REACTION_COEFFICIENT = auto()
+    WALL_REACTION_COEFFICIENT = auto()
+    SOURCE_MASS_INJECTION = auto()
+    WATER_AGE = auto()
+    UNITLESS = auto()
+    FRACTION = auto()
+    CURRENCY = auto()
 
 
 class _AbstractValueMap(Enum):
@@ -451,65 +444,65 @@ class Field(Enum):
         return self._field_group
 
     NAME = "name", str, FieldGroup.BASE
-    ELEVATION = "elevation", Parameter.Elevation, FieldGroup.BASE | FieldGroup.REQUIRED
-    BASE_DEMAND = "base_demand", Parameter.Flow, FieldGroup.BASE
+    ELEVATION = "elevation", Parameter.ELEVATION, FieldGroup.BASE | FieldGroup.REQUIRED
+    BASE_DEMAND = "base_demand", Parameter.FLOW, FieldGroup.BASE
     DEMAND_PATTERN = "demand_pattern", PatternType, FieldGroup.BASE
-    EMITTER_COEFFICIENT = "emitter_coefficient", Parameter.EmitterCoeff, FieldGroup.BASE
-    INIT_LEVEL = "init_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
-    MIN_LEVEL = "min_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
-    MAX_LEVEL = "max_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
+    EMITTER_COEFFICIENT = "emitter_coefficient", Parameter.EMITTER_COEFFICIENT, FieldGroup.BASE
+    INIT_LEVEL = "init_level", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.REQUIRED
+    MIN_LEVEL = "min_level", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.REQUIRED
+    MAX_LEVEL = "max_level", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.REQUIRED
 
     VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
-    PRESSURE_SETTING = "pressure_setting", Parameter.Pressure, FieldGroup.BASE
-    FLOW_SETTING = "flow_setting", Parameter.Flow, FieldGroup.BASE
-    THROTTLE_SETTING = "throttle_setting", Parameter.Unitless, FieldGroup.BASE
+    PRESSURE_SETTING = "pressure_setting", Parameter.PRESSURE, FieldGroup.BASE
+    FLOW_SETTING = "flow_setting", Parameter.FLOW, FieldGroup.BASE
+    THROTTLE_SETTING = "throttle_setting", Parameter.UNITLESS, FieldGroup.BASE
     HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
 
-    DIAMETER = "diameter", Parameter.PipeDiameter, FieldGroup.BASE | FieldGroup.REQUIRED
-    TANK_DIAMETER = "tank_diameter", Parameter.TankDiameter, FieldGroup.BASE | FieldGroup.REQUIRED
-    MIN_VOL = "min_vol", Parameter.Volume, FieldGroup.BASE
+    DIAMETER = "diameter", Parameter.PIPE_DIAMETER, FieldGroup.BASE | FieldGroup.REQUIRED
+    TANK_DIAMETER = "tank_diameter", Parameter.TANK_DIAMETER, FieldGroup.BASE | FieldGroup.REQUIRED
+    MIN_VOL = "min_vol", Parameter.VOLUME, FieldGroup.BASE
     VOL_CURVE = "vol_curve", CurveType, FieldGroup.BASE
     OVERFLOW = "overflow", bool, FieldGroup.BASE
-    BASE_HEAD = "base_head", Parameter.Elevation, FieldGroup.BASE | FieldGroup.REQUIRED
+    BASE_HEAD = "base_head", Parameter.ELEVATION, FieldGroup.BASE | FieldGroup.REQUIRED
     HEAD_PATTERN = "head_pattern", PatternType, FieldGroup.BASE
-    LENGTH = "length", Parameter.Length, FieldGroup.BASE
-    ROUGHNESS = "roughness", Parameter.RoughnessCoeff, FieldGroup.BASE | FieldGroup.REQUIRED
-    MINOR_LOSS = "minor_loss", Parameter.Unitless, FieldGroup.BASE
+    LENGTH = "length", Parameter.LENGTH, FieldGroup.BASE
+    ROUGHNESS = "roughness", Parameter.ROUGHNESS_COEFFICIENT, FieldGroup.BASE | FieldGroup.REQUIRED
+    MINOR_LOSS = "minor_loss", Parameter.UNITLESS, FieldGroup.BASE
     CHECK_VALVE = "check_valve", bool, FieldGroup.BASE
     PUMP_TYPE = "pump_type", PumpTypes, FieldGroup.BASE | FieldGroup.REQUIRED
     PUMP_CURVE = "pump_curve", CurveType, FieldGroup.BASE
-    POWER = "power", Parameter.Power, FieldGroup.BASE
-    BASE_SPEED = "base_speed", Parameter.Fraction, FieldGroup.BASE
+    POWER = "power", Parameter.POWER, FieldGroup.BASE
+    BASE_SPEED = "base_speed", Parameter.FRACTION, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", PatternType, FieldGroup.BASE
     INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
 
-    INITIAL_QUALITY = "initial_quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS
+    INITIAL_QUALITY = "initial_quality", Parameter.CONCENTRATION, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_MODEL = "mixing_model", TankMixingModel, FieldGroup.WATER_QUALITY_ANALYSIS
-    MIXING_FRACTION = "mixing_fraction", Parameter.Fraction, FieldGroup.WATER_QUALITY_ANALYSIS
-    BULK_COEFF = "bulk_coeff", Parameter.BulkReactionCoeff, FieldGroup.WATER_QUALITY_ANALYSIS
-    WALL_COEFF = "wall_coeff", Parameter.WallReactionCoeff, FieldGroup.WATER_QUALITY_ANALYSIS
+    MIXING_FRACTION = "mixing_fraction", Parameter.FRACTION, FieldGroup.WATER_QUALITY_ANALYSIS
+    BULK_COEFF = "bulk_coeff", Parameter.BULK_REACTION_COEFFICIENT, FieldGroup.WATER_QUALITY_ANALYSIS
+    WALL_COEFF = "wall_coeff", Parameter.WALL_REACTION_COEFFICIENT, FieldGroup.WATER_QUALITY_ANALYSIS
 
-    MINIMUM_PRESSURE = "minimum_pressure", Parameter.Pressure, FieldGroup.PRESSURE_DEPENDENT_DEMAND
-    REQUIRED_PRESSURE = "required_pressure", Parameter.Pressure, FieldGroup.PRESSURE_DEPENDENT_DEMAND
-    PRESSURE_EXPONENT = "pressure_exponent", Parameter.Unitless, FieldGroup.PRESSURE_DEPENDENT_DEMAND
+    MINIMUM_PRESSURE = "minimum_pressure", Parameter.PRESSURE, FieldGroup.PRESSURE_DEPENDENT_DEMAND
+    REQUIRED_PRESSURE = "required_pressure", Parameter.PRESSURE, FieldGroup.PRESSURE_DEPENDENT_DEMAND
+    PRESSURE_EXPONENT = "pressure_exponent", Parameter.UNITLESS, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
     EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
-    ENERGY_PRICE = "energy_price", Parameter.Currency, FieldGroup.ENERGY
+    ENERGY_PRICE = "energy_price", Parameter.CURRENCY, FieldGroup.ENERGY
     ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
 
-    DEMAND = "demand", Parameter.Flow, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    HEAD = "head", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    PRESSURE = "pressure", Parameter.Pressure, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    DEMAND = "demand", Parameter.FLOW, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEAD = "head", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    PRESSURE = "pressure", Parameter.PRESSURE, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
-    FLOWRATE = "flowrate", Parameter.Flow, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    HEADLOSS = "headloss", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    UNIT_HEADLOSS = "unit_headloss", Parameter.UnitHeadloss, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    VELOCITY = "velocity", Parameter.Velocity, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    FLOWRATE = "flowrate", Parameter.FLOW, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEADLOSS = "headloss", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    UNIT_HEADLOSS = "unit_headloss", Parameter.UNIT_HEADLOSS, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    VELOCITY = "velocity", Parameter.VELOCITY, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
-    QUALITY = "quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    QUALITY = "quality", Parameter.CONCENTRATION, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
     REACTION_RATE = (
         "reaction_rate",
-        Parameter.ReactionRate,
+        Parameter.REACTION_RATE,
         FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD,
     )
 

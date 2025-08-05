@@ -616,23 +616,23 @@ class _Curves:
 
         if curve_type is _Curves.Type.VOLUME:
             for point in points:
-                x = conversion_function(point[0], Parameter.Length)
-                y = conversion_function(point[1], Parameter.Volume)
+                x = conversion_function(point[0], Parameter.LENGTH)
+                y = conversion_function(point[1], Parameter.VOLUME)
                 converted_points.append((x, y))
         elif curve_type is _Curves.Type.HEAD:
             for point in points:
-                x = conversion_function(point[0], Parameter.Flow)
-                y = conversion_function(point[1], Parameter.HydraulicHead)
+                x = conversion_function(point[0], Parameter.FLOW)
+                y = conversion_function(point[1], Parameter.HYDRAULIC_HEAD)
                 converted_points.append((x, y))
         elif curve_type is _Curves.Type.EFFICIENCY:
             for point in points:
-                x = conversion_function(point[0], Parameter.Flow)
+                x = conversion_function(point[0], Parameter.FLOW)
                 y = point[1]
                 converted_points.append((x, y))
         elif curve_type is _Curves.Type.HEADLOSS:
             for point in points:
-                x = conversion_function(point[0], Parameter.Flow)
-                y = conversion_function(point[1], Parameter.HydraulicHead)
+                x = conversion_function(point[0], Parameter.FLOW)
+                y = conversion_function(point[1], Parameter.HYDRAULIC_HEAD)
                 converted_points.append((x, y))
         else:
             raise KeyError("Curve type not specified")  # noqa: EM101, TRY003 # pragma: no cover
@@ -1338,9 +1338,9 @@ def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
         ((pipe.length, pipe.diameter, pipe.roughness) for _, pipe in wn.pipes()),
         columns=["length", "diameter", "roughness"],
     )
-    pipe_df["length"] = converter.from_si(pipe_df["length"], Parameter.Length)
-    pipe_df["diameter"] = converter.from_si(pipe_df["diameter"], Parameter.PipeDiameter)
-    pipe_df["roughness"] = converter.from_si(pipe_df["roughness"], Parameter.RoughnessCoeff)
+    pipe_df["length"] = converter.from_si(pipe_df["length"], Parameter.LENGTH)
+    pipe_df["diameter"] = converter.from_si(pipe_df["diameter"], Parameter.PIPE_DIAMETER)
+    pipe_df["roughness"] = converter.from_si(pipe_df["roughness"], Parameter.ROUGHNESS_COEFFICIENT)
 
     formatted_df = pd.concat(
         [
