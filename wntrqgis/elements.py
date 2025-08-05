@@ -208,7 +208,7 @@ class InitialStatus(_AbstractValueMap):
     CLOSED = "Closed"
 
     @property
-    def friendly_name(self):
+    def friendly_name(self) -> str:
         if self is InitialStatus.OPEN:
             return tr("Open")
         if self is InitialStatus.ACTIVE:
