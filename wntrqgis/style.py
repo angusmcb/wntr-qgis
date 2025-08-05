@@ -50,7 +50,7 @@ def style(
     if not units:
         units = UnitNames()
 
-    styler = _LayerStyler(layer, layer_type, theme)
+    styler = _LayerStyler(layer, layer_type, theme, units)
 
     layer.setRenderer(styler.layer_renderer)
     layer.setLabeling(styler.labeling)
@@ -230,10 +230,13 @@ class _FieldStyler:
 
 
 class _LayerStyler:
-    def __init__(self, layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: str | None = None):
+    def __init__(
+        self, layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: str | None, units: UnitNames
+    ):
         self.layer = layer
         self.layer_type = layer_type
         self.theme = theme
+        self.units = units
 
     def setup_extended_period(self) -> None:
         if isinstance(self.layer_type, ResultLayer) and self.theme == "extended":
@@ -258,10 +261,15 @@ class _LayerStyler:
         if isinstance(self.layer_type, ModelLayer):
             return QgsSingleSymbolRenderer(self._symbol)
 
-        if self.layer_type is ResultLayer.NODES:
-            attribute_expression = 'wntr_result_at_current_time("pressure")' if self.theme == "extended" else "pressure"
-        else:
-            attribute_expression = 'wntr_result_at_current_time("velocity")' if self.theme == "extended" else "velocity"
+        field = Field.PRESSURE if self.layer_type is ResultLayer.NODES else Field.VELOCITY
+
+        field_name = field.name
+        attribute_expression = (
+            f'wntr_result_at_current_time("{field_name}")' if self.theme == "extended" else field_name
+        )
+        unit_name = ""
+        if isinstance(field.python_type, Parameter):
+            unit_name = self.units.get(field.python_type)
 
         renderer = QgsGraduatedSymbolRenderer()
         renderer.setClassAttribute(attribute_expression)
@@ -269,6 +277,7 @@ class _LayerStyler:
         classification_method = QgsClassificationQuantile()
         classification_method.setLabelPrecision(1)
         classification_method.setLabelTrimTrailingZeroes(False)
+        classification_method.setLabelFormat("%1 - %2 " + unit_name)
         renderer.setClassificationMethod(classification_method)
 
         renderer.updateClasses(self.layer, 5)
