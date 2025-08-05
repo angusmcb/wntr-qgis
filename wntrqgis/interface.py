@@ -424,6 +424,7 @@ class Writer:
                     df.loc[pressure_valves, "pressure_setting"] = df.loc[pressure_valves, "initial_setting"]
                     df.loc[flow_valves, "flow_setting"] = df.loc[flow_valves, "initial_setting"]
                     df.loc[throttle_valves, "throttle_setting"] = df.loc[throttle_valves, "initial_setting"]
+                    df.drop(columns="initial_setting", inplace=True)  # noqa: PD002
 
                 if "headloss_curve" in df:
                     df.loc[general_valves, "headloss_curve"] = df.loc[general_valves, "headloss_curve_name"].apply(
