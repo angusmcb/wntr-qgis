@@ -19,12 +19,12 @@ class FlowUnit(Enum):
     LPM = auto()
     MLD = auto()
     CMH = auto()
+    CMD = auto()
     CFS = auto()
     GPM = auto()
     MGD = auto()
     IMGD = auto()
     AFD = auto()
-    CMD = auto()
 
     @property
     def friendly_name(self):
@@ -36,6 +36,8 @@ class FlowUnit(Enum):
             return tr("Mega Litres Per Day")
         if self is FlowUnit.CMH:
             return tr("Cubic Metres per Hour")
+        if self is FlowUnit.CMD:
+            return tr("Cubic Metres per Day")
         if self is FlowUnit.CFS:
             return tr("Cubic Feet per Second")
         if self is FlowUnit.GPM:
@@ -46,8 +48,7 @@ class FlowUnit(Enum):
             return tr("Imperial Mega Gallons per Day")
         if self is FlowUnit.AFD:
             return tr("Acre-feet per Day")
-        if self is FlowUnit.CMD:
-            return tr("Cubic Metres per Day")
+
         raise ValueError  # pragma: no cover
 
     @property
