@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from wntrqgis.elements import FlowUnit, HeadlossFormula, Parameter
-from wntrqgis.units import Converter
+from wntrqgis.units import Converter, SpecificUnitNames, UnitNames
 
 
 @pytest.fixture
@@ -54,15 +54,17 @@ def test_converter_to_si_hazen_williams():
 #     assert isinstance(conversion_parameter, (type(None), Parameter))
 
 
-@pytest.mark.parametrize("param", list(Parameter))
 @pytest.mark.parametrize("flow_unit", list(FlowUnit))
 @pytest.mark.parametrize("headloss_formula", list(HeadlossFormula))
-def test_factor_in_all_combinations(param, flow_unit, headloss_formula):
+def test_factor_in_all_combinations(flow_unit, headloss_formula):
     converter = Converter(flow_unit, headloss_formula)
 
-    factor = converter._factor(param)
+    for param in Parameter:
+        factor = converter._factor(param)
 
-    assert isinstance(factor, float)
+        assert isinstance(factor, float), (
+            f"Factor for {param} with {flow_unit} and {headloss_formula} should be a float, got {type(factor)}"
+        )
 
 
 def test_to_si_float(converter):
@@ -182,3 +184,73 @@ def test_factor_for_parameters_cfs(param, expected):
     converter = Converter(FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS)
     factor = converter._factor(param)
     assert factor == expected
+
+
+def test_unitnames_flow_unit_name():
+    u = UnitNames()
+    assert isinstance(u.flow_unit_name(), str)
+    assert u.flow_unit_name() == "*flow*"
+
+
+@pytest.mark.parametrize(
+    ("param", "expected"),
+    [
+        (Parameter.Flow, "*flow*"),
+        (Parameter.EmitterCoeff, "*flow* / √m or *flow* / √psi"),
+        (Parameter.PipeDiameter, "mm or inches"),
+        (Parameter.RoughnessCoeff, "unitless, mm, or 10⁻³ ft"),
+        (Parameter.TankDiameter, "m or ft"),
+        (Parameter.Elevation, "m or ft"),
+        (Parameter.HydraulicHead, "m or ft"),
+        (Parameter.Length, "m or ft"),
+        (Parameter.UnitHeadloss, "m/1000 m or ft/1000 ft"),
+        (Parameter.Velocity, "m/s or ft/s"),
+        (Parameter.Energy, "kWh"),
+        (Parameter.Power, "kW or hp"),
+        (Parameter.Pressure, "m or psi"),
+        (Parameter.Volume, "m³ or ft³"),
+        (Parameter.Concentration, "mg/L"),
+        (Parameter.ReactionRate, "mg/L/day"),
+        (Parameter.SourceMassInject, "mg/min"),
+        (Parameter.BulkReactionCoeff, " "),
+        (Parameter.WallReactionCoeff, "mg/m²/day,  mg/ft²/day, m/day, or ft/day"),
+        (Parameter.WaterAge, "hours"),
+        (Parameter.Unitless, "unitless"),
+        (Parameter.Fraction, "fraction"),
+        (Parameter.Currency, "currency"),
+    ],
+)
+def test_unitnames_get(param, expected):
+    u = UnitNames()
+    # Remove tr() wrapping for comparison
+    result = u.get(param)
+    assert expected in result
+
+
+@pytest.mark.parametrize("param", list(Parameter))
+def test_unitnames_all_params(param):
+    u = UnitNames()
+    result = u.get(param)
+    assert isinstance(result, str), f"Expected string for {param}, got {type(result)}"
+
+
+def test_specificunitnames_flow_unit_name():
+    s = SpecificUnitNames(FlowUnit.LPS, HeadlossFormula.HAZEN_WILLIAMS)
+    assert s.flow_unit_name() == "L/s"
+
+
+@pytest.mark.parametrize(
+    ("flow_unit", "headloss_formula"),
+    [
+        (FlowUnit.LPS, HeadlossFormula.HAZEN_WILLIAMS),
+        (FlowUnit.CFS, HeadlossFormula.HAZEN_WILLIAMS),
+        (FlowUnit.LPS, HeadlossFormula.DARCY_WEISBACH),
+    ],
+)
+def test_specificunitnames_get_all(flow_unit, headloss_formula):
+    s = SpecificUnitNames(flow_unit, headloss_formula)
+    # Just check that get returns a string for all parameters
+    for param in Parameter:
+        result = s.get(param)
+
+        assert isinstance(result, str), param
