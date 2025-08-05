@@ -31,13 +31,11 @@ from qgis.core import (
     QgsProject,
     QgsUnitTypes,
     QgsVectorLayer,
-    QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QMetaType, QVariant
 
 import wntrqgis.style
 from wntrqgis.elements import (
-    ElementFamily,
     Field,
     FieldGroup,
     FlowUnit,
@@ -47,6 +45,7 @@ from wntrqgis.elements import (
     PumpTypes,
     ResultLayer,
     ValveType,
+    _AbstractLayer,
     _AbstractValueMap,
 )
 from wntrqgis.i18n import tr
@@ -126,7 +125,7 @@ def to_qgis(
     model_layers: list[ModelLayer | ResultLayer] = list(ResultLayer if results else ModelLayer)
     for model_layer in model_layers:
         layer = QgsVectorLayer(
-            "Point" if model_layer.qgs_wkb_type is QgsWkbTypes.Point else "LineString",
+            "Point" if model_layer.is_node else "LineString",
             model_layer.friendly_name,
             "memory",
         )
@@ -183,55 +182,57 @@ class Writer:
         if not wn.options.time.duration:
             self._timestep = 0
 
-        self._types: dict[ResultLayer, pd.Series] = {}
-        self._types[ResultLayer.LINKS] = pd.Series({link_name: link.link_type for link_name, link in wn.links()})
-        self._types[ResultLayer.NODES] = pd.Series({node_name: node.node_type for node_name, node in wn.nodes()})
-
+        self._dfs: dict[_AbstractLayer, pd.DataFrame] = {}
         if results:
-            self._result_dfs = self._get_results_dfs(results)
+            self._dfs = self._get_results_dfs(wn, results)
         else:
-            self._model_dfs = self._get_model_dfs(wn)
+            self._dfs = self._get_model_dfs(wn)
 
-        self._geometries = self._get_geometries(wn)
+        self._node_geometries = self._get_node_geometries(wn)
+        self._link_geometries = self._get_link_geometries(wn)
 
         field_group = FieldGroup.BASE | _get_field_groups(wn)
 
-        self.fields: list[Field]
+        self.fields = [field for field in Field if field.field_group & field_group]
         """A list of field names to be written
 
         * The default set of fields will depend on ``wn`` and ``results``
         * When writing only those fields related to the layer bei_ng written will be used.
         """
-        if results:
-            self.fields = [Field.NAME]
-            self.fields.extend([field for field in Field if field.field_group & field_group])
-        else:
-            self.fields = [field for field in Field if field.field_group & field_group]
 
-    def _get_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[ElementFamily, dict[str, QgsGeometry]]:
-        """As the WNTR simulation result do not contain any geometry information it is necessary to load them
+    def _get_node_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[str, QgsGeometry]:
+        """Get the geometries of the nodes in the water network model.
 
-        This function loads the geometries from a WaterNetworkModel"""
-        geometries: dict[ElementFamily, dict[str, QgsGeometry]] = {ElementFamily.NODE: {}, ElementFamily.LINK: {}}
+        Args:
+            wn: The WNTR water network model.
 
-        name: str
-        node: wntr.network.elements.Node
-        for name, node in wn.nodes():
-            geometries[ElementFamily.NODE][name] = QgsGeometry(QgsPoint(*node.coordinates))
+        Returns:
+            dict[str, QgsGeometry]: A dictionary mapping node names to their geometries.
+        """
+        return {name: QgsGeometry(QgsPoint(*node.coordinates)) for name, node in wn.nodes()}
 
-        link: wntr.network.elements.Link
-        for name, link in wn.links():
-            point_list = [
-                QgsPoint(*vertex)
-                for vertex in [
-                    link.start_node.coordinates,
-                    *link.vertices,
-                    link.end_node.coordinates,
+    def _get_link_geometries(self, wn: wntr.network.WaterNetworkModel) -> dict[str, QgsGeometry]:
+        """Get the geometries of the links in the water network model.
+
+        Args:
+            wn: The WNTR water network model.
+
+        Returns:
+            dict[str, QgsGeometry]: A dictionary mapping link names to their geometries.
+        """
+        return {
+            name: QgsGeometry.fromPolyline(
+                [
+                    QgsPoint(*vertex)
+                    for vertex in [
+                        link.start_node.coordinates,
+                        *link.vertices,
+                        link.end_node.coordinates,
+                    ]
                 ]
-            ]
-            geometries[ElementFamily.LINK][name] = QgsGeometry.fromPolyline(point_list)
-
-        return geometries
+            )
+            for name, link in wn.links()
+        }
 
     def get_qgsfields(self, layer: ModelLayer | ResultLayer) -> QgsFields:
         """Get the set of QgsFields that will be written by 'write'.
@@ -245,13 +246,10 @@ class Writer:
         Returns:
             QgsFields: The set of fields to be written.
         """
-        if isinstance(layer, ResultLayer):
-            layer_df = self._result_dfs.get(layer, pd.DataFrame())
-        else:
-            layer_df = self._model_dfs.get(layer, pd.DataFrame())
 
-        field_names = ["name"]  # get this as first column
-        field_names.extend(field.name for field in self.fields if field in layer.wq_fields())
+        layer_df = self._dfs.get(layer, pd.DataFrame())
+
+        field_names = [field.name for field in self.fields if field in layer.wq_fields()]
         field_names.extend(layer_df.columns.to_list())
         field_names = list(dict.fromkeys(field_names))  # de-duplicate
 
@@ -304,10 +302,7 @@ class Writer:
         """
         field_names = self.get_qgsfields(layer).names()
 
-        if isinstance(layer, ResultLayer):
-            layer_df = self._result_dfs.get(layer, pd.DataFrame())
-        else:
-            layer_df = self._model_dfs.get(layer, pd.DataFrame())
+        layer_df = self._dfs.get(layer, pd.DataFrame())
 
         missing_cols = list(set(field_names) - set(layer_df.columns))
 
@@ -321,7 +316,7 @@ class Writer:
             index=ordered_df.index,
         )
 
-        geometries = self._geometries[layer.element_family]
+        geometries = self._node_geometries if layer.is_node else self._link_geometries
 
         for name, attributes in attribute_series.items():
             f = QgsFeature()
@@ -331,10 +326,10 @@ class Writer:
             )
             sink.addFeature(f, QgsFeatureSink.FastInsert)
 
-    def _get_model_dfs(self, wn: wntr.network.WaterNetworkModel) -> dict[ModelLayer, pd.DataFrame]:
+    def _get_model_dfs(self, wn: wntr.network.WaterNetworkModel) -> dict[_AbstractLayer, pd.DataFrame]:
         wn_dict = wn.to_dict()
 
-        dfs: dict[ModelLayer, pd.DataFrame] = {}
+        dfs: dict[_AbstractLayer, pd.DataFrame] = {}
 
         df_nodes = pd.DataFrame(wn_dict["nodes"])
         if len(df_nodes) > 0:
@@ -443,51 +438,54 @@ class Writer:
 
         return dfs
 
-    def _get_results_dfs(self, results: wntr.sim.SimulationResults) -> dict[ResultLayer, pd.DataFrame]:
-        result_df = {}
-        for layer in ResultLayer:
-            results_dfs = results.node if layer is ResultLayer.NODES else results.link
+    def _get_results_dfs(
+        self, wn: wntr.network.WaterNetworkModel, results: wntr.sim.SimulationResults
+    ) -> dict[_AbstractLayer, pd.DataFrame]:
+        node_dfs = results.node
+        link_dfs = results.link
 
-            result_df[layer] = self._process_results_layer(layer, results_dfs)
+        link_dfs["unit_headloss"], link_dfs["headloss"] = self._fix_headloss_df(link_dfs[Field.HEADLOSS.value], wn)
 
-        return result_df
+        node_df = self._process_results_layer(ResultLayer.NODES, node_dfs)
+        link_df = self._process_results_layer(ResultLayer.LINKS, link_dfs)
+
+        return {ResultLayer.NODES: node_df, ResultLayer.LINKS: link_df}
 
     def _process_results_layer(self, layer: ResultLayer, results_dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
         output_attributes: dict[str, pd.Series] = {}
 
         for field in layer.wq_fields():
-            converted_df = self._convert_result_df(results_dfs[field.value].copy(), field)
+            df = results_dfs.get(field.value, pd.DataFrame())
+
+            if df.empty:
+                continue
+
+            if isinstance(field.python_type, Parameter):
+                df = self._converter.from_si(df, field.python_type)
 
             if self._timestep is not None:
-                output_attributes[field.value] = converted_df.iloc[self._timestep]
+                output_attributes[field.value] = df.iloc[self._timestep]
             else:
-                lists = converted_df.transpose().to_numpy().tolist()
-                output_attributes[field.value] = pd.Series(lists, index=converted_df.columns)
+                lists = df.transpose().to_numpy().tolist()
+                output_attributes[field.value] = pd.Series(lists, index=df.columns)
 
-        output_attributes["name"] = output_attributes[field.value].index.to_series()
+        combined_df = pd.DataFrame(output_attributes)
+        combined_df["name"] = combined_df.index.to_series()
+        return combined_df
 
-        return pd.DataFrame(output_attributes, index=output_attributes[field.value].index)
+    def _fix_headloss_df(
+        self, df: pd.DataFrame, wn: wntr.network.WaterNetworkModel
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        pipe_lengths = wn.query_link_attribute("length", link_type=wntr.network.model.Pipe)
 
-    def _convert_result_df(self, df: pd.DataFrame, field: Field) -> pd.DataFrame:
-        "Convert a results dataframe, taking special care with 'headloss' which for pipes doubles as 'unit headloss'"
-        converted_df: pd.DataFrame
-        if field is Field.HEADLOSS:
-            converted_df = df
-            type_series = self._types[ResultLayer.LINKS].reindex(converted_df.columns)
+        unit_headloss = df.loc[:, pipe_lengths.index]
 
-            converted_df.loc[:, type_series == "Pipe"] = self._converter.from_si(
-                converted_df.loc[:, type_series == "Pipe"], Parameter.UnitHeadloss
-            )
-            converted_df.loc[:, type_series != "Pipe"] = self._converter.from_si(
-                converted_df.loc[:, type_series != "Pipe"], Parameter.HydraulicHead
-            )
+        pipe_total_headloss = unit_headloss * pipe_lengths
 
-        elif isinstance(field.python_type, Parameter):
-            converted_df = self._converter.from_si(df, field.python_type)
-        else:
-            converted_df = df
+        total_headloss = df
+        total_headloss.loc[:, pipe_lengths.index] = pipe_total_headloss
 
-        return converted_df
+        return unit_headloss, total_headloss
 
     def _get_qgs_field_type(self, dtype: Any) -> QMetaType | QVariant:
         if dtype is list:  # Must be checked before string type

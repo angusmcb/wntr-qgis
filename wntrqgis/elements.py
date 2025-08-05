@@ -229,13 +229,6 @@ class CurveType(str):
     __slots__ = ()
 
 
-class ElementFamily(Enum):
-    """Enum for node and link types"""
-
-    NODE = auto()
-    LINK = auto()
-
-
 class LayerType(Flag):
     JUNCTIONS = auto()
     RESERVOIRS = auto()
@@ -269,8 +262,13 @@ class _AbstractLayer(Enum):
         return "RESULT_" + self.name
 
     @property
+    def is_node(self) -> bool:
+        msg = "is_node must be implemented in subclasses"
+        raise NotImplementedError(msg)
+
+    @property
     def qgs_wkb_type(self):
-        return QgsWkbTypes.Point if self.element_family is ElementFamily.NODE else QgsWkbTypes.LineString
+        return QgsWkbTypes.Point if self.is_node else QgsWkbTypes.LineString
 
 
 class ModelLayer(_AbstractLayer):
@@ -314,21 +312,13 @@ class ModelLayer(_AbstractLayer):
         raise ValueError  # pragma: no cover
 
     @property
-    def element_family(self) -> ElementFamily:
+    def is_node(self) -> bool:
         """Layer is a node or a link?"""
-        return (
-            ElementFamily.NODE
-            if self in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]
-            else ElementFamily.LINK
-        )
+        return self in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]
 
     @property
     def acceptable_processing_vectors(self):
-        return (
-            [QgsProcessing.TypeVectorPoint]
-            if self.element_family is ElementFamily.NODE
-            else [QgsProcessing.TypeVectorLine]
-        )
+        return [QgsProcessing.TypeVectorPoint] if self.is_node else [QgsProcessing.TypeVectorLine]
 
     def wq_fields(self) -> list[Field]:
         """Mapping of fields associated with each layer"""
@@ -417,20 +407,23 @@ class ResultLayer(_AbstractLayer):
         raise ValueError  # pragma: no cover
 
     @property
-    def element_family(self):
-        return ElementFamily.NODE if self is ResultLayer.NODES else ElementFamily.LINK
+    def is_node(self) -> bool:
+        return self is ResultLayer.NODES
 
     def wq_fields(self):
         if self is ResultLayer.NODES:
             return [
+                Field.NAME,
                 Field.DEMAND,
                 Field.HEAD,
                 Field.PRESSURE,
                 Field.QUALITY,
             ]
         return [
+            Field.NAME,
             Field.FLOWRATE,
             Field.HEADLOSS,
+            Field.UNIT_HEADLOSS,
             Field.VELOCITY,
             Field.QUALITY,
             Field.REACTION_RATE,
@@ -509,7 +502,8 @@ class Field(Enum):
     PRESSURE = "pressure", Parameter.Pressure, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
     FLOWRATE = "flowrate", Parameter.Flow, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
-    HEADLOSS = "headloss", float, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    HEADLOSS = "headloss", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
+    UNIT_HEADLOSS = "unit_headloss", Parameter.UnitHeadloss, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
     VELOCITY = "velocity", Parameter.Velocity, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
 
     QUALITY = "quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS | FieldGroup.LIST_IN_EXTENDED_PERIOD
@@ -615,6 +609,8 @@ class Field(Enum):
             return tr("Flowrate")
         if self is Field.HEADLOSS:
             return tr("Headloss")
+        if self is Field.UNIT_HEADLOSS:
+            return tr("Unit Headloss")
         if self is Field.VELOCITY:
             return tr("Velocity")
         if self is Field.QUALITY:
@@ -718,6 +714,8 @@ class Field(Enum):
             return tr("Water flow rate through link")
         if self is Field.HEADLOSS:
             return tr("Head loss across link")
+        if self is Field.UNIT_HEADLOSS:
+            return tr("Head loss proportional to length of pipe")
         if self is Field.VELOCITY:
             return tr("Water velocity in link")
         if self is Field.QUALITY:

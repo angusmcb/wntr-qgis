@@ -494,6 +494,7 @@ def test_run_link_fields(run_result):
         "name",
         "flowrate",
         "headloss",
+        "unit_headloss",
         "velocity",
         "quality",
         "reaction_rate",
