@@ -116,51 +116,6 @@ class Parameter(Enum):
     Fraction = 41
     Currency = 42
 
-    @property
-    def friendly_name(self):
-        if self is Parameter.Flow:
-            return tr("*flow unit*")
-        if self is Parameter.EmitterCoeff:
-            return tr("*flow unit* / √m or *flow unit* / √psi")
-        elif self is Parameter.PipeDiameter:
-            return tr("mm or inches")
-        elif self is Parameter.RoughnessCoeff:
-            return tr("unitless, mm, or 10⁻³ ft")
-        elif self in [Parameter.TankDiameter, Parameter.Elevation, Parameter.HydraulicHead, Parameter.Length]:
-            return tr("m or ft")
-        elif self is Parameter.UnitHeadloss:
-            return tr("m/1000 m or ft/1000 ft")
-        elif self is Parameter.Velocity:
-            return tr("m/s or ft/s")
-        elif self is Parameter.Energy:
-            return tr("kWh")
-        elif self is Parameter.Power:
-            return tr("kW or hp")
-        elif self is Parameter.Pressure:
-            return tr("m or psi")
-        elif self is Parameter.Volume:
-            return tr("m³ or ft³")
-        elif self is Parameter.Concentration:
-            return tr("mg/L")
-        elif self is Parameter.ReactionRate:
-            return tr("mg/L/day")
-        elif self is Parameter.SourceMassInject:
-            return tr("mg/min")
-        elif self is Parameter.BulkReactionCoeff:
-            return tr(" ")
-        elif self is Parameter.WallReactionCoeff:
-            return tr("mg/m²/day,  mg/ft²/day, m/day, or ft/day")
-        elif self is Parameter.WaterAge:
-            return tr("hours")
-        elif self is Parameter.Unitless:
-            return tr("unitless")
-        elif self is Parameter.Fraction:
-            return tr("fraction")
-        elif self is Parameter.Currency:
-            return tr("currency")
-
-        raise ValueError(self)  # pragma: no cover
-
 
 class _AbstractValueMap(Enum):
     """Abstract enum for value maps"""

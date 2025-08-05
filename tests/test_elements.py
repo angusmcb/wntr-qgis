@@ -7,7 +7,6 @@ from wntrqgis.elements import (
     HeadlossFormula,
     InitialStatus,
     ModelLayer,
-    Parameter,
     PumpTypes,
     ResultLayer,
     TankMixingModel,
@@ -28,7 +27,6 @@ from wntrqgis.elements import (
         ResultLayer,
         Field,
         DemandType,
-        Parameter,
     ],
 )
 def test_friendly_name(enum):
@@ -49,7 +47,6 @@ def test_friendly_name(enum):
         ResultLayer,
         Field,
         DemandType,
-        Parameter,
     ],
 )
 def test_translated_name(enum, monkeypatch: pytest.MonkeyPatch):
