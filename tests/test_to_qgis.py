@@ -268,7 +268,7 @@ def test_tcv_setting(wn):
 
     layers = wntrqgis.to_qgis(wn)
 
-    check_values(layers["VALVES"], "initial_setting", [10.0])
+    check_values(layers["VALVES"], "throttle_setting", [10.0])
 
 
 def test_unit_warning(wn, caplog):
