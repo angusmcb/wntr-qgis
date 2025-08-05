@@ -309,7 +309,7 @@ class Writer:
 
         missing_cols = list(set(field_names) - set(layer_df.columns))
 
-        if len(missing_cols) > 0:
+        if missing_cols:
             layer_df[missing_cols] = NULL
 
         ordered_df = layer_df[field_names]
