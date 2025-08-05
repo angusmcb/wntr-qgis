@@ -38,9 +38,18 @@ from wntrqgis.elements import (
     _AbstractValueMap,
 )
 from wntrqgis.i18n import tr
+from wntrqgis.units import SpecificUnitNames, UnitNames
 
 
-def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Literal["extended"] | None = None):
+def style(
+    layer: QgsVectorLayer,
+    layer_type: ModelLayer | ResultLayer,
+    theme: Literal["extended"] | None = None,
+    units: UnitNames | None = None,
+):
+    if not units:
+        units = UnitNames()
+
     styler = _LayerStyler(layer, layer_type, theme)
 
     layer.setRenderer(styler.layer_renderer)
@@ -50,7 +59,7 @@ def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Li
     field: QgsField
     for i, field in enumerate(layer.fields()):
         try:
-            field_styler = _FieldStyler(Field(field.name().lower()), layer_type, theme)
+            field_styler = _FieldStyler(Field(field.name().lower()), layer_type, theme, units)
         except ValueError:
             continue
 
@@ -61,10 +70,13 @@ def style(layer: QgsVectorLayer, layer_type: ModelLayer | ResultLayer, theme: Li
 
 
 class _FieldStyler:
-    def __init__(self, field_type: Field, layer_type: ModelLayer | ResultLayer, theme: str | None) -> None:
+    def __init__(
+        self, field_type: Field, layer_type: ModelLayer | ResultLayer, theme: str | None, units: UnitNames
+    ) -> None:
         self.field_type = field_type
         self.layer_type = layer_type
         self.theme = theme
+        self.units = units
 
     @property
     def editor_widget(self) -> QgsEditorWidgetSetup:
@@ -77,7 +89,7 @@ class _FieldStyler:
             config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
 
             if isinstance(python_type_class, Parameter):
-                config["Suffix"] = "  " + python_type_class.friendly_name
+                config["Suffix"] = "  " + self.units.get(python_type_class)
 
             if self.field_type.field_group & FieldGroup.REQUIRED:
                 config["AllowNull"] = False
@@ -150,6 +162,11 @@ class _FieldStyler:
 
     @property
     def alias(self) -> str:
+        if isinstance(self.units, SpecificUnitNames) and isinstance(self.field_type.python_type, Parameter):
+            return tr("{field} ({unit})").format(
+                field=self.field_type.friendly_name, unit=self.units.get(self.field_type.python_type)
+            )
+
         return self.field_type.friendly_name
 
     @property
