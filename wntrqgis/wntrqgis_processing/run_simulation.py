@@ -185,7 +185,6 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
             raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
 
         wn.options.time.duration = self._get_duration(parameters, context) * 3600
-        wn.options.hydraulic.inpfile_units = flow_unit.name
         wn.options.hydraulic.demand_model = self._get_demand_type(parameters, context).value
 
         return wn
@@ -244,17 +243,14 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
     ) -> dict[str, str]:
         outputs: dict[str, str] = {}
 
-        flow_unit = self._get_flow_unit(parameters, context)
-        head_flow_unit = self._get_headloss_formula(parameters, context)
-
         with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
-            result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
+            result_writer = Writer(wn, sim_results)  # type: ignore
 
         crs = self._get_crs(parameters, context)
 
         group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
         style_theme = "extended" if wn.options.time.duration > 0 else None
-        unit_names = SpecificUnitNames(flow_unit, head_flow_unit)
+        unit_names = SpecificUnitNames.from_wn(wn)
 
         for layer_type in ResultLayer:
             fields = result_writer.get_qgsfields(layer_type)

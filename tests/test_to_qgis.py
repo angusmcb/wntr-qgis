@@ -274,7 +274,5 @@ def test_tcv_setting(wn):
 def test_unit_warning(wn, caplog):
     wntrqgis.to_qgis(wn)
 
-    expected_warning = (
-        "No units specified. Will use the value specified in WaterNetworkModel object: Gallons per Minute"
-    )
+    expected_warning = "No units specified. Will use the value from wn: Gallons per Minute"
     assert expected_warning in caplog.messages

@@ -126,6 +126,7 @@ class ImportInp(WntrQgisProcessingBase):
         if parameters.get(self.UNITS) is not None:
             unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
             flow_unit = list(FlowUnit)[unit_enum_int]
+            wn.options.hydraulic.inpfile_units = flow_unit.name
         else:
             flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
         feedback.pushInfo(
@@ -143,7 +144,7 @@ class ImportInp(WntrQgisProcessingBase):
 
         progress.update_progress(Progression.CREATING_OUTPUTS)
 
-        network_writer = Writer(wn, units=flow_unit.name)  # TODO: FlowUnits should be string that doesn't need 'name'
+        network_writer = Writer(wn)
 
         # this is just to give a little user output
         # extra_analysis_type_names = [

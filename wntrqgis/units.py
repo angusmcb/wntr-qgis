@@ -66,7 +66,7 @@ class Converter:
         self.wall_reaction_order = 1
 
     @classmethod
-    def from_wn(cls, wn: wntr.network.WaterNetworkModel) -> Converter:
+    def from_wn(cls, wn: wntr.network.WaterNetworkModel):
         flow_units = FlowUnit[wn.options.hydraulic.inpfile_units.upper()]
         headloss_formula = HeadlossFormula(wn.options.hydraulic.headloss)
         converter = cls(flow_units, headloss_formula)

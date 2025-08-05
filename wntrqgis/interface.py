@@ -50,7 +50,7 @@ from wntrqgis.elements import (
 )
 from wntrqgis.i18n import tr
 from wntrqgis.spatial_index import SnapError, SpatialIndex
-from wntrqgis.units import Converter
+from wntrqgis.units import Converter, SpecificUnitNames
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
@@ -111,7 +111,22 @@ def to_qgis(
     if isinstance(wn, (str, pathlib.Path)):
         wn = wntr.network.WaterNetworkModel(str(wn))
 
-    writer = Writer(wn, results, units)
+    if units:
+        try:
+            flow_unit = FlowUnit[units.upper()]
+        except KeyError as e:
+            raise FlowUnitError(e) from e
+        wn.options.hydraulic.inpfile_units = flow_unit.name
+
+    else:
+        flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units.upper()]
+
+        logger.warning(
+            tr("No units specified. Will use the value from wn: {units_friendly_name}").format(
+                units_friendly_name=flow_unit.friendly_name
+            )
+        )
+    writer = Writer(wn, results)
     map_layers: dict[str, QgsVectorLayer] = {}
 
     if crs:
@@ -121,6 +136,8 @@ def to_qgis(
             raise ValueError(msg)
     else:
         crs_object = QgsCoordinateReferenceSystem()
+
+    unit_names = SpecificUnitNames.from_wn(wn)
 
     model_layers: list[ModelLayer | ResultLayer] = list(ResultLayer if results else ModelLayer)
     for model_layer in model_layers:
@@ -136,7 +153,9 @@ def to_qgis(
 
         layer.updateFields()
         layer.updateExtents()
-        wntrqgis.style.style(layer, model_layer, theme="extended" if results and wn.options.time.duration else None)
+        wntrqgis.style.style(
+            layer, model_layer, theme="extended" if results and wn.options.time.duration else None, units=unit_names
+        )
         QgsProject.instance().addMapLayer(layer)
         map_layers[model_layer.name] = layer
 
@@ -159,24 +178,8 @@ class Writer:
         self,
         wn: wntr.network.WaterNetworkModel,
         results: wntr.sim.SimulationResults | None = None,
-        units: Literal["LPS", "LPM", "MLD", "CMH", "CFS", "GPM", "MGD", "IMGD", "AFD", "CMD"] | None = None,
     ) -> None:
-        if not units:
-            units = wn.options.hydraulic.inpfile_units
-
-            units_friendly_name = FlowUnit[units].friendly_name
-            logger.warning(
-                tr(
-                    "No units specified. Will use the value specified in WaterNetworkModel object: {units_friendly_name}"  # noqa: E501
-                ).format(units_friendly_name=units_friendly_name)
-            )
-
-        try:
-            unit = FlowUnit[units.upper()]
-        except KeyError as e:
-            raise FlowUnitError(e) from e
-
-        self._converter = Converter(unit, HeadlossFormula(wn.options.hydraulic.headloss))
+        self._converter = Converter.from_wn(wn)
 
         self._timestep = None
         if not wn.options.time.duration:
@@ -733,14 +736,14 @@ def from_qgis(
                 "Cannot set headloss when wn is set. Set the headloss in the wn.options.hydraulic.headloss instead"
             )
             raise ValueError(msg)
-        headloss_formula_type = HeadlossFormula(wn.options.hydraulic.headloss)
+        HeadlossFormula(wn.options.hydraulic.headloss)
     else:
         wn = wntr.network.WaterNetworkModel()
 
         if not headloss:
             msg = tr("headloss must be set if wn is not set: possible values are: H-W, D-W, C-M")
             raise ValueError(msg)
-        headloss_formula_type = HeadlossFormula(headloss)
+        HeadlossFormula(headloss)
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore",
@@ -760,7 +763,9 @@ def from_qgis(
     except KeyError as e:
         raise FlowUnitError(e) from e
 
-    unit_conversion = Converter(unit, headloss_formula_type)
+    wn.options.hydraulic.inpfile_units = unit.name
+
+    unit_conversion = Converter.from_wn(wn)
 
     reader = _FromGis(unit_conversion, project)
     if crs:
