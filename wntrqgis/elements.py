@@ -51,10 +51,6 @@ class FlowUnit(Enum):
 
         raise ValueError  # pragma: no cover
 
-    @property
-    def is_traditional(self):
-        return self in [FlowUnit.CFS, FlowUnit.GPM, FlowUnit.MGD, FlowUnit.IMGD, FlowUnit.AFD]
-
 
 class HeadlossFormula(Enum):
     HAZEN_WILLIAMS = "H-W"
