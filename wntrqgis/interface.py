@@ -368,7 +368,7 @@ class Writer:
         curves = _Curves(wn, self._converter)
 
         for lyr, df in dfs.items():
-            if len(df) == 0:
+            if df.empty:
                 continue
 
             if (
@@ -417,15 +417,20 @@ class Writer:
                     df["efficiency"] = df["efficiency"].apply(lambda x: curves.get(x["name"]))
 
             elif lyr is ModelLayer.VALVES:
-                p_valves_setting = df["valve_type"].isin(["PRV", "PSV", "PBV"]), "initial_setting"
-                df.loc[p_valves_setting] = self._converter.from_si(df.loc[p_valves_setting], Parameter.Pressure)
-                df.loc[df["valve_type"] == "FCV", "initial_setting"] = self._converter.from_si(
-                    df.loc[df["valve_type"] == "FCV", "initial_setting"], Parameter.Flow
-                )
+                pressure_valves = df["valve_type"].isin(["PRV", "PSV", "PBV"])
+                flow_valves = df["valve_type"] == "FCV"
+                throttle_valves = df["valve_type"] == "TCV"
+                general_valves = df["valve_type"] == "GPV"
+
+                if "initial_setting" in df:
+                    df.loc[pressure_valves, "pressure_setting"] = df.loc[pressure_valves, "initial_setting"]
+                    df.loc[flow_valves, "flow_setting"] = df.loc[flow_valves, "initial_setting"]
+                    df.loc[throttle_valves, "throttle_setting"] = df.loc[throttle_valves, "initial_setting"]
+
                 if "headloss_curve" in df:
-                    df.loc[df["valve_type"] == "GPV", "headloss_curve"] = df.loc[
-                        df["valve_type"] == "GPV", "headloss_curve_name"
-                    ].apply(curves.get)
+                    df.loc[general_valves, "headloss_curve"] = df.loc[general_valves, "headloss_curve_name"].apply(
+                        curves.get
+                    )
 
             for fieldname in df.select_dtypes(include=["float"]):
                 try:
@@ -1125,32 +1130,30 @@ class _FromGis:
         if not df[Field.VALVE_TYPE.value].isin(ValveType._member_names_).all():
             raise ValveTypeError from None
 
-        pressure_valves = df[Field.VALVE_TYPE.value].isin([ValveType.PRV.name, ValveType.PSV.name, ValveType.PBV.name])
-        fcvs = df[Field.VALVE_TYPE.value] == ValveType.FCV.name
-        tcvs = df[Field.VALVE_TYPE.value] == ValveType.TCV.name
+        for valve_type in [ValveType.PRV, ValveType.PSV, ValveType.PBV, ValveType.FCV, ValveType.TCV]:
+            valve_mask = df[Field.VALVE_TYPE.value] == valve_type.name
+
+            if not valve_mask.any():
+                continue
+
+            if valve_type.setting_field.value not in df:
+                raise ValveSettingError(valve_type)
+
+            if df.loc[valve_mask, valve_type.setting_field.value].hasnans:
+                raise ValveSettingError(valve_type)
+
+            df.loc[valve_mask, "initial_setting"] = df.loc[valve_mask, valve_type.setting_field.value]
+
         gpvs = df[Field.VALVE_TYPE.value] == ValveType.GPV.name
-
-        if pressure_valves.any() or fcvs.any() or tcvs.any():
-            if "initial_setting" not in df:
-                raise ValveInitialSettingError
-
-            if df.loc[(pressure_valves | fcvs | tcvs), "initial_setting"].hasnans:
-                raise ValveInitialSettingError
-
-            df.loc[pressure_valves, "initial_setting"] = self._converter.to_si(
-                df.loc[pressure_valves, "initial_setting"], Parameter.Pressure
-            )
-
-            df.loc[fcvs, "initial_setting"] = self._converter.to_si(df.loc[fcvs, "initial_setting"], Parameter.Flow)
 
         if gpvs.any():
             if "headloss_curve" not in df:
-                raise GpvMissingCurveError
+                raise ValveSettingError(ValveType.GPV)
 
             df.loc[gpvs, "headloss_curve_name"] = self.curves.add_headloss(df.loc[gpvs, "headloss_curve"])
 
             if df.loc[gpvs, "headloss_curve_name"].hasnans:
-                raise GpvMissingCurveError
+                raise ValveSettingError(ValveType.GPV)
 
         return df.drop(
             columns=["headloss_curve", "pump_curve", "speed_pattern"],
@@ -1455,24 +1458,13 @@ class ValveTypeError(ValveError, GenericRequiredFieldError):
         )
 
 
-class GpvMissingCurveError(ValveError, GenericRequiredFieldError):
-    def __init__(self):
+class ValveSettingError(ValveError, GenericRequiredFieldError):
+    def __init__(self, valve_type: ValveType):
         super().__init__(
-            tr("{headloss_curve_name} ({headloss_curve}) must be set for all general purpose valves (GPV)").format(
-                headloss_curve_name=Field.HEADLOSS_CURVE.friendly_name,
-                headloss_curve=Field.HEADLOSS_CURVE.name.lower(),
-            )
-        )
-
-
-class ValveInitialSettingError(ValveError, GenericRequiredFieldError):
-    def __init__(self):
-        super().__init__(
-            tr(
-                "{initial_setting_name} ({initial_setting}) must be set for all valves except general purpose valves"
-            ).format(
-                initial_setting_name=Field.INITIAL_SETTING.friendly_name,
-                initial_setting=Field.INITIAL_SETTING.name.lower(),
+            tr("{initial_setting_name} ({initial_setting}) must be set for all {valve_name}").format(
+                initial_setting_name=valve_type.setting_field.friendly_name,
+                initial_setting=valve_type.setting_field.name.lower(),
+                valve_name=valve_type.friendly_name,
             )
         )
 

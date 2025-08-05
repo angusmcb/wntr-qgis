@@ -242,6 +242,18 @@ class ValveType(_AbstractValueMap):
             return tr("General Purpose Valve")
         raise ValueError  # pragma: no cover
 
+    @property
+    def setting_field(self) -> Field:
+        if self in [ValveType.PRV, ValveType.PSV, ValveType.PBV]:
+            return Field.PRESSURE_SETTING
+        if self is ValveType.FCV:
+            return Field.FLOW_SETTING
+        if self is ValveType.TCV:
+            return Field.THROTTLE_SETTING
+        if self is ValveType.GPV:
+            return Field.HEADLOSS_CURVE
+        raise ValueError  # pragma: no cover
+
 
 class FieldGroup(Flag):
     BASE = auto()
@@ -423,12 +435,14 @@ class ModelLayer(_AbstractLayer):
             ],
             ModelLayer.VALVES: [
                 Field.NAME,
-                Field.DIAMETER,
                 Field.VALVE_TYPE,
+                Field.PRESSURE_SETTING,
+                Field.FLOW_SETTING,
+                Field.THROTTLE_SETTING,
+                Field.HEADLOSS_CURVE,
+                Field.DIAMETER,
                 Field.MINOR_LOSS,
                 Field.INITIAL_STATUS,
-                Field.INITIAL_SETTING,
-                Field.HEADLOSS_CURVE,
             ],
         }
         return field_dict[self]
@@ -495,7 +509,13 @@ class Field(Enum):
     INIT_LEVEL = "init_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_LEVEL = "min_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
     MAX_LEVEL = "max_level", Parameter.HydraulicHead, FieldGroup.BASE | FieldGroup.REQUIRED
+
     VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
+    PRESSURE_SETTING = "pressure_setting", Parameter.Pressure, FieldGroup.BASE
+    FLOW_SETTING = "flow_setting", Parameter.Flow, FieldGroup.BASE
+    THROTTLE_SETTING = "throttle_setting", Parameter.Unitless, FieldGroup.BASE
+    HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
+
     DIAMETER = "diameter", Parameter.PipeDiameter, FieldGroup.BASE | FieldGroup.REQUIRED
     TANK_DIAMETER = "tank_diameter", Parameter.TankDiameter, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_VOL = "min_vol", Parameter.Volume, FieldGroup.BASE
@@ -513,8 +533,6 @@ class Field(Enum):
     BASE_SPEED = "base_speed", Parameter.Fraction, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", PatternType, FieldGroup.BASE
     INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
-    INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
-    HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
 
     INITIAL_QUALITY = "initial_quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_MODEL = "mixing_model", TankMixingModel, FieldGroup.WATER_QUALITY_ANALYSIS
@@ -565,6 +583,14 @@ class Field(Enum):
             return tr("Maximum Level")
         if self is Field.VALVE_TYPE:
             return tr("Valve Type")
+        if self is Field.PRESSURE_SETTING:
+            return tr("Pressure Setting (for PRVs, PBVs, and PSVs)")
+        if self is Field.FLOW_SETTING:
+            return tr("Flow Setting (for FCVs)")
+        if self is Field.THROTTLE_SETTING:
+            return tr("Throttle Setting (for TCVs)")
+        if self is Field.HEADLOSS_CURVE:
+            return tr("Headloss Curve (for GPVs)")
         if self is Field.DIAMETER:
             return tr("Diameter")
         if self is Field.TANK_DIAMETER:
@@ -599,10 +625,7 @@ class Field(Enum):
             return tr("Speed Pattern")
         if self is Field.INITIAL_STATUS:
             return tr("Initial Status")
-        if self is Field.INITIAL_SETTING:
-            return tr("Initial Setting")
-        if self is Field.HEADLOSS_CURVE:
-            return tr("Headloss Curve")
+
         if self is Field.INITIAL_QUALITY:
             return tr("Initial Quality")
         if self is Field.MIXING_FRACTION:
@@ -664,6 +687,12 @@ class Field(Enum):
             return tr("Maximum allowable water level in tank")
         if self is Field.VALVE_TYPE:
             return tr("Type of valve (PRV, PSV, PBV, FCV, TCV, GPV)")
+        if self is Field.PRESSURE_SETTING:
+            return tr("Pressure setting for PRV, PBV, and PSV")
+        if self is Field.FLOW_SETTING:
+            return tr("Flow setting for FCV")
+        if self is Field.THROTTLE_SETTING:
+            return tr("Throttle setting for TCV")
         if self is Field.DIAMETER:
             return tr("Internal diameter of pipe")
         if self is Field.TANK_DIAMETER:
@@ -698,8 +727,6 @@ class Field(Enum):
             return tr("Time-varying pattern for pump speed")
         if self is Field.INITIAL_STATUS:
             return tr("Initial operating status")
-        if self is Field.INITIAL_SETTING:
-            return tr("Initial valve setting or pump speed")
         if self is Field.HEADLOSS_CURVE:
             return tr("Head loss curve (flow vs head loss) for general purpose valve")
         if self is Field.INITIAL_QUALITY:

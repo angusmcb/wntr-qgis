@@ -122,7 +122,7 @@ class _FieldStyler:
         ):
             return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
 
-        if self.field_type in [Field.MINOR_LOSS, Field.INITIAL_SETTING]:
+        if self.field_type in [Field.MINOR_LOSS, Field.PRESSURE_SETTING]:
             return QgsDefaultValue("0.0")
 
         if self.field_type is Field.BASE_SPEED:

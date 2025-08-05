@@ -243,7 +243,7 @@ def test_p_valve_setting(wn, valve_type):
 
     layers = wntrqgis.to_qgis(wn)
 
-    check_values(layers["VALVES"], "initial_setting", [14.21588])
+    check_values(layers["VALVES"], "pressure_setting", [14.21588])
 
 
 def test_flow_valve_setting(wn):
@@ -251,7 +251,7 @@ def test_flow_valve_setting(wn):
 
     layers = wntrqgis.to_qgis(wn, units="CMH")
 
-    check_values(layers["VALVES"], "initial_setting", [10.0 * 3600])
+    check_values(layers["VALVES"], "flow_setting", [10.0 * 3600])
 
 
 def test_gpv_curve(wn):

@@ -142,7 +142,7 @@ def all_layers() -> dict[str, QgsVectorLayer]:
     add_line(pump_layer, [(2, 2), (3, 3)], ["head", None, "(0,0), (1, 1)"])
 
     valve_layer = layer(
-        "LineString", [("diameter", float), ("valve_type", str), ("initial_setting", float), ("headloss_curve", str)]
+        "LineString", [("diameter", float), ("valve_type", str), ("pressure_setting", float), ("headloss_curve", str)]
     )
     add_line(valve_layer, [(1, 1), (2, 2)], [1, "PRV", 1.0])
     add_line(valve_layer, [(2, 2), (3, 3)], [1, "GPV", None, "[(0,0), (1, 1)]"])
@@ -206,7 +206,7 @@ def test_minimum_attributes(all_layers):
         ("PUMPS", "power"),
         ("PUMPS", "pump_curve"),
         ("VALVES", "valve_type"),
-        ("VALVES", "initial_setting"),
+        ("VALVES", "pressure_setting"),
         ("VALVES", "headloss_curve"),
         ("VALVES", "diameter"),
     ],
@@ -1049,7 +1049,7 @@ class TestCurveEmpty:
             wntrqgis.from_qgis(pump_head_curve_layers, "LPS", "H-W")
 
     def test_valve_headloss_curve(self, valve_headloss_curve_layers):
-        with pytest.raises(wntrqgis.interface.GpvMissingCurveError):
+        with pytest.raises(wntrqgis.interface.ValveSettingError):
             wntrqgis.from_qgis(valve_headloss_curve_layers, "LPS", "H-W")
 
 
@@ -1122,7 +1122,7 @@ def test_initial_status_valve(initial_status, expected_status):
 
     valve_layer = layer(
         "linestring",
-        [("name", str), ("diameter", float), ("valve_type", str), ("initial_setting", float), ("initial_status", str)],
+        [("name", str), ("diameter", float), ("valve_type", str), ("pressure_setting", float), ("initial_status", str)],
     )
     add_line(valve_layer, [(1, 1), (4, 5)], ["V1", 1, "PRV", 1, initial_status])
 
@@ -1141,7 +1141,7 @@ def test_inital_status_string_error(simple_layers):
             ("name", str),
             ("diameter", float),
             ("valve_type", str),
-            ("initial_setting", float),
+            ("pressure_setting", float),
             ("initial_status", initial_status),
         ],
     )
@@ -1160,7 +1160,7 @@ def test_inital_status_type_error(simple_layers, initial_status):
             ("name", str),
             ("diameter", float),
             ("valve_type", str),
-            ("initial_setting", float),
+            ("pressure_setting", float),
             ("initial_status", initial_status),
         ],
     )
@@ -1189,9 +1189,16 @@ def valve_layers(valve_type, initial_setting):
 
     valve_layer = layer(
         "linestring",
-        [("name", str), ("valve_type", valve_type), ("initial_setting", initial_setting), ("diameter", float)],
+        [
+            ("name", str),
+            ("valve_type", valve_type),
+            ("pressure_setting", initial_setting),
+            ("flow_setting", initial_setting),
+            ("throttle_setting", initial_setting),
+            ("diameter", float),
+        ],
     )
-    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", valve_type, initial_setting, 10])
+    add_line(valve_layer, [(1, 1), (4, 5)], ["V1", valve_type, initial_setting, initial_setting, initial_setting, 10])
 
     return {"JUNCTIONS": junction_layer, "VALVES": valve_layer}
 
@@ -1220,14 +1227,14 @@ def test_tcv_valve_initial_setting(valve_layers):
 @pytest.mark.parametrize("valve_type", ["fcv", "prv", "tcv"])
 @pytest.mark.parametrize("initial_setting", [None])
 def test_valve_no_initial_setting(valve_layers):
-    with pytest.raises(wntrqgis.interface.ValveInitialSettingError, match="initial_setting"):
+    with pytest.raises(wntrqgis.interface.ValveSettingError):
         wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
 
 
 @pytest.mark.parametrize("valve_type", ["FCV", "PRV", "PSV", "PBV", "TCV", "GPV"])
 @pytest.mark.parametrize("initial_setting", ["string_type"])
 def test_pressure_valve_initial_setting_conversion_valves_bad_values(valve_layers):
-    with pytest.raises(wntrqgis.interface.NetworkModelError, match="initial_setting"):
+    with pytest.raises(wntrqgis.interface.NetworkModelError, match="pressure_setting"):
         wntrqgis.from_qgis(valve_layers, "cfs", "H-W")
 
 

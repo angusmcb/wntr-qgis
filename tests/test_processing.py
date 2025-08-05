@@ -369,11 +369,13 @@ def test_template_layers_valves(template_result):
     assert template_result["VALVES"].fields().names() == [
         "name",
         "valve_type",
+        "pressure_setting",
+        "flow_setting",
+        "throttle_setting",
+        "headloss_curve",
         "diameter",
         "minor_loss",
         "initial_status",
-        "initial_setting",
-        "headloss_curve",
     ]
 
 
@@ -381,11 +383,13 @@ def test_import_layers_valves(import_layers):
     assert import_layers["VALVES"].fields().names() == [
         "name",
         "valve_type",
+        "pressure_setting",
+        "flow_setting",
+        "throttle_setting",
+        "headloss_curve",
         "diameter",
         "minor_loss",
         "initial_status",
-        "initial_setting",
-        "headloss_curve",
     ]
 
 
