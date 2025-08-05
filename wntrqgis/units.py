@@ -176,9 +176,6 @@ class Converter:
             else:
                 return 1.0 / 86400.0  # m/day to m/s
 
-        elif parameter is Parameter.SourceMassInject:
-            return self.mass_units.factor / 60.0  # per min to per second
-
         elif parameter is Parameter.WaterAge:
             return 3600.0  # hr to s
 
