@@ -112,6 +112,10 @@ class Parameter(Enum):
     SourceMassInject = 38
     WaterAge = 39
 
+    Unitless = 40
+    Fraction = 41
+    Currency = 42
+
     @property
     def friendly_name(self):
         if self is Parameter.Flow:
@@ -148,6 +152,12 @@ class Parameter(Enum):
             return tr("mg/m²/day,  mg/ft²/day, m/day, or ft/day")
         elif self is Parameter.WaterAge:
             return tr("hours")
+        elif self is Parameter.Unitless:
+            return tr("unitless")
+        elif self is Parameter.Fraction:
+            return tr("fraction")
+        elif self is Parameter.Currency:
+            return tr("currency")
 
         raise ValueError(self)  # pragma: no cover
 
@@ -495,12 +505,12 @@ class Field(Enum):
     HEAD_PATTERN = "head_pattern", PatternType, FieldGroup.BASE
     LENGTH = "length", Parameter.Length, FieldGroup.BASE
     ROUGHNESS = "roughness", Parameter.RoughnessCoeff, FieldGroup.BASE | FieldGroup.REQUIRED
-    MINOR_LOSS = "minor_loss", float, FieldGroup.BASE
+    MINOR_LOSS = "minor_loss", Parameter.Unitless, FieldGroup.BASE
     CHECK_VALVE = "check_valve", bool, FieldGroup.BASE
     PUMP_TYPE = "pump_type", PumpTypes, FieldGroup.BASE | FieldGroup.REQUIRED
     PUMP_CURVE = "pump_curve", CurveType, FieldGroup.BASE
     POWER = "power", Parameter.Power, FieldGroup.BASE
-    BASE_SPEED = "base_speed", float, FieldGroup.BASE
+    BASE_SPEED = "base_speed", Parameter.Fraction, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", PatternType, FieldGroup.BASE
     INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
     INITIAL_SETTING = "initial_setting", float, FieldGroup.BASE
@@ -508,16 +518,16 @@ class Field(Enum):
 
     INITIAL_QUALITY = "initial_quality", Parameter.Concentration, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_MODEL = "mixing_model", TankMixingModel, FieldGroup.WATER_QUALITY_ANALYSIS
-    MIXING_FRACTION = "mixing_fraction", float, FieldGroup.WATER_QUALITY_ANALYSIS
+    MIXING_FRACTION = "mixing_fraction", Parameter.Fraction, FieldGroup.WATER_QUALITY_ANALYSIS
     BULK_COEFF = "bulk_coeff", Parameter.BulkReactionCoeff, FieldGroup.WATER_QUALITY_ANALYSIS
     WALL_COEFF = "wall_coeff", Parameter.WallReactionCoeff, FieldGroup.WATER_QUALITY_ANALYSIS
 
     MINIMUM_PRESSURE = "minimum_pressure", Parameter.Pressure, FieldGroup.PRESSURE_DEPENDENT_DEMAND
     REQUIRED_PRESSURE = "required_pressure", Parameter.Pressure, FieldGroup.PRESSURE_DEPENDENT_DEMAND
-    PRESSURE_EXPONENT = "pressure_exponent", float, FieldGroup.PRESSURE_DEPENDENT_DEMAND
+    PRESSURE_EXPONENT = "pressure_exponent", Parameter.Unitless, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
     EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
-    ENERGY_PRICE = "energy_price", float, FieldGroup.ENERGY
+    ENERGY_PRICE = "energy_price", Parameter.Currency, FieldGroup.ENERGY
     ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
 
     DEMAND = "demand", Parameter.Flow, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD

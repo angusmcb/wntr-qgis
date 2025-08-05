@@ -182,6 +182,9 @@ class Converter:
         elif parameter is Parameter.WaterAge:
             return 3600.0  # hr to s
 
+        elif parameter in [Parameter.Unitless, Parameter.Fraction, Parameter.Currency]:
+            return 1.0
+
         raise ValueError(parameter)  # pragma: no cover
 
     def _flow_unit_factor(self) -> float:
