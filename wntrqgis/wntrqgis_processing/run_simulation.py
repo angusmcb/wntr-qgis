@@ -41,6 +41,7 @@ from wntrqgis.i18n import tr
 from wntrqgis.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.style import style
+from wntrqgis.units import SpecificUnitNames
 from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
 
 if TYPE_CHECKING:
@@ -244,6 +245,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         outputs: dict[str, str] = {}
 
         flow_unit = self._get_flow_unit(parameters, context)
+        head_flow_unit = self._get_headloss_formula(parameters, context)
 
         with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
             result_writer = Writer(wn, sim_results, units=flow_unit.name)  # type: ignore
@@ -252,6 +254,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
 
         group_name = tr("Simulation Results ({finish_time})").format(finish_time=time.strftime("%X"))
         style_theme = "extended" if wn.options.time.duration > 0 else None
+        unit_names = SpecificUnitNames(flow_unit, head_flow_unit)
 
         for layer_type in ResultLayer:
             fields = result_writer.get_qgsfields(layer_type)
@@ -267,7 +270,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
             if not context.willLoadLayerOnCompletion(layer_id):
                 continue
 
-            post_processor = LayerPostProcessor(layer_type, style_theme)
+            post_processor = LayerPostProcessor(layer_type, style_theme, unit_names)
 
             layer_details = context.layerToLoadOnCompletionDetails(layer_id)
             layer_details.setPostProcessor(post_processor)
@@ -403,13 +406,14 @@ in other software.
 
 
 class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
-    def __init__(self, layer_type: ResultLayer, style_theme=None):
+    def __init__(self, layer_type: ResultLayer, style_theme: str | None, unit_names: SpecificUnitNames):
         super().__init__()
         self.layer_type = layer_type
         self.style_theme = style_theme
+        self.unit_names = unit_names
 
     def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
-        style(layer, self.layer_type, self.style_theme)
+        style(layer, self.layer_type, self.style_theme, self.unit_names)
 
 
 @contextmanager
