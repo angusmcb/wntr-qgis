@@ -290,11 +290,11 @@ class SpecificUnitNames(Converter, UnitNames):
         if flow_unit is FlowUnit.CFS:
             return tr("ft³/s")
         if flow_unit is FlowUnit.GPM:
-            return tr("G/min")
+            return tr("gal/min")
         if flow_unit is FlowUnit.MGD:
             return tr("MG/day")
         if flow_unit is FlowUnit.IMGD:
-            return tr("IMG/day")
+            return tr("imp gal/day")
         if flow_unit is FlowUnit.AFD:
             return tr("Acre-ft/day")
         raise ValueError
