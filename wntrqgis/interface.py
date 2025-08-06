@@ -348,9 +348,9 @@ class Writer:
                 ],
                 errors="ignore",
             )
-            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"].dropna(axis=1, how="all")
-            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"].dropna(axis=1, how="all")
-            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"].dropna(axis=1, how="all")
+            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"]
+            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"]
+            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"]
 
         df_links = pd.DataFrame(wn_dict["links"])
         if len(df_links) > 0:
@@ -359,14 +359,16 @@ class Writer:
                 columns=["start_node_name", "end_node_name", "vertices", "initial_quality"],
                 errors="ignore",
             )
-            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"].dropna(axis=1, how="all")
-            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"].dropna(axis=1, how="all")
-            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"].dropna(axis=1, how="all")
+            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"]
+            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"]
+            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"]
 
         patterns = _Patterns(wn)
         curves = _Curves(wn, self._converter)
 
         for lyr, df in dfs.items():
+            df.dropna(axis=1, how="all", inplace=True)  # noqa: PD002
+
             if df.empty:
                 continue
 
