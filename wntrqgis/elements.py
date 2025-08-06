@@ -122,7 +122,6 @@ class TankMixingModel(_AbstractValueMap):
 
 
 class InitialStatus(_AbstractValueMap):
-    ACTIVE = "Active"
     OPEN = "Open"
     CLOSED = "Closed"
 
@@ -130,9 +129,23 @@ class InitialStatus(_AbstractValueMap):
     def friendly_name(self) -> str:
         if self is InitialStatus.OPEN:
             return tr("Open")
-        if self is InitialStatus.ACTIVE:
-            return tr("Active")
         if self is InitialStatus.CLOSED:
+            return tr("Closed")
+        raise ValueError  # pragma: no cover
+
+
+class ValveStatus(_AbstractValueMap):
+    ACTIVE = "Active"
+    OPEN = "Open"
+    CLOSED = "Closed"
+
+    @property
+    def friendly_name(self) -> str:
+        if self is ValveStatus.OPEN:
+            return tr("Open")
+        if self is ValveStatus.ACTIVE:
+            return tr("Active")
+        if self is ValveStatus.CLOSED:
             return tr("Closed")
         raise ValueError  # pragma: no cover
 
@@ -183,6 +196,7 @@ class MapFieldType(FieldType):
     VALVE_TYPE = ValveType
     TANK_MIXING_MODEL = TankMixingModel
     INITIAL_STATUS = InitialStatus
+    VALVE_STATUS = ValveStatus
 
 
 class SimpleFieldType(FieldType):
@@ -387,7 +401,7 @@ class ModelLayer(_AbstractLayer):
                 Field.HEADLOSS_CURVE,
                 Field.DIAMETER,
                 Field.MINOR_LOSS,
-                Field.INITIAL_STATUS,
+                Field.VALVE_STATUS,
             ],
         }
         return field_dict[self]
@@ -480,6 +494,7 @@ class Field(Enum):
     BASE_SPEED = "base_speed", Parameter.FRACTION, FieldGroup.BASE
     SPEED_PATTERN = "speed_pattern", SimpleFieldType.PATTERN, FieldGroup.BASE
     INITIAL_STATUS = "initial_status", MapFieldType.INITIAL_STATUS, FieldGroup.BASE
+    VALVE_STATUS = "valve_status", MapFieldType.VALVE_STATUS, FieldGroup.BASE
 
     INITIAL_QUALITY = "initial_quality", Parameter.CONCENTRATION, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_MODEL = "mixing_model", MapFieldType.TANK_MIXING_MODEL, FieldGroup.WATER_QUALITY_ANALYSIS
@@ -573,6 +588,8 @@ class Field(Enum):
             return tr("Speed Pattern")
         if self is Field.INITIAL_STATUS:
             return tr("Initial Status")
+        if self is Field.VALVE_STATUS:
+            return tr("Valve Status")
 
         if self is Field.INITIAL_QUALITY:
             return tr("Initial Quality")
@@ -677,6 +694,8 @@ class Field(Enum):
             return tr("Time-varying pattern for pump speed")
         if self is Field.INITIAL_STATUS:
             return tr("Initial operating status")
+        if self is Field.VALVE_STATUS:
+            return tr("Initial valve status (active, open, closed)")
         if self is Field.HEADLOSS_CURVE:
             return tr("Head loss curve (flow vs head loss) for general purpose valve")
         if self is Field.INITIAL_QUALITY:

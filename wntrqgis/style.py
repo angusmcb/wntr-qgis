@@ -29,7 +29,6 @@ from qgis.core import (
 from wntrqgis.elements import (
     Field,
     FieldGroup,
-    InitialStatus,
     MapFieldType,
     ModelLayer,
     Parameter,
@@ -81,38 +80,27 @@ class _FieldStyler:
     def editor_widget(self) -> QgsEditorWidgetSetup:
         # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
 
-        if self.field.type in Parameter:
+        if isinstance(self.field.type, Parameter):
             if self.theme != "extended":
                 config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
 
-                if isinstance(self.field.type, Parameter):
-                    config["Suffix"] = "  " + self.units.get(self.field.type)
+                config["Suffix"] = "  " + self.units.get(self.field.type)
 
                 if self.field.field_group & FieldGroup.REQUIRED:
                     config["AllowNull"] = False
-                return QgsEditorWidgetSetup(
-                    "Range",
-                    config,
-                )
+
+                return QgsEditorWidgetSetup("Range", config)
             else:
                 return QgsEditorWidgetSetup("List", {})
 
         if self.field.type is SimpleFieldType.BOOL:
-            return QgsEditorWidgetSetup(
-                "CheckBox",
-                {"AllowNullState": False},
-            )
+            return QgsEditorWidgetSetup("CheckBox", {"AllowNullState": False})
+
         if self.field.type in MapFieldType:
-            enum_list = list(self.field.type.value)
-            if self.field.type.value is InitialStatus and self.layer_type in [ModelLayer.PIPES, ModelLayer.PUMPS]:
-                enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
+            value_map = [{enum_instance.friendly_name: enum_instance.value} for enum_instance in self.field.type.value]
 
-            value_map = [{enum_instance.friendly_name: enum_instance.value} for enum_instance in enum_list]
+            return QgsEditorWidgetSetup("ValueMap", {"map": value_map})
 
-            return QgsEditorWidgetSetup(
-                "ValueMap",
-                {"map": value_map},
-            )
         if self.field.type in [SimpleFieldType.STR, SimpleFieldType.PATTERN, SimpleFieldType.CURVE]:
             return QgsEditorWidgetSetup("TextEdit", {"IsMultiline": False, "UseHtml": False})
 
@@ -138,15 +126,6 @@ class _FieldStyler:
 
         if self.field is Field.POWER:
             return QgsDefaultValue("50.0")
-
-        if self.field.type is MapFieldType.INITIAL_STATUS and self.layer_type is ModelLayer.VALVES:
-            return QgsDefaultValue(f"'{InitialStatus.ACTIVE.value}'")
-
-        if self.field.type is MapFieldType.INITIAL_STATUS and self.layer_type in [
-            ModelLayer.PUMPS,
-            ModelLayer.PIPES,
-        ]:
-            return QgsDefaultValue(f"'{InitialStatus.OPEN.value}'")
 
         if self.field.type in MapFieldType:
             return QgsDefaultValue(f"'{next(iter(self.field.type.value)).value}'")

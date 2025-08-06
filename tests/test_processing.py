@@ -375,7 +375,7 @@ def test_template_layers_valves(template_result):
         "headloss_curve",
         "diameter",
         "minor_loss",
-        "initial_status",
+        "valve_status",
     ]
 
 
@@ -389,7 +389,7 @@ def test_import_layers_valves(import_layers):
         "headloss_curve",
         "diameter",
         "minor_loss",
-        "initial_status",
+        "valve_status",
     ]
 
 
