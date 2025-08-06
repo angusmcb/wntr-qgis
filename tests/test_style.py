@@ -30,7 +30,7 @@ def field(request):
 @pytest.fixture
 def field_styler(field: Field):
     units = UnitNames()
-    return _FieldStyler(field, ModelLayer.PIPES, None, units)
+    return _FieldStyler(field, None, units)
 
 
 def test_style_function(mock_layer):

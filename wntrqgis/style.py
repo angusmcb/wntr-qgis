@@ -54,12 +54,14 @@ def style(
     layer.setLabeling(styler.labeling)
     styler.setup_extended_period()
 
-    field: QgsField
-    for i, field in enumerate(layer.fields()):
+    qgs_field: QgsField
+    for i, qgs_field in enumerate(layer.fields()):
         try:
-            field_styler = _FieldStyler(Field(field.name().lower()), layer_type, theme, units)
+            field = Field(qgs_field.name().lower())
         except ValueError:
             continue
+
+        field_styler = _FieldStyler(field, theme, units)
 
         layer.setFieldAlias(i, field_styler.alias)
         layer.setEditorWidgetSetup(i, field_styler.editor_widget)
@@ -68,11 +70,8 @@ def style(
 
 
 class _FieldStyler:
-    def __init__(
-        self, field_type: Field, layer_type: ModelLayer | ResultLayer, theme: str | None, units: UnitNames
-    ) -> None:
+    def __init__(self, field_type: Field, theme: str | None, units: UnitNames) -> None:
         self.field = field_type
-        self.layer_type = layer_type
         self.theme = theme
         self.units = units
 
@@ -113,9 +112,7 @@ class _FieldStyler:
         if self.field is Field.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
 
-        if self.field is Field.DIAMETER and (
-            self.layer_type is ModelLayer.PIPES or self.layer_type is ModelLayer.VALVES
-        ):
+        if self.field is Field.DIAMETER:
             return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
 
         if self.field in [Field.MINOR_LOSS, Field.PRESSURE_SETTING]:
@@ -154,7 +151,7 @@ class _FieldStyler:
                 "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')",
                 tr("Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"),
             )
-        if self.field is Field.DIAMETER and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field is Field.DIAMETER:
             return "diameter > 0", tr("Diameter must be greater than 0")
         if self.field is Field.ROUGHNESS:
             return "roughness > 0", tr("Roughness must be greater than 0")
@@ -163,11 +160,11 @@ class _FieldStyler:
                 "Length must be empty/NULL (will be calculated) or greater than 0"
             )
 
-        if self.field is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field is Field.MINOR_LOSS:
             return "minor_loss >= 0", tr("Minor loss must be greater than or equal to 0")
-        if self.field is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+        if self.field is Field.BASE_SPEED:
             return "base_speed > 0", tr("Base speed must be greater than 0")
-        if self.field is Field.POWER and self.layer_type is ModelLayer.PUMPS:
+        if self.field is Field.POWER:
             return "if( upper(pump_type) is 'POWER', power > 0, true)", tr(
                 "Power pumps must have a power greater than 0"
             )
