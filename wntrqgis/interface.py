@@ -432,6 +432,8 @@ class Writer:
                         curves.get
                     )
 
+                df.rename(columns={"initial_status": "valve_status"}, inplace=True)  # noqa: PD002
+
             for fieldname in df.select_dtypes(include=["float"]):
                 try:
                     parameter = Field[str(fieldname).upper()].type
@@ -1158,6 +1160,8 @@ class _FromGis:
 
             if df.loc[gpvs, "headloss_curve_name"].hasnans:
                 raise ValveSettingError(ValveType.GPV)
+
+        df = df.rename(columns={"valve_status": "initial_status"})
 
         return df.drop(
             columns=["headloss_curve", "pump_curve", "speed_pattern"],

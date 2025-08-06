@@ -234,7 +234,7 @@ def test_valve_active(wn):
     wn.add_valve("v1", "J1", "J2")
     layers = wntrqgis.to_qgis(wn)
 
-    check_values(layers["VALVES"], "initial_status", ["Active"])
+    check_values(layers["VALVES"], "valve_status", ["Active"])
 
 
 @pytest.mark.parametrize("valve_type", ["PRV", "PSV", "PBV"])
