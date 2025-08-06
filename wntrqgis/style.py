@@ -5,7 +5,7 @@ from typing import Any, Literal
 from qgis.core import (
     Qgis,
     QgsAbstractVectorLayerLabeling,
-    QgsClassificationQuantile,
+    QgsClassificationPrettyBreaks,
     QgsDefaultValue,
     QgsEditorWidgetSetup,
     QgsFeatureRenderer,
@@ -244,9 +244,9 @@ class _LayerStyler:
         renderer = QgsGraduatedSymbolRenderer()
         renderer.setClassAttribute(attribute_expression)
         renderer.setSourceSymbol(self._symbol)
-        classification_method = QgsClassificationQuantile()
+        classification_method = QgsClassificationPrettyBreaks()
         classification_method.setLabelPrecision(1)
-        classification_method.setLabelTrimTrailingZeroes(False)
+        # classification_method.setLabelTrimTrailingZeroes(False)
         classification_method.setLabelFormat("%1 - %2 " + unit_name)
         renderer.setClassificationMethod(classification_method)
 
