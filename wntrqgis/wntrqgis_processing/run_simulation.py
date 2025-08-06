@@ -209,10 +209,11 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         return sim_results
 
     def _describe_model(self, wn: wntr.network.WaterNetworkModel, feedback: QgsProcessingFeedback) -> None:
-        feedback.pushInfo(describe_network(wn))
         if hasattr(feedback, "pushFormattedMessage"):  # QGIS > 3.32
+            feedback.pushFormattedMessage(*describe_network(wn))
             feedback.pushFormattedMessage(*describe_pipes(wn))
         else:
+            feedback.pushInfo(describe_network(wn)[1])
             feedback.pushInfo(describe_pipes(wn)[1])
 
     def prepareAlgorithm(  # noqa: N802

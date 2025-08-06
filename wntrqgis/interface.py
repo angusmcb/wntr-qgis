@@ -1305,16 +1305,16 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
         raise NetworkModelError(msg)
 
 
-def describe_network(wn: wntr.network.WaterNetworkModel) -> str:
-    """Returns a string describing the network model.
+def describe_network(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
+    """Returns an html and text string describing the network model.
 
     Args:
         wn: WaterNetworkModel to describe
 
     Returns:
-        A string describing the network model.
+        A tuple with a html and text string description.
     """
-
+    title = tr("Network Summary")
     counts = {
         ModelLayer.JUNCTIONS.friendly_name: wn.num_junctions,
         ModelLayer.TANKS.friendly_name: wn.num_tanks,
@@ -1329,7 +1329,20 @@ def describe_network(wn: wntr.network.WaterNetworkModel) -> str:
         tr("Pumps defined by power"): len(list(wn.power_pumps())),
         tr("Pumps defined by head curve"): len(list(wn.head_pumps())),
     }
-    return ", ".join((str(count) + " " + part) for part, count in counts.items() if count > 0)
+
+    text = title + "\n"
+    text += "\n".join((str(count) + " " + part) for part, count in counts.items() if count > 0)
+
+    html = "<b>" + title + "</b>"
+    html += "<table border='1'>"
+    html += "<thead><tr><th>" + tr("Element") + "</th><th>" + tr("Count") + "</th></tr></thead>"
+    html += "<tbody>"
+    for part, count in counts.items():
+        if count > 0:
+            html += f"<tr><td>{part}</td><td>{count}</td></tr>"
+    html += "</tbody></table>"
+
+    return html, text
 
 
 @needs_wntr_pandas
@@ -1339,6 +1352,8 @@ def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
     except KeyError as e:
         raise FlowUnitError(e) from e
     converter = Converter(unit, HeadlossFormula(wn.options.hydraulic.headloss))
+
+    unit_names = SpecificUnitNames.from_wn(wn)
 
     pipe_df = pd.DataFrame(
         ((pipe.length, pipe.diameter, pipe.roughness) for _, pipe in wn.pipes()),
@@ -1357,25 +1372,40 @@ def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
         ]
     ).round()
 
+    length_title = Field.LENGTH.friendly_name + " (" + unit_names.get(Parameter.LENGTH) + ")"
+    roughness_title = Field.ROUGHNESS.friendly_name + " (" + unit_names.get(Parameter.ROUGHNESS_COEFFICIENT) + ")"
+    diameter_title = Field.DIAMETER.friendly_name + " (" + unit_names.get(Parameter.PIPE_DIAMETER) + ")"
+
     index = pd.MultiIndex.from_tuples(
         [
             ("", tr("Count")),
-            (Field.LENGTH.friendly_name, tr("Total")),
-            (Field.LENGTH.friendly_name, tr("Min")),
-            (Field.LENGTH.friendly_name, tr("Max")),
-            (Field.ROUGHNESS.friendly_name, tr("Min")),
-            (Field.ROUGHNESS.friendly_name, tr("Max")),
+            (length_title, tr("Total")),
+            (length_title, tr("Min")),
+            (length_title, tr("Max")),
+            (roughness_title, tr("Min")),
+            (roughness_title, tr("Max")),
         ],
     )
 
     formatted_df.columns = index
-    formatted_df.index.name = Field.DIAMETER.friendly_name
+    formatted_df.index.name = diameter_title
 
-    html_string = formatted_df.to_html(border=1, col_space=75).replace("\n", "")
+    def format_number(num):
+        if isinstance(num, float):
+            return f"{num:,.4f}".rstrip("0").rstrip(".").rjust(10, " ").replace(" ", "&nbsp;").replace(",", " ")
+        return num
 
-    text_alternative = "Total pipe length: {pipe_length:.2f}.".format(pipe_length=pipe_df["length"].sum())
+    formatted_df.index = formatted_df.index.map(format_number)
+    formatted_df = formatted_df.astype(float)
 
-    return html_string, text_alternative
+    html = "<b>Pipe Summary</b>"
+    html += formatted_df.to_html(col_space=75, float_format=format_number, escape=False).replace("\n", "")
+
+    text = tr("Total pipe length: {pipe_length} {unit}").format(
+        pipe_length=format_number(pipe_df["length"].sum()), unit=unit_names.get(Parameter.LENGTH)
+    )
+
+    return html, text
 
 
 @needs_wntr_pandas
