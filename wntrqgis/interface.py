@@ -485,12 +485,14 @@ class Writer:
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         pipe_lengths = wn.query_link_attribute("length", link_type=wntr.network.model.Pipe)
 
-        unit_headloss = df.loc[:, pipe_lengths.index]
+        df = df.astype("float64")
+
+        unit_headloss = df[pipe_lengths.index]
 
         pipe_total_headloss = unit_headloss * pipe_lengths
 
         total_headloss = df
-        total_headloss.loc[:, pipe_lengths.index] = pipe_total_headloss
+        total_headloss[pipe_lengths.index] = pipe_total_headloss
 
         return unit_headloss, total_headloss
 
@@ -842,7 +844,7 @@ class _FromGis:
         node_dfs: list[pd.DataFrame] = []
         link_dfs: list[pd.DataFrame] = []
 
-        shapefile_name_map = {wq_field.name[:10].lower(): wq_field.name.lower() for wq_field in Field}
+        shapefile_name_map = {wq_field.value[:10]: wq_field.value for wq_field in Field}
 
         for model_layer in ModelLayer:
             source = feature_sources.get(model_layer)
@@ -861,7 +863,7 @@ class _FromGis:
             if null_geometry:
                 raise NullGeometryError(null_geometry, model_layer)
 
-            df.columns = [shapefile_name_map.get(col, col) for col in df.columns]
+            df = df.rename(columns=shapefile_name_map)
 
             self._check_for_required_fields(df, model_layer)
 
