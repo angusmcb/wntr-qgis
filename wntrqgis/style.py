@@ -27,15 +27,14 @@ from qgis.core import (
 )
 
 from wntrqgis.elements import (
-    CurveType,
     Field,
     FieldGroup,
     InitialStatus,
+    MapFieldType,
     ModelLayer,
     Parameter,
-    PatternType,
     ResultLayer,
-    _AbstractValueMap,
+    SimpleFieldType,
 )
 from wntrqgis.i18n import tr
 from wntrqgis.units import SpecificUnitNames, UnitNames
@@ -73,7 +72,7 @@ class _FieldStyler:
     def __init__(
         self, field_type: Field, layer_type: ModelLayer | ResultLayer, theme: str | None, units: UnitNames
     ) -> None:
-        self.field_type = field_type
+        self.field = field_type
         self.layer_type = layer_type
         self.theme = theme
         self.units = units
@@ -81,34 +80,31 @@ class _FieldStyler:
     @property
     def editor_widget(self) -> QgsEditorWidgetSetup:
         # [(f.editorWidgetSetup().type(), f.editorWidgetSetup().config()) for f in iface.activeLayer().fields()]
-        python_type_class = self.field_type.python_type
 
-        is_float = python_type_class is float or isinstance(python_type_class, Parameter)
+        if self.field.type in Parameter:
+            if self.theme != "extended":
+                config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
 
-        if is_float and self.theme != "extended":
-            config: dict[str, Any] = {"Style": "SpinBox", "Precision": 2}
+                if isinstance(self.field.type, Parameter):
+                    config["Suffix"] = "  " + self.units.get(self.field.type)
 
-            if isinstance(python_type_class, Parameter):
-                config["Suffix"] = "  " + self.units.get(python_type_class)
+                if self.field.field_group & FieldGroup.REQUIRED:
+                    config["AllowNull"] = False
+                return QgsEditorWidgetSetup(
+                    "Range",
+                    config,
+                )
+            else:
+                return QgsEditorWidgetSetup("List", {})
 
-            if self.field_type.field_group & FieldGroup.REQUIRED:
-                config["AllowNull"] = False
-            return QgsEditorWidgetSetup(
-                "Range",
-                config,
-            )
-
-        if is_float and self.theme == "extended":
-            return QgsEditorWidgetSetup("List", {})
-
-        if python_type_class is bool:
+        if self.field.type is SimpleFieldType.BOOL:
             return QgsEditorWidgetSetup(
                 "CheckBox",
                 {"AllowNullState": False},
             )
-        if issubclass(python_type_class, _AbstractValueMap):
-            enum_list = list(python_type_class)
-            if python_type_class is InitialStatus and self.layer_type in [ModelLayer.PIPES, ModelLayer.PUMPS]:
+        if self.field.type in MapFieldType:
+            enum_list = list(self.field.type.value)
+            if self.field.type.value is InitialStatus and self.layer_type in [ModelLayer.PIPES, ModelLayer.PUMPS]:
                 enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
 
             value_map = [{enum_instance.friendly_name: enum_instance.value} for enum_instance in enum_list]
@@ -117,7 +113,7 @@ class _FieldStyler:
                 "ValueMap",
                 {"map": value_map},
             )
-        if issubclass(python_type_class, str):
+        if self.field.type in [SimpleFieldType.STR, SimpleFieldType.PATTERN, SimpleFieldType.CURVE]:
             return QgsEditorWidgetSetup("TextEdit", {"IsMultiline": False, "UseHtml": False})
 
         raise KeyError  # pragma: no cover
@@ -126,48 +122,46 @@ class _FieldStyler:
     def default_value(self) -> QgsDefaultValue:
         # [f.defaultValueDefinition() for f in iface.activeLayer().fields()]
 
-        if self.field_type is Field.ROUGHNESS:
+        if self.field is Field.ROUGHNESS:
             return QgsDefaultValue("100")  # TODO: check if it is d-w or h-w
 
-        if self.field_type is Field.DIAMETER and (
+        if self.field is Field.DIAMETER and (
             self.layer_type is ModelLayer.PIPES or self.layer_type is ModelLayer.VALVES
         ):
             return QgsDefaultValue("100")  # TODO: check if it is lps or gpm...
 
-        if self.field_type in [Field.MINOR_LOSS, Field.PRESSURE_SETTING]:
+        if self.field in [Field.MINOR_LOSS, Field.PRESSURE_SETTING]:
             return QgsDefaultValue("0.0")
 
-        if self.field_type is Field.BASE_SPEED:
+        if self.field is Field.BASE_SPEED:
             return QgsDefaultValue("1.0")
 
-        if self.field_type is Field.POWER:
+        if self.field is Field.POWER:
             return QgsDefaultValue("50.0")
 
-        if self.field_type.python_type is InitialStatus and self.layer_type is ModelLayer.VALVES:
+        if self.field.type is MapFieldType.INITIAL_STATUS and self.layer_type is ModelLayer.VALVES:
             return QgsDefaultValue(f"'{InitialStatus.ACTIVE.value}'")
 
-        if self.field_type.python_type is InitialStatus and self.layer_type in [ModelLayer.PUMPS, ModelLayer.PIPES]:
+        if self.field.type is MapFieldType.INITIAL_STATUS and self.layer_type in [
+            ModelLayer.PUMPS,
+            ModelLayer.PIPES,
+        ]:
             return QgsDefaultValue(f"'{InitialStatus.OPEN.value}'")
 
-        try:
-            if issubclass(self.field_type.python_type, _AbstractValueMap):
-                return QgsDefaultValue(f"'{next(iter(self.field_type.python_type)).value}'")
-        except TypeError:
-            pass
+        if self.field.type in MapFieldType:
+            return QgsDefaultValue(f"'{next(iter(self.field.type.value)).value}'")
 
-        if self.field_type.python_type in [str, CurveType, PatternType]:
+        if self.field.type in [SimpleFieldType.STR, SimpleFieldType.PATTERN, SimpleFieldType.CURVE]:
             return QgsDefaultValue("''")  # because 'NULL' doesn't look nice
 
         return QgsDefaultValue()
 
     @property
     def alias(self) -> str:
-        if isinstance(self.units, SpecificUnitNames) and isinstance(self.field_type.python_type, Parameter):
-            return tr("{field} ({unit})").format(
-                field=self.field_type.friendly_name, unit=self.units.get(self.field_type.python_type)
-            )
+        if isinstance(self.units, SpecificUnitNames) and isinstance(self.field.type, Parameter):
+            return tr("{field} ({unit})").format(field=self.field.friendly_name, unit=self.units.get(self.field.type))
 
-        return self.field_type.friendly_name
+        return self.field.friendly_name
 
     @property
     def constraint(self) -> tuple[str, str] | tuple[None, None]:
@@ -176,38 +170,38 @@ class _FieldStyler:
         None, None if no constraint is needed.
         """
 
-        if self.field_type is Field.NAME:
+        if self.field is Field.NAME:
             return (
                 "name IS NULL OR (length(name) < 32 AND name NOT LIKE '% %')",
                 tr("Name must either be blank for automatic naming, or a string of up to 31 characters with no spaces"),
             )
-        if self.field_type is Field.DIAMETER and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field is Field.DIAMETER and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "diameter > 0", tr("Diameter must be greater than 0")
-        if self.field_type is Field.ROUGHNESS:
+        if self.field is Field.ROUGHNESS:
             return "roughness > 0", tr("Roughness must be greater than 0")
-        if self.field_type is Field.LENGTH:
+        if self.field is Field.LENGTH:
             return "length is NULL  OR  length > 0", tr(
                 "Length must be empty/NULL (will be calculated) or greater than 0"
             )
 
-        if self.field_type is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
+        if self.field is Field.MINOR_LOSS and self.layer_type in [ModelLayer.PIPES, ModelLayer.VALVES]:
             return "minor_loss >= 0", tr("Minor loss must be greater than or equal to 0")
-        if self.field_type is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
+        if self.field is Field.BASE_SPEED and self.layer_type is ModelLayer.PUMPS:
             return "base_speed > 0", tr("Base speed must be greater than 0")
-        if self.field_type is Field.POWER and self.layer_type is ModelLayer.PUMPS:
+        if self.field is Field.POWER and self.layer_type is ModelLayer.PUMPS:
             return "if( upper(pump_type) is 'POWER', power > 0, true)", tr(
                 "Power pumps must have a power greater than 0"
             )
 
-        if self.field_type.python_type is PatternType:
+        if self.field.type is SimpleFieldType.PATTERN:
             return (
-                f"wntr_check_pattern({self.field_type.value}) IS NOT false",
+                f"wntr_check_pattern({self.field.value}) IS NOT false",
                 tr("Patterns must be a string of numbers separated by spaces"),
             )
 
         curve_message = tr("Curves must be a list of tuples, e.g. (1,2), (3,4)")
 
-        if self.field_type is Field.PUMP_CURVE:
+        if self.field is Field.PUMP_CURVE:
             return (
                 "if( upper(pump_type) is 'HEAD', wntr_check_curve(pump_curve) IS true, true) ",
                 tr("Head pumps must have a pump curve. {curve_description}").format(
@@ -215,7 +209,7 @@ class _FieldStyler:
                 ),
             )
 
-        if self.field_type is Field.HEADLOSS_CURVE:
+        if self.field is Field.HEADLOSS_CURVE:
             return (
                 "if( upper(valve_type) is 'GPV', wntr_check_curve(headloss_curve) IS true, true) ",
                 tr("General Purpose Valves must have a headloss curve. {curve_description}").format(
@@ -223,8 +217,8 @@ class _FieldStyler:
                 ),
             )
 
-        if self.field_type.python_type is CurveType:
-            return (f"wntr_check_curve({self.field_type.value}) IS NOT false", curve_message)
+        if self.field.type is SimpleFieldType.CURVE:
+            return (f"wntr_check_curve({self.field.value}) IS NOT false", curve_message)
 
         return None, None
 
@@ -268,8 +262,8 @@ class _LayerStyler:
             f'wntr_result_at_current_time("{field_name}")' if self.theme == "extended" else field_name
         )
         unit_name = ""
-        if isinstance(field.python_type, Parameter):
-            unit_name = self.units.get(field.python_type)
+        if isinstance(field.type, Parameter):
+            unit_name = self.units.get(field.type)
 
         renderer = QgsGraduatedSymbolRenderer()
         renderer.setClassAttribute(attribute_expression)

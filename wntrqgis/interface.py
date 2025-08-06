@@ -40,13 +40,14 @@ from wntrqgis.elements import (
     FieldGroup,
     FlowUnit,
     HeadlossFormula,
+    MapFieldType,
     ModelLayer,
     Parameter,
     PumpTypes,
     ResultLayer,
+    SimpleFieldType,
     ValveType,
     _AbstractLayer,
-    _AbstractValueMap,
 )
 from wntrqgis.i18n import tr
 from wntrqgis.spatial_index import SnapError, SpatialIndex
@@ -269,7 +270,7 @@ class Writer:
             is_list_field = False
             try:
                 field = Field[f.upper()]
-                dtype = field.python_type
+                dtype = field.type
                 is_list_field = bool(field.field_group & FieldGroup.LIST_IN_EXTENDED_PERIOD)
                 comment = field.description
 
@@ -433,7 +434,7 @@ class Writer:
 
             for fieldname in df.select_dtypes(include=["float"]):
                 try:
-                    parameter = Field[str(fieldname).upper()].python_type
+                    parameter = Field[str(fieldname).upper()].type
                 except KeyError:
                     continue
                 if not isinstance(parameter, Parameter):
@@ -464,8 +465,8 @@ class Writer:
             if df.empty:
                 continue
 
-            if isinstance(field.python_type, Parameter):
-                df = self._converter.from_si(df, field.python_type)
+            if isinstance(field.type, Parameter):
+                df = self._converter.from_si(df, field.type)
 
             if self._timestep is not None:
                 output_attributes[field.value] = df.iloc[self._timestep]
@@ -495,18 +496,17 @@ class Writer:
         if dtype is list:  # Must be checked before string type
             return QMetaType.Type.QVariantList if USE_QMETATYPE else QVariant.List
 
-        try:
-            is_abstract_value_map = issubclass(_AbstractValueMap, dtype)
-        except TypeError:
-            is_abstract_value_map = False
-
-        if is_abstract_value_map or pd.api.types.is_string_dtype(dtype):
+        if (
+            dtype in MapFieldType
+            or dtype in [SimpleFieldType.STR, SimpleFieldType.PATTERN, SimpleFieldType.CURVE]
+            or pd.api.types.is_string_dtype(dtype)
+        ):
             return QMetaType.Type.QString if USE_QMETATYPE else QVariant.String
 
         if isinstance(dtype, Parameter) or pd.api.types.is_float_dtype(dtype):
             return QMetaType.Type.Double if USE_QMETATYPE else QVariant.Double
 
-        if pd.api.types.is_bool_dtype(dtype):
+        if dtype is SimpleFieldType.BOOL or pd.api.types.is_bool_dtype(dtype):
             return QMetaType.Type.Bool if USE_QMETATYPE else QVariant.Bool
 
         if pd.api.types.is_integer_dtype(dtype):
@@ -952,14 +952,14 @@ class _FromGis:
           (wntr doesn't accept floats for bool)"""
         for column_name in source_df.columns:
             try:
-                expected_type = Field[column_name.upper()].python_type
+                expected_type = Field[column_name.upper()].type
             except KeyError:
                 continue
 
             try:
                 if expected_type is float or isinstance(expected_type, Parameter):
                     source_df[column_name] = pd.to_numeric(source_df[column_name])
-                elif expected_type is bool:
+                elif expected_type is SimpleFieldType.BOOL:
                     source_df[column_name] = pd.to_numeric(source_df[column_name]).astype("Int64").astype("object")
             except (ValueError, TypeError) as e:
                 msg = tr("Problem in column {column_name}: {exception}").format(column_name=column_name, exception=e)
@@ -969,7 +969,7 @@ class _FromGis:
     def _convert_dataframe(self, source_df: pd.DataFrame) -> pd.DataFrame:
         for fieldname in source_df.select_dtypes(include=[np.number]):
             try:
-                parameter = Field[str(fieldname).upper()].python_type
+                parameter = Field[str(fieldname).upper()].type
             except KeyError:
                 continue
             if not isinstance(parameter, Parameter):

@@ -81,32 +81,6 @@ class DemandType(Enum):
         raise ValueError
 
 
-class Parameter(Enum):
-    ELEVATION = auto()
-    HYDRAULIC_HEAD = auto()
-    PRESSURE = auto()
-    CONCENTRATION = auto()
-    LENGTH = auto()
-    PIPE_DIAMETER = auto()
-    FLOW = auto()
-    VELOCITY = auto()
-    UNIT_HEADLOSS = auto()
-    POWER = auto()
-    VOLUME = auto()
-    EMITTER_COEFFICIENT = auto()
-    ROUGHNESS_COEFFICIENT = auto()
-    TANK_DIAMETER = auto()
-    ENERGY = auto()
-    REACTION_RATE = auto()
-    BULK_REACTION_COEFFICIENT = auto()
-    WALL_REACTION_COEFFICIENT = auto()
-    SOURCE_MASS_INJECTION = auto()
-    WATER_AGE = auto()
-    UNITLESS = auto()
-    FRACTION = auto()
-    CURRENCY = auto()
-
-
 class _AbstractValueMap(Enum):
     """Abstract enum for value maps"""
 
@@ -200,6 +174,50 @@ class ValveType(_AbstractValueMap):
         raise ValueError  # pragma: no cover
 
 
+class FieldType(Enum):
+    """Abstract Enum for Field Types"""
+
+
+class MapFieldType(FieldType):
+    PUMP_TYPE = PumpTypes
+    VALVE_TYPE = ValveType
+    TANK_MIXING_MODEL = TankMixingModel
+    INITIAL_STATUS = InitialStatus
+
+
+class SimpleFieldType(FieldType):
+    STR = auto()
+    BOOL = auto()
+    PATTERN = auto()
+    CURVE = auto()
+
+
+class Parameter(FieldType):
+    ELEVATION = auto()
+    HYDRAULIC_HEAD = auto()
+    PRESSURE = auto()
+    CONCENTRATION = auto()
+    LENGTH = auto()
+    PIPE_DIAMETER = auto()
+    FLOW = auto()
+    VELOCITY = auto()
+    UNIT_HEADLOSS = auto()
+    POWER = auto()
+    VOLUME = auto()
+    EMITTER_COEFFICIENT = auto()
+    ROUGHNESS_COEFFICIENT = auto()
+    TANK_DIAMETER = auto()
+    ENERGY = auto()
+    REACTION_RATE = auto()
+    BULK_REACTION_COEFFICIENT = auto()
+    WALL_REACTION_COEFFICIENT = auto()
+    SOURCE_MASS_INJECTION = auto()
+    WATER_AGE = auto()
+    UNITLESS = auto()
+    FRACTION = auto()
+    CURRENCY = auto()
+
+
 class FieldGroup(Flag):
     BASE = auto()
     WATER_QUALITY_ANALYSIS = auto()
@@ -208,14 +226,6 @@ class FieldGroup(Flag):
     EXTRA = auto()
     REQUIRED = auto()
     LIST_IN_EXTENDED_PERIOD = auto()
-
-
-class PatternType(str):
-    __slots__ = ()
-
-
-class CurveType(str):
-    __slots__ = ()
 
 
 class LayerType(Flag):
@@ -426,54 +436,53 @@ class Field(Enum):
         return obj
 
     def __init__(self, *args):
-        self._python_type = args[1]
+        self._type = args[1]
         self._field_group = args[2]
 
     @property
-    def python_type(self) -> type:
-        """The expected python type"""
-        return self._python_type
+    def type(self) -> FieldType:
+        return self._type
 
     @property
     def field_group(self) -> FieldGroup:
         """The field group(s) the field is part of"""
         return self._field_group
 
-    NAME = "name", str, FieldGroup.BASE
+    NAME = "name", SimpleFieldType.STR, FieldGroup.BASE
     ELEVATION = "elevation", Parameter.ELEVATION, FieldGroup.BASE | FieldGroup.REQUIRED
     BASE_DEMAND = "base_demand", Parameter.FLOW, FieldGroup.BASE
-    DEMAND_PATTERN = "demand_pattern", PatternType, FieldGroup.BASE
+    DEMAND_PATTERN = "demand_pattern", SimpleFieldType.PATTERN, FieldGroup.BASE
     EMITTER_COEFFICIENT = "emitter_coefficient", Parameter.EMITTER_COEFFICIENT, FieldGroup.BASE
     INIT_LEVEL = "init_level", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_LEVEL = "min_level", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.REQUIRED
     MAX_LEVEL = "max_level", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.REQUIRED
 
-    VALVE_TYPE = "valve_type", ValveType, FieldGroup.BASE | FieldGroup.REQUIRED
+    VALVE_TYPE = "valve_type", MapFieldType.VALVE_TYPE, FieldGroup.BASE | FieldGroup.REQUIRED
     PRESSURE_SETTING = "pressure_setting", Parameter.PRESSURE, FieldGroup.BASE
     FLOW_SETTING = "flow_setting", Parameter.FLOW, FieldGroup.BASE
     THROTTLE_SETTING = "throttle_setting", Parameter.UNITLESS, FieldGroup.BASE
-    HEADLOSS_CURVE = "headloss_curve", CurveType, FieldGroup.BASE
+    HEADLOSS_CURVE = "headloss_curve", SimpleFieldType.CURVE, FieldGroup.BASE
 
     DIAMETER = "diameter", Parameter.PIPE_DIAMETER, FieldGroup.BASE | FieldGroup.REQUIRED
     TANK_DIAMETER = "tank_diameter", Parameter.TANK_DIAMETER, FieldGroup.BASE | FieldGroup.REQUIRED
     MIN_VOL = "min_vol", Parameter.VOLUME, FieldGroup.BASE
-    VOL_CURVE = "vol_curve", CurveType, FieldGroup.BASE
-    OVERFLOW = "overflow", bool, FieldGroup.BASE
+    VOL_CURVE = "vol_curve", SimpleFieldType.CURVE, FieldGroup.BASE
+    OVERFLOW = "overflow", SimpleFieldType.BOOL, FieldGroup.BASE
     BASE_HEAD = "base_head", Parameter.ELEVATION, FieldGroup.BASE | FieldGroup.REQUIRED
-    HEAD_PATTERN = "head_pattern", PatternType, FieldGroup.BASE
+    HEAD_PATTERN = "head_pattern", SimpleFieldType.PATTERN, FieldGroup.BASE
     LENGTH = "length", Parameter.LENGTH, FieldGroup.BASE
     ROUGHNESS = "roughness", Parameter.ROUGHNESS_COEFFICIENT, FieldGroup.BASE | FieldGroup.REQUIRED
     MINOR_LOSS = "minor_loss", Parameter.UNITLESS, FieldGroup.BASE
-    CHECK_VALVE = "check_valve", bool, FieldGroup.BASE
-    PUMP_TYPE = "pump_type", PumpTypes, FieldGroup.BASE | FieldGroup.REQUIRED
-    PUMP_CURVE = "pump_curve", CurveType, FieldGroup.BASE
+    CHECK_VALVE = "check_valve", SimpleFieldType.BOOL, FieldGroup.BASE
+    PUMP_TYPE = "pump_type", MapFieldType.PUMP_TYPE, FieldGroup.BASE | FieldGroup.REQUIRED
+    PUMP_CURVE = "pump_curve", SimpleFieldType.CURVE, FieldGroup.BASE
     POWER = "power", Parameter.POWER, FieldGroup.BASE
     BASE_SPEED = "base_speed", Parameter.FRACTION, FieldGroup.BASE
-    SPEED_PATTERN = "speed_pattern", PatternType, FieldGroup.BASE
-    INITIAL_STATUS = "initial_status", InitialStatus, FieldGroup.BASE
+    SPEED_PATTERN = "speed_pattern", SimpleFieldType.PATTERN, FieldGroup.BASE
+    INITIAL_STATUS = "initial_status", MapFieldType.INITIAL_STATUS, FieldGroup.BASE
 
     INITIAL_QUALITY = "initial_quality", Parameter.CONCENTRATION, FieldGroup.WATER_QUALITY_ANALYSIS
-    MIXING_MODEL = "mixing_model", TankMixingModel, FieldGroup.WATER_QUALITY_ANALYSIS
+    MIXING_MODEL = "mixing_model", MapFieldType.TANK_MIXING_MODEL, FieldGroup.WATER_QUALITY_ANALYSIS
     MIXING_FRACTION = "mixing_fraction", Parameter.FRACTION, FieldGroup.WATER_QUALITY_ANALYSIS
     BULK_COEFF = "bulk_coeff", Parameter.BULK_REACTION_COEFFICIENT, FieldGroup.WATER_QUALITY_ANALYSIS
     WALL_COEFF = "wall_coeff", Parameter.WALL_REACTION_COEFFICIENT, FieldGroup.WATER_QUALITY_ANALYSIS
@@ -482,9 +491,9 @@ class Field(Enum):
     REQUIRED_PRESSURE = "required_pressure", Parameter.PRESSURE, FieldGroup.PRESSURE_DEPENDENT_DEMAND
     PRESSURE_EXPONENT = "pressure_exponent", Parameter.UNITLESS, FieldGroup.PRESSURE_DEPENDENT_DEMAND
 
-    EFFICIENCY = "efficiency", CurveType, FieldGroup.ENERGY
+    EFFICIENCY = "efficiency", SimpleFieldType.CURVE, FieldGroup.ENERGY
     ENERGY_PRICE = "energy_price", Parameter.CURRENCY, FieldGroup.ENERGY
-    ENERGY_PATTERN = "energy_pattern", PatternType, FieldGroup.ENERGY
+    ENERGY_PATTERN = "energy_pattern", SimpleFieldType.PATTERN, FieldGroup.ENERGY
 
     DEMAND = "demand", Parameter.FLOW, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD
     HEAD = "head", Parameter.HYDRAULIC_HEAD, FieldGroup.BASE | FieldGroup.LIST_IN_EXTENDED_PERIOD

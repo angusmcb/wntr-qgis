@@ -3,6 +3,7 @@ import pytest
 from wntrqgis.elements import (
     DemandType,
     Field,
+    FieldType,
     FlowUnit,
     HeadlossFormula,
     InitialStatus,
@@ -59,3 +60,8 @@ def test_translated_name(enum, monkeypatch: pytest.MonkeyPatch):
 def test_field_name_matches_value():
     for field in Field:
         assert field.name.lower() == field.value
+
+
+@pytest.mark.parametrize("field", list(Field))
+def test_field_types(field: Field):
+    assert isinstance(field.type, FieldType), f"{field.name}.value is not a FieldType"
