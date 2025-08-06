@@ -383,16 +383,15 @@ class Writer:
 
         elif layer is ModelLayer.RESERVOIRS:
             if "head_pattern_name" in df:
-                df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
+                df["head_pattern"] = df["head_pattern_name"].apply(patterns.get)
                 df = df.drop(columns="head_pattern_name")
 
         elif layer is ModelLayer.TANKS:
             if "vol_curve_name" in df:
-                df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
+                df["vol_curve"] = df["vol_curve_name"].apply(curves.get)
                 df = df.drop(columns="vol_curve_name")
-            if "diameter" in df:
-                df["tank_diameter"] = df["diameter"]
-                df = df.drop(columns=["diameter"])
+
+            df = df.rename(columns={"diameter": "tank_diameter"})
 
         elif layer is ModelLayer.PUMPS:
             # not all pumps will have a pump curve (power pumps)!
