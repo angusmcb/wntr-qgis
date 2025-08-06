@@ -257,10 +257,6 @@ class Writer:
         field_names.extend(layer_df.columns.to_list())
         field_names = list(dict.fromkeys(field_names))  # de-duplicate
 
-        for ignore_key in ["node_type", "link_type"]:
-            if ignore_key in field_names:
-                field_names.remove(ignore_key)
-
         layer_df = layer_df.convert_dtypes()
         dtypes = layer_df.dtypes
 
@@ -336,116 +332,113 @@ class Writer:
         dfs: dict[_AbstractLayer, pd.DataFrame] = {}
 
         df_nodes = pd.DataFrame(wn_dict["nodes"])
-        if len(df_nodes) > 0:
-            df_nodes = df_nodes.set_index("name", drop=False)
-            df_nodes = df_nodes.drop(
-                columns=[
-                    "coordinates",
-                    "demand_timeseries_list",
-                    "leak",
-                    "leak_area",
-                    "leak_discharge_coeff",
-                ],
-                errors="ignore",
-            )
-            dfs[ModelLayer.JUNCTIONS] = df_nodes[df_nodes["node_type"] == "Junction"]
-            dfs[ModelLayer.TANKS] = df_nodes[df_nodes["node_type"] == "Tank"]
-            dfs[ModelLayer.RESERVOIRS] = df_nodes[df_nodes["node_type"] == "Reservoir"]
+        df_nodes = df_nodes.drop(
+            columns=["coordinates", "demand_timeseries_list", "leak", "leak_area", "leak_discharge_coeff"],
+            errors="ignore",
+        )
+        if not df_nodes.empty:
+            for layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]:
+                dfs[layer] = self._process_model_df(df_nodes[df_nodes["node_type"] == layer.field_type], layer, wn)
 
         df_links = pd.DataFrame(wn_dict["links"])
-        if len(df_links) > 0:
-            df_links = df_links.set_index("name", drop=False)
-            df_links = df_links.drop(
-                columns=["start_node_name", "end_node_name", "vertices", "initial_quality"],
-                errors="ignore",
-            )
-            dfs[ModelLayer.PIPES] = df_links[df_links["link_type"] == "Pipe"]
-            dfs[ModelLayer.PUMPS] = df_links[df_links["link_type"] == "Pump"]
-            dfs[ModelLayer.VALVES] = df_links[df_links["link_type"] == "Valve"]
+        df_links = df_links.drop(
+            columns=["start_node_name", "end_node_name", "vertices", "initial_quality"], errors="ignore"
+        )
+        if not df_links.empty:
+            for layer in [ModelLayer.PIPES, ModelLayer.PUMPS, ModelLayer.VALVES]:
+                dfs[layer] = self._process_model_df(df_links[df_links["link_type"] == layer.field_type], layer, wn)
 
+        return dfs
+
+    def _process_model_df(
+        self, df: pd.DataFrame, layer: ModelLayer, wn: wntr.network.WaterNetworkModel
+    ) -> pd.DataFrame:
         patterns = _Patterns(wn)
         curves = _Curves(wn, self._converter)
 
-        for lyr, df in dfs.items():
-            df.dropna(axis=1, how="all", inplace=True)  # noqa: PD002
+        if df.empty:
+            return pd.DataFrame()
 
-            if df.empty:
+        df = df.drop(columns=["link_type", "node_type"], errors="ignore")
+
+        df = df.dropna(axis=1, how="all")
+
+        df = df.set_index("name", drop=False)
+
+        if (
+            layer in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]
+            and "initial_quality" in df
+            and (df["initial_quality"] == 0.0).all()
+        ):
+            df = df.drop(columns=["initial_quality"])
+
+        if layer is ModelLayer.JUNCTIONS:
+            # Special case for demands
+            df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
+
+            # 'demand_pattern' didn't exist on node prior to wntr 1.3.0 so we have to go searching:
+            df["demand_pattern"] = wn.query_node_attribute(
+                "demand_timeseries_list", node_type=wntr.network.model.Junction
+            ).apply(lambda dtl: patterns.get(dtl.pattern_list()[0]))
+
+        elif layer is ModelLayer.RESERVOIRS:
+            if "head_pattern_name" in df:
+                df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
+                df = df.drop(columns="head_pattern_name")
+
+        elif layer is ModelLayer.TANKS:
+            if "vol_curve_name" in df:
+                df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
+                df = df.drop(columns="vol_curve_name")
+            if "diameter" in df:
+                df["tank_diameter"] = df["diameter"]
+                df = df.drop(columns=["diameter"])
+
+        elif layer is ModelLayer.PUMPS:
+            # not all pumps will have a pump curve (power pumps)!
+            if "pump_curve_name" in df:
+                df["pump_curve"] = df["pump_curve_name"].apply(curves.get)
+                df = df.drop(columns="pump_curve_name")
+
+            if "speed_pattern_name" in df:
+                df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get)
+                df = df.drop(columns="speed_pattern_name")
+            # 'energy pattern' is not called energy pattern name!
+            if "energy_pattern" in df:
+                df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
+
+            if "efficiency" in df:
+                df["efficiency"] = df["efficiency"].apply(lambda x: curves.get(x["name"]))
+
+        elif layer is ModelLayer.VALVES:
+            pressure_valves = df["valve_type"].isin(["PRV", "PSV", "PBV"])
+            flow_valves = df["valve_type"] == "FCV"
+            throttle_valves = df["valve_type"] == "TCV"
+            general_valves = df["valve_type"] == "GPV"
+
+            if "initial_setting" in df:
+                df.loc[pressure_valves, "pressure_setting"] = df.loc[pressure_valves, "initial_setting"]
+                df.loc[flow_valves, "flow_setting"] = df.loc[flow_valves, "initial_setting"]
+                df.loc[throttle_valves, "throttle_setting"] = df.loc[throttle_valves, "initial_setting"]
+                df = df.drop(columns="initial_setting")
+
+            if "headloss_curve" in df:
+                df.loc[general_valves, "headloss_curve"] = df.loc[general_valves, "headloss_curve_name"].apply(
+                    curves.get
+                )
+
+            df = df.rename(columns={"initial_status": "valve_status"})
+
+        for fieldname in df.select_dtypes(include=["float"]):
+            try:
+                parameter = Field[str(fieldname).upper()].type
+            except KeyError:
                 continue
+            if not isinstance(parameter, Parameter):
+                continue
+            df[fieldname] = self._converter.from_si(df[fieldname], parameter)
 
-            if (
-                lyr in [ModelLayer.JUNCTIONS, ModelLayer.RESERVOIRS, ModelLayer.TANKS]
-                and "initial_quality" in df
-                and (df["initial_quality"] == 0.0).all()
-            ):
-                df.drop(columns=["initial_quality"], inplace=True)  # noqa: PD002
-
-            if lyr is ModelLayer.JUNCTIONS:
-                # Special case for demands
-                df["base_demand"] = wn.query_node_attribute("base_demand", node_type=wntr.network.model.Junction)
-
-                # 'demand_pattern' didn't exist on node prior to wntr 1.3.0 so we have to go searching:
-                df["demand_pattern"] = wn.query_node_attribute(
-                    "demand_timeseries_list", node_type=wntr.network.model.Junction
-                ).apply(lambda dtl: patterns.get(dtl.pattern_list()[0]))
-
-            elif lyr is ModelLayer.RESERVOIRS:
-                if "head_pattern_name" in df:
-                    df.loc[:, "head_pattern"] = df["head_pattern_name"].apply(patterns.get)
-                    df.drop(columns="head_pattern_name", inplace=True)  # noqa: PD002
-
-            elif lyr is ModelLayer.TANKS:
-                if "vol_curve_name" in df:
-                    df.loc[:, "vol_curve"] = df["vol_curve_name"].apply(curves.get)
-                    df.drop(columns="vol_curve_name", inplace=True)  # noqa: PD002
-                if "diameter" in df:
-                    df["tank_diameter"] = df["diameter"]
-                    df.drop(columns=["diameter"], inplace=True)  # noqa: PD002
-
-            elif lyr is ModelLayer.PUMPS:
-                # not all pumps will have a pump curve (power pumps)!
-                if "pump_curve_name" in df:
-                    df["pump_curve"] = df["pump_curve_name"].apply(curves.get)
-                    df.drop(columns="pump_curve_name", inplace=True)  # noqa: PD002
-
-                if "speed_pattern_name" in df:
-                    df["speed_pattern"] = df["speed_pattern_name"].apply(patterns.get)
-                    df.drop(columns="speed_pattern_name", inplace=True)  # noqa: PD002
-                # 'energy pattern' is not called energy pattern name!
-                if "energy_pattern" in df:
-                    df["energy_pattern"] = df["energy_pattern"].apply(patterns.get)
-
-                if "efficiency" in df:
-                    df["efficiency"] = df["efficiency"].apply(lambda x: curves.get(x["name"]))
-
-            elif lyr is ModelLayer.VALVES:
-                pressure_valves = df["valve_type"].isin(["PRV", "PSV", "PBV"])
-                flow_valves = df["valve_type"] == "FCV"
-                throttle_valves = df["valve_type"] == "TCV"
-                general_valves = df["valve_type"] == "GPV"
-
-                if "initial_setting" in df:
-                    df.loc[pressure_valves, "pressure_setting"] = df.loc[pressure_valves, "initial_setting"]
-                    df.loc[flow_valves, "flow_setting"] = df.loc[flow_valves, "initial_setting"]
-                    df.loc[throttle_valves, "throttle_setting"] = df.loc[throttle_valves, "initial_setting"]
-                    df.drop(columns="initial_setting", inplace=True)  # noqa: PD002
-
-                if "headloss_curve" in df:
-                    df.loc[general_valves, "headloss_curve"] = df.loc[general_valves, "headloss_curve_name"].apply(
-                        curves.get
-                    )
-
-                df.rename(columns={"initial_status": "valve_status"}, inplace=True)  # noqa: PD002
-
-            for fieldname in df.select_dtypes(include=["float"]):
-                try:
-                    parameter = Field[str(fieldname).upper()].type
-                except KeyError:
-                    continue
-                if not isinstance(parameter, Parameter):
-                    continue
-                df[fieldname] = self._converter.from_si(df[fieldname], parameter)
-
-        return dfs
+        return df
 
     def _get_results_dfs(
         self, wn: wntr.network.WaterNetworkModel, results: wntr.sim.SimulationResults
