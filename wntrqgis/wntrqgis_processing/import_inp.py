@@ -34,6 +34,7 @@ from wntrqgis.elements import (
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
 from wntrqgis.settings import SettingKey
+from wntrqgis.units import SpecificUnitNames
 from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
 
 
@@ -175,6 +176,8 @@ class ImportInp(WntrQgisProcessingBase):
 
         group_name = tr("Model Layers ({filename})").format(filename=Path(input_file).stem)
 
-        self._setup_postprocessing(context, layers, group_name, False)
+        units = SpecificUnitNames.from_wn(wn)
+
+        self._setup_postprocessing(context, layers, group_name, False, unit_names=units)
 
         return outputs

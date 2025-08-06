@@ -1,5 +1,5 @@
 from __future__ import annotations  # noqa
-from typing import ClassVar, TYPE_CHECKING, cast
+from typing import ClassVar, TYPE_CHECKING
 from enum import Enum
 import logging
 
@@ -19,6 +19,7 @@ from wntrqgis.elements import ModelLayer, ResultLayer
 from wntrqgis.settings import SettingKey, ProjectSettings
 from wntrqgis.style import style
 from wntrqgis.i18n import tr
+from wntrqgis.units import SpecificUnitNames
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr
@@ -56,7 +57,7 @@ class Progression(Enum):
 
 
 class WntrQgisProcessingBase(QgsProcessingAlgorithm):
-    post_processors: ClassVar[dict[str, LayerPostProcessor]] = {}
+    post_processors: ClassVar[dict[str, QgsProcessingLayerPostProcessorInterface]] = {}
 
     def postProcessAlgorithm(self, context, feedback):  # noqa: N802
         if QThread.currentThread() == QCoreApplication.instance().thread() and hasattr(self, "_settings"):
@@ -88,51 +89,46 @@ class WntrQgisProcessingBase(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo("WNTR version: " + wntr_version)
 
     def _setup_postprocessing(self, context: QgsProcessingContext, outputs: dict, group_name: str, *args, **kwargs):
-        output_order: list = [
+        output_order = [
             ModelLayer.JUNCTIONS,
             ModelLayer.PIPES,
             ModelLayer.PUMPS,
             ModelLayer.VALVES,
             ModelLayer.RESERVOIRS,
             ModelLayer.TANKS,
-            ResultLayer.LINKS,
-            ResultLayer.NODES,
         ]
 
         for layer_type, lyr_id in outputs.items():
-            if context.willLoadLayerOnCompletion(lyr_id):
-                self.post_processors[lyr_id] = LayerPostProcessor(layer_type, *args, **kwargs)
+            if not context.willLoadLayerOnCompletion(lyr_id):
+                continue
 
-                layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
-                layer_details.setPostProcessor(self.post_processors[lyr_id])
-                layer_details.groupName = group_name
-                layer_details.layerSortKey = output_order.index(layer_type)
+            self.post_processors[lyr_id] = ModelLayerPostProcessor(layer_type, *args, **kwargs)
+
+            layer_details = context.layerToLoadOnCompletionDetails(lyr_id)
+            layer_details.setPostProcessor(self.post_processors[lyr_id])
+            layer_details.groupName = group_name
+            layer_details.layerSortKey = output_order.index(layer_type)
 
 
-class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+class ModelLayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def __init__(
         self,
         layer_type: ModelLayer | ResultLayer,
-        make_editable=False,  # noqa: FBT002
-        style_theme=None,
-        is_model_layer=True,  # noqa: FBT002
+        make_editable: bool = False,  # noqa: FBT001, FBT002
+        unit_names: SpecificUnitNames | None = None,
     ):
         super().__init__()
         self.layer_type = layer_type
         self.make_editable = make_editable
-        self.style_theme = style_theme
-        self.is_model_layer = is_model_layer
+        self.unit_names = unit_names
 
-    def postProcessLayer(self, layer, context, feedback):  # noqa N802 ARG002
-        layer = cast(QgsVectorLayer, layer)
+    def postProcessLayer(self, layer: QgsVectorLayer, context, feedback) -> None:  # noqa N802 ARG002
+        style(layer, self.layer_type, None, self.unit_names)
 
-        style(layer, self.layer_type, self.style_theme)
-
-        if self.is_model_layer:
-            project_settings = ProjectSettings()
-            wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
-            wntr_layers[self.layer_type.name] = layer.id()
-            project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)
+        project_settings = ProjectSettings()
+        wntr_layers = project_settings.get(SettingKey.MODEL_LAYERS, {})
+        wntr_layers[self.layer_type.name] = layer.id()
+        project_settings.set(SettingKey.MODEL_LAYERS, wntr_layers)
 
         if self.make_editable:
             layer.startEditing()
