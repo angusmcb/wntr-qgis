@@ -65,3 +65,26 @@ def test_field_name_matches_value():
 @pytest.mark.parametrize("field", list(Field))
 def test_field_types(field: Field):
     assert isinstance(field.type, FieldType), f"{field.name}.value is not a FieldType"
+
+
+@pytest.mark.parametrize("flow_unit", list(FlowUnit))
+def test_check_flow_unit_valid_in_wntr(flow_unit: FlowUnit):
+    import wntr
+
+    wn = wntr.network.WaterNetworkModel()
+
+    wn.options.hydraulic.inpfile_units = flow_unit.name
+
+    assert wn.options.hydraulic.inpfile_units == flow_unit.name
+
+
+@pytest.mark.filterwarnings("ignore:Changing the headloss")
+@pytest.mark.parametrize("headloss_formula", list(HeadlossFormula))
+def test_check_headloss_formula_valid_in_wntr(headloss_formula: HeadlossFormula):
+    import wntr
+
+    wn = wntr.network.WaterNetworkModel()
+
+    wn.options.hydraulic.headloss = headloss_formula.value
+
+    assert wn.options.hydraulic.headloss == headloss_formula.value
