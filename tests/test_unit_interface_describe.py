@@ -22,14 +22,16 @@ def test_describe_network_counts():
     wn.add_pump("p1", "j1", "j2", pump_type="POWER", pump_parameter=10)
     wn.add_pump("p2", "j2", "j1", pump_type="POWER", pump_parameter=10)
 
-    result = interface.describe_network(wn)
+    html, text = interface.describe_network(wn)
     # Should only include nonzero counts
-    assert "2 Junctions" in result
-    assert "1 Tanks" in result
-    assert "5 Pipes" in result
-    assert "1 Pressure Reducing Valve" in result
-    assert "2 Pumps defined by power" in result
-    assert "Pumps defined by head curve" not in result
+    assert "2 Junctions" in text
+    assert "1 Tanks" in text
+    assert "5 Pipes" in text
+    assert "1 Pressure Reducing Valve" in text
+    assert "2 Pumps defined by power" in text
+    assert "Pumps defined by head curve" not in text
+
+    assert isinstance(html, str)
 
 
 @patch("wntrqgis.interface.tr", lambda x: x)
@@ -37,9 +39,10 @@ def test_describe_network_all_zero():
     from wntr.network import WaterNetworkModel
 
     wn = WaterNetworkModel()
-    result = interface.describe_network(wn)
+    html, text = interface.describe_network(wn)
     # Should be empty string if all counts are zero
-    assert result == ""
+    assert "Network Summary" in text
+    assert isinstance(html, str)
 
 
 @patch("wntrqgis.interface.tr", lambda x: x)
@@ -62,20 +65,22 @@ def test_describe_network_all_types():
     wn.add_pump("p1", "j1", "t1", pump_type="POWER", pump_parameter=10)
     wn.add_pump("p2", "t1", "j1", pump_type="HEAD", pump_parameter="")
 
-    result = interface.describe_network(wn)
+    html, text = interface.describe_network(wn)
     # All types should be present
-    assert "2 Junctions" in result
-    assert "1 Tanks" in result
-    assert "1 Reservoirs" in result
-    assert "1 Pipes" in result
-    assert "1 Pressure Reducing Valve" in result
-    assert "1 Pressure Sustaining Valve" in result
-    assert "1 Pressure Breaking Valve" in result
-    assert "1 Flow Control Valve" in result
-    assert "1 Throttle Control Valve" in result
-    assert "1 General Purpose Valve" in result
-    assert "1 Pumps defined by power" in result
-    assert "1 Pumps defined by head curve" in result
+    assert "2 Junctions" in text
+    assert "1 Tanks" in text
+    assert "1 Reservoirs" in text
+    assert "1 Pipes" in text
+    assert "1 Pressure Reducing Valve" in text
+    assert "1 Pressure Sustaining Valve" in text
+    assert "1 Pressure Breaking Valve" in text
+    assert "1 Flow Control Valve" in text
+    assert "1 Throttle Control Valve" in text
+    assert "1 General Purpose Valve" in text
+    assert "1 Pumps defined by power" in text
+    assert "1 Pumps defined by head curve" in text
+
+    assert isinstance(html, str)
 
 
 @patch("wntrqgis.interface.tr", lambda x: x)
@@ -117,7 +122,7 @@ def test_describe_pipes_conv():
     html, text = interface.describe_pipes(wn)
     # Check that the text alternative includes the total pipe length
     assert "Total pipe length" in text
-    assert "1968.50" in text  # Should match total length
+    assert "1 968.50" in text  # Should match total length
     # Check that the HTML table includes expected diameters and roughness values
     assert "393" in html
     assert "787" in html
@@ -125,7 +130,7 @@ def test_describe_pipes_conv():
     if wntr.__version__ == "1.2.0":
         pytest.skip(reason="Roughness conversion broken in wntr 1.2.0")
 
-    assert "3281.0" in html  # roughness in 1/1000 feeet - doesn't work in wntr 1.2.0
+    assert "3 281" in html  # roughness in 1/1000 feeet - doesn't work in wntr 1.2.0
 
 
 @patch("wntrqgis.interface.tr", lambda x: x)
