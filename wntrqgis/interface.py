@@ -1347,12 +1347,7 @@ def describe_network(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
 
 @needs_wntr_pandas
 def describe_pipes(wn: wntr.network.WaterNetworkModel) -> tuple[str, str]:
-    try:
-        unit = FlowUnit[wn.options.hydraulic.inpfile_units]
-    except KeyError as e:
-        raise FlowUnitError(e) from e
-    converter = Converter(unit, HeadlossFormula(wn.options.hydraulic.headloss))
-
+    converter = Converter.from_wn(wn)
     unit_names = SpecificUnitNames.from_wn(wn)
 
     pipe_df = pd.DataFrame(
