@@ -495,7 +495,7 @@ class Writer:
             return QMetaType.Type.QVariantList if USE_QMETATYPE else QVariant.List
 
         if (
-            dtype in MapFieldType
+            isinstance(dtype, MapFieldType)
             or dtype in [SimpleFieldType.STR, SimpleFieldType.PATTERN, SimpleFieldType.CURVE]
             or pd.api.types.is_string_dtype(dtype)
         ):
