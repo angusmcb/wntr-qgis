@@ -535,14 +535,11 @@ class _Patterns:
         self._existing_patterns[pattern_tuple] = name
         return name
 
-    def add_all(self, pattern_series: pd.Series | Any, layer: ModelLayer, pattern_type: Field) -> pd.Series | None:
+    def add_all(self, pattern_series: pd.Series, layer: ModelLayer, pattern_type: Field) -> pd.Series | None:
         try:
             return pattern_series.map(self.add, na_action="ignore")
         except ValueError as e:
             raise PatternError(e, layer, pattern_type) from None
-        except AttributeError:
-            # occurs if pattern_series isn't a Series
-            return None
 
     def get(self, pattern: wntr.network.Pattern | str | None) -> str | None:
         if not pattern:
@@ -1082,9 +1079,12 @@ class _FromGis:
         return name_series
 
     def _process_junctions(self, df: pd.DataFrame) -> pd.DataFrame:
-        df["demand_pattern_name"] = self.patterns.add_all(
-            df.get("demand_pattern"), ModelLayer.JUNCTIONS, Field.DEMAND_PATTERN
-        )
+        if "demand_pattern" in df:
+            df["demand_pattern_name"] = self.patterns.add_all(
+                df.get("demand_pattern"), ModelLayer.JUNCTIONS, Field.DEMAND_PATTERN
+            )
+        else:
+            df["demand_pattern_name"] = None
 
         if "base_demand" in df.columns:
             has_demand = df["base_demand"].notna()
