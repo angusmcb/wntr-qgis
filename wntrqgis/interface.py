@@ -535,7 +535,7 @@ class _Patterns:
         self._existing_patterns[pattern_tuple] = name
         return name
 
-    def add_all(self, pattern_series: pd.Series, layer: ModelLayer, pattern_type: Field) -> pd.Series | None:
+    def add_all(self, pattern_series: pd.Series, layer: ModelLayer, pattern_type: Field) -> pd.Series:
         try:
             return pattern_series.map(self.add, na_action="ignore")
         except ValueError as e:
