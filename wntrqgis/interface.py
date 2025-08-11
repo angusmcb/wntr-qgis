@@ -991,12 +991,16 @@ class _FromGis:
         return link_df
 
     def _process_node_geometry(self, df: pd.DataFrame) -> pd.DataFrame:
-        df["coordinates"] = df["geometry"].apply(self._get_point_coordinates)
+        def get_point_coordinates(geometry: QgsGeometry) -> tuple[float, float]:
+            point = geometry.constGet()
+            return point.x(), point.y()
+
+        df["coordinates"] = df["geometry"].apply(get_point_coordinates)
 
         return df.drop(columns="geometry")
 
     def _process_link_geometry(self, link_df: pd.DataFrame) -> pd.DataFrame:
-        link_df["vertices"] = link_df["geometry"].map(
+        link_df["vertices"] = link_df["geometry"].apply(
             lambda geometry: [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
         )
 
@@ -1076,10 +1080,6 @@ class _FromGis:
             name_series[mask] = new_names
 
         return name_series
-
-    def _get_point_coordinates(self, geometry: QgsGeometry):
-        point = geometry.constGet()
-        return point.x(), point.y()
 
     def _process_junctions(self, df: pd.DataFrame) -> pd.DataFrame:
         df["demand_pattern_name"] = self.patterns.add_all(
