@@ -23,7 +23,7 @@ if TYPE_CHECKING:
         FieldType,
     )
 
-project = "Water Network Tools for Resiliance - QGIS Integration"
+project = "Gusnet - Piped Water Network Analysis"
 project_copyright = "2024, Angus McBride"
 author = "Angus McBride"
 release = gusnet.__version__
@@ -50,11 +50,11 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
-html_logo = "../wntrqgis/resources/icons/logo.svg"
+html_logo = "../gusnet/resources/icons/logo.svg"
 html_favicon = html_logo
 
 html_theme_options = {
-    "logo": {"text": "WNTR-QGIS"},
+    "logo": {"text": "Gusnet"},
     "icon_links": [
         {
             # Label for this link
