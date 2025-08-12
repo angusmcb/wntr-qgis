@@ -22,33 +22,23 @@ from gusnet.interface import Writer
 class TemplateLayers(CommonProcessingBase):
     CRS = "CRS"
 
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._name = "templatelayers"
-        self._display_name = tr("Create Template Layers")
-        self._short_help_string = tr("""
-        This will create a set of 'template' layers, which you can use for building your model.
-        You do not need to create or use all layers if not required for your model.
-        """)
-
     def createInstance(self):  # noqa N802
         return TemplateLayers()
 
     def name(self) -> str:
-        return self._name
+        return "template_layers"
 
     def displayName(self) -> str:  # noqa N802
-        return tr(self._display_name)
+        return tr("Create Template Layers")
 
     def shortHelpString(self) -> str:  # noqa N802
-        return tr(self._short_help_string)
+        return tr("""
+        This will create a set of 'template' layers, which you can use for building your model.
+        You do not need to create or use all layers if not required for your model.
+        """)
 
     def icon(self):
         return QIcon(":images/themes/default/mActionFileNew.svg")
-
-    # def helpUrl(self) -> str:  # N802
-    #    return "" # "https://www.helpsite.com"
 
     def initAlgorithm(self, config=None):  # noqa N802
         self.addParameter(QgsProcessingParameterCrs(self.CRS, tr("Coordinate Reference System (CRS)"), "ProjectCrs"))

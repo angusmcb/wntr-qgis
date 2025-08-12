@@ -191,7 +191,7 @@ def test_icon_export_inp(export_alg, assert_valid_qicon):
 
 
 def test_name_import_inp(import_alg):
-    assert import_alg.name() == "importinp"
+    assert import_alg.name() == "import_inp"
 
 
 def test_name_run_simulation(run_alg):
@@ -199,7 +199,7 @@ def test_name_run_simulation(run_alg):
 
 
 def test_name_template_layers(template_alg):
-    assert template_alg.name() == "templatelayers"
+    assert template_alg.name() == "template_layers"
 
 
 def test_name_export_inp(export_alg):

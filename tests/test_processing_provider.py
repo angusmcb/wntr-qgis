@@ -31,7 +31,7 @@ def test_processing_provider_id(provider: Provider) -> None:
     assert provider.id() == "gusnet"
 
 
-@pytest.mark.parametrize("algorithm", ["importinp", "run", "templatelayers", "export"])
+@pytest.mark.parametrize("algorithm", ["import_inp", "run", "template_layers", "export"])
 def test_processing_alg_loaded(algorithm: str, provider: Provider) -> None:
     assert provider.algorithm(algorithm)
 

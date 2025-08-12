@@ -50,7 +50,7 @@ class ImportInp(CommonProcessingBase):
         return ImportInp()
 
     def name(self):
-        return "importinp"
+        return "import_inp"
 
     def displayName(self):  # noqa N802
         return tr("Import from Epanet INP file")
