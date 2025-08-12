@@ -1001,9 +1001,7 @@ class _FromGis:
             lambda geometry: [(v.x(), v.y()) for v in geometry.asPolyline()[1:-1]]
         )
 
-        if "length" not in link_df.columns:
-            link_df["length"] = np.nan
-        pipes = link_df["link_type"] == "Pipe"
+        pipes = link_df["link_type"] == ModelLayer.PIPES.field_type
         link_df.loc[pipes, "length"] = self._process_pipe_length(link_df.loc[pipes])
 
         return link_df.drop(columns="geometry")
@@ -1019,12 +1017,18 @@ class _FromGis:
         if calculated_lengths.isna().any():
             raise PipeMeasuringError(calculated_lengths.isna().sum())
 
-        mismatch = self._get_mismatches(calculated_lengths, pipe_df["length"])
+        attribute_lengths = pipe_df.get("length")
 
-        if mismatch.any():
-            self.mismatch_warning(pipe_df["name"], calculated_lengths, pipe_df["length"])
+        if attribute_lengths is None:
+            return calculated_lengths
 
-        return pipe_df["length"].fillna(calculated_lengths)
+        else:
+            mismatch = self._get_mismatches(calculated_lengths, attribute_lengths)
+
+            if mismatch.any():
+                self.mismatch_warning(pipe_df["name"], calculated_lengths, attribute_lengths)
+
+            return attribute_lengths.fillna(calculated_lengths)
 
     def _get_mismatches(self, calculated_lengths: pd.Series, attribute_lengths: pd.Series) -> pd.Series:
         """Get a boolean series indicating which rows have a mismatch between calculated and attribute lengths."""
