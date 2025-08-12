@@ -1,26 +1,25 @@
-from __future__ import annotations  # noqa
-from contextlib import contextmanager
-import functools
-from typing import ClassVar, TYPE_CHECKING
-from enum import Enum
-import logging
+from __future__ import annotations
 
+import functools
+import logging
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, ClassVar
 
 from qgis.core import (
-    QgsProcessingLayerPostProcessorInterface,
+    QgsApplication,
+    QgsProcessingAlgorithm,
+    QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
-    QgsProcessingContext,
-    QgsProcessingAlgorithm,
+    QgsProcessingLayerPostProcessorInterface,
     QgsVectorLayer,
-    QgsApplication,
 )
-
 from qgis.PyQt.QtCore import QCoreApplication, QThread
+
 from gusnet.elements import ModelLayer, ResultLayer
-from gusnet.settings import SettingKey, ProjectSettings
-from gusnet.style import style
 from gusnet.i18n import tr
+from gusnet.settings import ProjectSettings, SettingKey
+from gusnet.style import style
 from gusnet.units import SpecificUnitNames
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -28,34 +27,6 @@ if TYPE_CHECKING:  # pragma: no cover
 LOGGER = logging.getLogger("gusnet")
 
 SHOW_TIMING = False
-
-
-class Progression(Enum):
-    CHECKING_DEPENDENCIES = 5
-    INSTALLING_WNTR = 15
-    PREPARING_MODEL = 25
-    RUNNING_SIMULATION = 40
-    CREATING_OUTPUTS = 70
-    FINISHED_PROCESSING = 95
-    LOADING_INP_FILE = 10
-
-    @property
-    def friendly_name(self):
-        if self is Progression.CHECKING_DEPENDENCIES:
-            return tr("Checking dependencies")
-        if self is Progression.INSTALLING_WNTR:
-            return tr("Installing WNTR")
-        if self is Progression.PREPARING_MODEL:
-            return tr("Preparing model")
-        if self is Progression.RUNNING_SIMULATION:
-            return tr("Running simulation")
-        if self is Progression.CREATING_OUTPUTS:
-            return tr("Creating outputs")
-        if self is Progression.FINISHED_PROCESSING:
-            return tr("Finished processing")
-        if self is Progression.LOADING_INP_FILE:
-            return tr("Loading inp file")
-        raise ValueError
 
 
 class CommonProcessingBase(QgsProcessingAlgorithm):
