@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qgis.core import (
     QgsProcessingContext,
@@ -34,8 +34,11 @@ from wntrqgis.elements import (
 from wntrqgis.i18n import tr
 from wntrqgis.interface import Writer
 from wntrqgis.settings import SettingKey
-from wntrqgis.units import SpecificUnitNames
-from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
+from wntrqgis.units import SpecificUnitNames, UnitNames
+from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase, profile
+
+if TYPE_CHECKING:  # pragma: no cover
+    import wntr
 
 
 class ImportInp(WntrQgisProcessingBase):
@@ -97,39 +100,24 @@ class ImportInp(WntrQgisProcessingBase):
 
         return parameters
 
+    @profile(tr("Import from Epanet INP file"))
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
-    ) -> dict:
-        progress = ProgressTracker(feedback)
+    ) -> dict[str, str]:
+        with profile(tr("Verifying Dependencies"), 10, feedback):
+            self._check_wntr()
 
-        self._ensure_wntr(progress)
-        # only import wntr-using modules once we are sure wntr is installed.
-        import wntr
-
-        progress.update_progress(Progression.LOADING_INP_FILE)
-
-        input_file = self.parameterAsFile(parameters, self.INPUT, context)
-
-        try:
-            wn: wntr.network.WaterNetworkModel = wntr.network.read_inpfile(input_file)
-        except FileNotFoundError as e:
-            msg = tr(".inp file does not exist ({input_file})").format(input_file=input_file)
-            raise QgsProcessingException(msg) from e
-        except wntr.epanet.exceptions.EpanetException as e:
-            msg = tr("error reading .inp file: {e}").format(e=e)
-            raise QgsProcessingException(msg) from e
+        with profile(tr("Loading INP File"), 40, feedback):
+            input_file = self.parameterAsFile(parameters, self.INPUT, context)
+            wn = self._load_inp(input_file)
 
         self._describe_model(wn, feedback)
 
-        if parameters.get(self.UNITS) is not None:
-            unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
-            flow_unit = list(FlowUnit)[unit_enum_int]
-            wn.options.hydraulic.inpfile_units = flow_unit.name
-        else:
-            flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
+        flow_unit = self._get_flow_unit(parameters, context, wn)
+
         feedback.pushInfo(
             tr("Will output with the following units: {flow_unit}").format(flow_unit=flow_unit.friendly_name)
         )
@@ -143,19 +131,57 @@ class ImportInp(WntrQgisProcessingBase):
             SettingKey.MODEL_LAYERS: {},
         }
 
-        progress.update_progress(Progression.CREATING_OUTPUTS)
+        with profile(tr("Creating Outputs"), 80, feedback):
+            network_writer = Writer(wn)
 
-        network_writer = Writer(wn)
+            # this is just to give a little user output
+            # extra_analysis_type_names = [
+            #     str(atype.name)
+            #     for atype in [FieldGroup.ENERGY, FieldGroup.WATER_QUALITY_ANALYSIS, FieldGroup.PRESSURE_DEPENDENT_DEMAND]  # noqa: E501
+            #     if network_model.field_groups is not None and atype in network_model.field_groups
+            # ]
+            # if len(extra_analysis_type_names):
+            #     feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
+            group_name = tr("Model Layers ({filename})").format(filename=Path(input_file).stem)
+            units = SpecificUnitNames.from_wn(wn)
+            outputs = self._write_to_sinks(parameters, context, network_writer, group_name, units)
 
-        # this is just to give a little user output
-        # extra_analysis_type_names = [
-        #     str(atype.name)
-        #     for atype in [FieldGroup.ENERGY, FieldGroup.WATER_QUALITY_ANALYSIS, FieldGroup.PRESSURE_DEPENDENT_DEMAND]
-        #     if network_model.field_groups is not None and atype in network_model.field_groups
-        # ]
-        # if len(extra_analysis_type_names):
-        #     feedback.pushInfo("Will include columns for analysis types: " + ", ".join(extra_analysis_type_names))
+        return outputs
 
+    def _load_inp(self, input_file: str) -> wntr.network.WaterNetworkModel:
+        import wntr
+
+        try:
+            wn: wntr.network.WaterNetworkModel = wntr.network.read_inpfile(input_file)
+        except FileNotFoundError as e:
+            msg = tr(".inp file does not exist ({input_file})").format(input_file=input_file)
+            raise QgsProcessingException(msg) from e
+        except wntr.epanet.exceptions.EpanetException as e:
+            msg = tr("error reading .inp file: {e}").format(e=e)
+            raise QgsProcessingException(msg) from e
+
+        return wn
+
+    def _get_flow_unit(
+        self, parameters: dict[str, Any], context: QgsProcessingContext, wn: wntr.network.WaterNetworkModel
+    ) -> FlowUnit:
+        if parameters.get(self.UNITS) is not None:
+            unit_enum_int = self.parameterAsEnum(parameters, self.UNITS, context)
+            flow_unit = list(FlowUnit)[unit_enum_int]
+            wn.options.hydraulic.inpfile_units = flow_unit.name
+        else:
+            flow_unit = FlowUnit[wn.options.hydraulic.inpfile_units]
+
+        return flow_unit
+
+    def _write_to_sinks(
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        network_writer: Writer,
+        group_name: str,
+        units: UnitNames | None,
+    ) -> dict[str, str]:
         crs = self.parameterAsCrs(parameters, self.CRS, context)
 
         # for shapefile writing
@@ -171,12 +197,6 @@ class ImportInp(WntrQgisProcessingBase):
             )
             layers[layer] = outputs[layer.name]
             network_writer.write(layer, sink)
-
-        progress.update_progress(Progression.FINISHED_PROCESSING)
-
-        group_name = tr("Model Layers ({filename})").format(filename=Path(input_file).stem)
-
-        units = SpecificUnitNames.from_wn(wn)
 
         self._setup_postprocessing(context, layers, group_name, False, unit_names=units)
 

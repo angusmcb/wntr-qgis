@@ -42,7 +42,7 @@ from wntrqgis.interface import NetworkModelError, Writer, check_network, describ
 from wntrqgis.settings import ProjectSettings, SettingKey
 from wntrqgis.style import style
 from wntrqgis.units import SpecificUnitNames
-from wntrqgis.wntrqgis_processing.common import Progression, ProgressTracker, WntrQgisProcessingBase
+from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase, profile
 
 if TYPE_CHECKING:
     import wntr
@@ -322,31 +322,26 @@ in other software.
     def init_output_parameters(self):
         self.init_output_files_parameters()
 
+    @profile(tr("Run Simulation"))
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        progress = ProgressTracker(feedback)
+        with profile(tr("Verifying Dependencies"), 10, feedback):
+            self._check_wntr()
 
-        self._ensure_wntr(progress)
+        with profile(tr("Preparing Model"), 30, feedback):
+            wn = self._get_wn(parameters, context, feedback)
 
-        progress.update_progress(Progression.PREPARING_MODEL)
+            self._describe_model(wn, feedback)
 
-        wn = self._get_wn(parameters, context, feedback)
+        with profile(tr("Running Simulation"), 50, feedback):
+            sim_results = self._run_simulation(feedback, wn)
 
-        self._describe_model(wn, feedback)
-
-        progress.update_progress(Progression.RUNNING_SIMULATION)
-
-        sim_results = self._run_simulation(feedback, wn)
-
-        progress.update_progress(Progression.CREATING_OUTPUTS)
-
-        outputs = self.write_output_result_layers(parameters, context, feedback, wn, sim_results)
-
-        progress.update_progress(Progression.FINISHED_PROCESSING)
+        with profile(tr("Creating Outputs"), 80, feedback):
+            outputs = self.write_output_result_layers(parameters, context, feedback, wn, sim_results)
 
         return outputs
 
@@ -377,27 +372,23 @@ in other software.
     def init_output_parameters(self):
         self.init_export_inp_parameter()
 
+    @profile(tr("Export Inp File"))
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        progress = ProgressTracker(feedback)
+        with profile(tr("Verifying Dependencies"), 10, feedback):
+            self._check_wntr()
 
-        self._ensure_wntr(progress)
+        with profile(tr("Preparing Model"), 30, feedback):
+            wn = self._get_wn(parameters, context, feedback)
 
-        progress.update_progress(Progression.PREPARING_MODEL)
+            self._describe_model(wn, feedback)
 
-        wn = self._get_wn(parameters, context, feedback)
-
-        self._describe_model(wn, feedback)
-
-        progress.update_progress(Progression.CREATING_OUTPUTS)
-
-        outputs = self.write_inp_file(parameters, context, feedback, wn)
-
-        progress.update_progress(Progression.FINISHED_PROCESSING)
+        with profile(tr("Creating Outputs"), 80, feedback):
+            outputs = self.write_inp_file(parameters, context, feedback, wn)
 
         return outputs
 
