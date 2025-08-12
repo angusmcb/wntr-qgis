@@ -6,11 +6,11 @@ from gusnet.settings import ProjectSettings, SettingKey
 
 
 def write(var, value=None):
-    QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "wntrqgis_" + var, value)
+    QgsExpressionContextUtils.setProjectVariable(QgsProject.instance(), "gusnet_" + var, value)
 
 
 def read(var):
-    return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("wntrqgis_" + var)
+    return QgsExpressionContextUtils.projectScope(QgsProject.instance()).variable("gusnet_" + var)
 
 
 def test_read():

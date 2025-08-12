@@ -9,13 +9,13 @@ pythonpath = [
   "."
 ]
 [tool.coverage.report]
-omit = ["wntrqgis/packages/*","wntrqgis/packages/*/wntr/*.py","wntrqgis/packages/*/wntr/*/*.py","wntrqgis/packages/*/wntr/*/*/*.py","tests/*.py","build.py","create_qgis_venv.py","conftest.py",]
+omit = ["gusnet/packages/*","gusnet/packages/*/wntr/*.py","gusnet/packages/*/wntr/*/*.py","gusnet/packages/*/wntr/*/*/*.py","tests/*.py","build.py","create_qgis_venv.py","conftest.py",]
 
 
 [tool.ruff]
 target-version = "py39"
 extend = "ruff_defaults.toml"
-extend-exclude = ["wntrqgis/qgis_plugin_tools","wntrqgis/resources","create_qgis_venv.py"]
+extend-exclude = ["gusnet/resources","create_qgis_venv.py"]
 
 [tool.ruff.lint.per-file-ignores]
 "conf.py" = ["INP001"]
@@ -39,9 +39,6 @@ unfixable = [
     "F841", # unused variables
 ]
 
-[[tool.mypy.overrides]]
-module = "wntrqgis.qgis_plugin_tools.*"
-ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["qgis.*", "osgeo.*","wntr.*","geopandas.*","shapely.*"]

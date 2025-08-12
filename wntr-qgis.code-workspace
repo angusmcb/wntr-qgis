@@ -43,8 +43,8 @@
                 },
                 "pathMappings": [
                     {
-                        "localRoot": "${workspaceFolder}/wntrqgis",
-                        "remoteRoot": "${env:APPDATA}/QGIS/QGIS3/profiles/default/python/plugins/wntrqgis"
+                        "localRoot": "${workspaceFolder}/gusnet",
+                        "remoteRoot": "${env:APPDATA}/QGIS/QGIS3/profiles/default/python/plugins/gusnet"
                     }
                 ]
             },

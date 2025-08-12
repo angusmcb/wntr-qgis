@@ -46,7 +46,7 @@ class SettingKey(str, Enum):
 class ProjectSettings:
     """Gets and sets WNTR project settings"""
 
-    SETTING_PREFIX = "wntrqgis_"
+    SETTING_PREFIX = "gusnet_"
 
     def __init__(self, project: QgsProject | None = None):
         if not project:

@@ -59,7 +59,7 @@ ignore = ["PD901"]
 ban-relative-imports = "all"
 
 [lint.isort]
-known-first-party = ["wntrqgis"]
+known-first-party = ["gusnet"]
 
 [lint.flake8-pytest-style]
 fixture-parentheses = false
