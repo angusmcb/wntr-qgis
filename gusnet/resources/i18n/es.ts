@@ -4,37 +4,32 @@
 <context>
     <name>@default</name>
     <message>
-        <location filename="../../plugin.py" line="73"/>
-        <source>Water Network Tools for Resilience</source>
-        <translation>Herramientas de red de agua para la resiliencia</translation>
-    </message>
-    <message>
-        <location filename="../../plugin.py" line="403"/>
+        <location filename="../../plugin.py" line="404"/>
         <source>Create Template Memory Layers</source>
         <translation>Crear capas de memoria de plantilla</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="413"/>
+        <location filename="../../plugin.py" line="414"/>
         <source>Create Template Geopackage</source>
         <translation>Crear geopackage de plantilla</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="330"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="325"/>
         <source>Run Simulation</source>
         <translation>Ejecutar simulación</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="529"/>
+        <location filename="../../plugin.py" line="530"/>
         <source>Change layers...</source>
         <translation>Cambiar capas...</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="84"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="79"/>
         <source>Units</source>
         <translation>Unidades</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="168"/>
+        <location filename="../../plugin.py" line="169"/>
         <source>Duration (hours)</source>
         <translation>Duración (horas)</translation>
     </message>
@@ -44,47 +39,37 @@
         <translation>Simulación de un solo período</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="468"/>
+        <location filename="../../plugin.py" line="469"/>
         <source>Load Example</source>
         <translation>Cargar ejemplo</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="48"/>
+        <location filename="../../plugin.py" line="202"/>
         <source>Installing WNTR</source>
         <translation>Instalando WNTR</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="225"/>
-        <source>WNTR QGIS installed successfully</source>
-        <translation>WNTR QGIS instalado con éxito</translation>
-    </message>
-    <message>
-        <location filename="../../plugin.py" line="225"/>
-        <source>WNTR QGIS upgraded successfully</source>
-        <translation>WNTR QGIS actualizado con éxito</translation>
-    </message>
-    <message>
-        <location filename="../../plugin.py" line="226"/>
+        <location filename="../../plugin.py" line="227"/>
         <source>Load an example to try me out</source>
         <translation>Carga un ejemplo para probarme</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="316"/>
+        <location filename="../../plugin.py" line="317"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="325"/>
+        <location filename="../../plugin.py" line="326"/>
         <source>Success</source>
         <translation>Éxito</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="471"/>
+        <location filename="../../plugin.py" line="472"/>
         <source>Example loaded with Open Street Map background</source>
         <translation>Ejemplo cargado con fondo de Open Street Map</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="394"/>
+        <location filename="../../plugin.py" line="395"/>
         <source>Analysed using units &apos;{units}&apos; and headloss formula &apos;{headloss_formula}&apos;</source>
         <translation>Analizado usando unidades «{units}» y fórmula de pérdida de carga «{headloss_formula}»</translation>
     </message>
@@ -97,52 +82,52 @@
         </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="103"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="103"/>
         <source>Import from Epanet INP file</source>
         <translation>Importar desde archivo INP de Epanet</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="70"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="70"/>
         <source>Epanet Input File (.inp)</source>
         <translation>Archivo de entrada de Epanet (.inp)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="79"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="79"/>
         <source>Coordinate Reference System (CRS)</source>
         <translation>Sistema de referencia de coordenadas (CRS)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="95"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="90"/>
         <source>Headloss Formula</source>
         <translation>Fórmula de pérdida de carga</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="108"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="103"/>
         <source>Simulation duration in hours (or 0 for single period)</source>
         <translation>Duración de la simulación en horas (o 0 para un solo período)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="130"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="125"/>
         <source>Simulation Results - Nodes</source>
         <translation>Resultados de simulación - Nodos</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="133"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="128"/>
         <source>Simulation Results - Links</source>
         <translation>Resultados de simulación - Enlaces</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="71"/>
+        <location filename="../../gusnet_processing/empty_model.py" line="71"/>
         <source>Create Template Layers</source>
         <translation>Crear capas de plantilla</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="214"/>
+        <location filename="../../gusnet_processing/common.py" line="120"/>
         <source>Execution of script cancelled by user</source>
         <translation>Ejecución del script cancelada por el usuario</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="88"/>
+        <location filename="../../gusnet_processing/common.py" line="61"/>
         <source>WNTR model created. Model contains:</source>
         <translation>Modelo WNTR creado. El modelo contiene:</translation>
     </message>
@@ -337,37 +322,7 @@
         <translation>{exception} no es un conjunto de unidades conocido. Las unidades posibles son: </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="46"/>
-        <source>Checking dependencies</source>
-        <translation>Comprobando dependencias</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/common.py" line="50"/>
-        <source>Preparing model</source>
-        <translation>Preparando modelo</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/common.py" line="52"/>
-        <source>Running simulation</source>
-        <translation>Ejecutando simulación</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/common.py" line="54"/>
-        <source>Creating outputs</source>
-        <translation>Creando salidas</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/common.py" line="56"/>
-        <source>Finished processing</source>
-        <translation>Procesamiento terminado</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/common.py" line="58"/>
-        <source>Loading inp file</source>
-        <translation>Cargando archivo inp</translation>
-    </message>
-    <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="30"/>
+        <location filename="../../gusnet_processing/empty_model.py" line="30"/>
         <source>
         This will create a set of &apos;template&apos; layers, which you can use for building your model.
         You do not need to create or use all layers if not required for your model.
@@ -378,27 +333,27 @@
         </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="57"/>
+        <location filename="../../gusnet_processing/empty_model.py" line="57"/>
         <source>Create Fields for Water Quality Analysis</source>
         <translation>Crear campos para análisis de calidad del agua</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="58"/>
+        <location filename="../../gusnet_processing/empty_model.py" line="58"/>
         <source>Create Fields for Pressure Driven Analysis</source>
         <translation>Crear campos para análisis impulsado por presión</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="59"/>
+        <location filename="../../gusnet_processing/empty_model.py" line="59"/>
         <source>Create Fields for Energy Analysis</source>
         <translation>Crear campos para análisis de energía</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/empty_model.py" line="105"/>
+        <location filename="../../gusnet_processing/empty_model.py" line="105"/>
         <source>Model Layers</source>
         <translation>Capas del modelo</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="59"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="59"/>
         <source>
             Import all junctions, tanks, reservoirs, pipes, pumps and valves from an EPANET inp file.
             This will also save selected options from the .inp file.
@@ -411,47 +366,47 @@
             </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="83"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="83"/>
         <source>Units to to convert to (leave blank to use .inp file units)</source>
         <translation>Unidades a convertir (dejar en blanco para usar las unidades del archivo .inp)</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="145"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="145"/>
         <source>Model Layers ({filename})</source>
         <translation>Capas del modelo ({filename})</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="138"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="133"/>
         <source>Output .inp file</source>
         <translation>Archivo de salida .inp</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="257"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="252"/>
         <source>Simulation Results ({finish_time})</source>
         <translation>Resultados de simulación ({finish_time})</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="448"/>
+        <location filename="../../plugin.py" line="449"/>
         <source>Choose Input File</source>
         <translation>Elegir archivo de entrada</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="448"/>
+        <location filename="../../plugin.py" line="449"/>
         <source>EPANET INP File</source>
         <translation>Archivo INP de EPANET</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="435"/>
+        <location filename="../../plugin.py" line="436"/>
         <source>Loaded .inp file</source>
         <translation>Archivo .inp cargado</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="417"/>
+        <location filename="../../plugin.py" line="418"/>
         <source>Save Geopackage</source>
         <translation>Guardar Geopackage</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="417"/>
+        <location filename="../../plugin.py" line="418"/>
         <source>Geopackage</source>
         <translation>Geopackage</translation>
     </message>
@@ -709,22 +664,22 @@
         <translation>Tasa de reacción</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="190"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="185"/>
         <source>Error preparing model: {exception}</source>
         <translation>Error al preparar el modelo: {exception}</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="212"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="207"/>
         <source>Epanet error: {exception}</source>
         <translation>Error de Epanet: {exception}</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="121"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="121"/>
         <source>Will output with the following units: {flow_unit}</source>
         <translation>Se generará con las siguientes unidades: {flow_unit}</translation>
     </message>
     <message>
-        <location filename="../../dependency_management.py" line="100"/>
+        <location filename="../../dependencies.py" line="97"/>
         <source>Couldn&apos;t fetch and install WNTR. {exception}</source>
         <translation>No se pudo obtener e instalar WNTR. {exception}</translation>
     </message>
@@ -739,12 +694,12 @@
         <translation>error de WNTR. {exception_name}: {exception}</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="496"/>
+        <location filename="../../plugin.py" line="497"/>
         <source>OpenStreetMap</source>
         <translation>OpenStreetMap</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="365"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="360"/>
         <source>
 This will take all of the model layers (junctions, tanks, reservoirs, pipes, valves, pumps), combine them with the chosen options, and run a simulation on WNTR.
 The output files are a layer of &apos;nodes&apos; (junctions, tanks, reservoirs) and &apos;links&apos; (pipes, valves, pumps).
@@ -757,22 +712,22 @@ Opcionalmente, también puedes generar un archivo EPANET «.inp» que puede ejec
             </translation>
     </message>
     <message>
-        <location filename="../../dependency_management.py" line="105"/>
+        <location filename="../../dependencies.py" line="102"/>
         <source>Missing necessary python packages {missing_deps}. Please see help for how to fix this</source>
         <translation>Faltan los paquetes de Python necesarios {missing_deps}. Consulta la ayuda para saber cómo solucionarlo</translation>
     </message>
     <message>
-        <location filename="../../dependency_management.py" line="74"/>
+        <location filename="../../dependencies.py" line="74"/>
         <source>Took too long to fetch and install.</source>
         <translation>Tardó demasiado en descargar e instalar.</translation>
     </message>
     <message>
-        <location filename="../../dependency_management.py" line="77"/>
+        <location filename="../../dependencies.py" line="77"/>
         <source>Couldn&apos;t find Python</source>
         <translation>No se pudo encontrar Python</translation>
     </message>
     <message>
-        <location filename="../../dependency_management.py" line="114"/>
+        <location filename="../../dependencies.py" line="111"/>
         <source>Fetching WNTR is already in progress. Please wait and try again.</source>
         <translation>La descarga de WNTR ya está en curso. Por favor espera y vuelve a intentarlo.</translation>
     </message>
@@ -1258,32 +1213,27 @@ Opcionalmente, también puedes generar un archivo EPANET «.inp» que puede ejec
         </translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="114"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="109"/>
         <source>Demand Type</source>
         <translation>Tipo de demanda</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="207"/>
+        <location filename="../../plugin.py" line="208"/>
         <source>Failed to install WNTR. Please check your internet connection.</source>
         <translation>No se pudo instalar WNTR. Por favor revisa tu conexión a Internet.</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="325"/>
+        <location filename="../../plugin.py" line="326"/>
         <source>Analysed with Warnings</source>
         <translation>Analizado con advertencias</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="352"/>
+        <location filename="../../plugin.py" line="353"/>
         <source>Run the simulation with the current settings.</source>
         <translation>Ejecuta la simulación con la configuración actual.</translation>
     </message>
     <message>
-        <location filename="../../plugin.py" line="470"/>
-        <source>Load an example network from the WNTR-QGIS examples.</source>
-        <translation>Cargar una red de ejemplo de los ejemplos de WNTR-QGIS.</translation>
-    </message>
-    <message>
-        <location filename="../../plugin.py" line="530"/>
+        <location filename="../../plugin.py" line="531"/>
         <source>Open the settings dialog to change the model layers.</source>
         <translation>Abre el diálogo de configuración para cambiar las capas del modelo.</translation>
     </message>
@@ -1653,54 +1603,74 @@ Opcionalmente, también puedes generar un archivo EPANET «.inp» que puede ejec
         <translation>m/día</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/common.py" line="77"/>
+        <location filename="../../gusnet_processing/common.py" line="50"/>
         <source>WNTR cannot be loaded. Please wait a minute then try again, or consult our help site.</source>
         <translation>WNTR no se puede cargar. Espera un minuto y vuelve a intentarlo, o consulta nuestro sitio de ayuda.</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="387"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="382"/>
         <source>Verifying Dependencies</source>
         <translation>Verificando dependencias</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="113"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="113"/>
         <source>Loading INP File</source>
         <translation>Cargando archivo INP</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="395"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="390"/>
         <source>Creating Outputs</source>
         <translation>Creando salidas</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="157"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="157"/>
         <source>.inp file does not exist ({input_file})</source>
         <translation>El archivo .inp no existe ({input_file})</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/import_inp.py" line="160"/>
+        <location filename="../../gusnet_processing/import_inp.py" line="160"/>
         <source>error reading .inp file: {e}</source>
         <translation>error al leer el archivo .inp: {e}</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="299"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="294"/>
         <source>.inp file written to: {file_path}</source>
         <translation>Archivo .inp escrito en: {file_path}</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="390"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="385"/>
         <source>Preparing Model</source>
         <translation>Preparando modelo</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="345"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="340"/>
         <source>Running Simulation</source>
         <translation>Ejecutando simulación</translation>
     </message>
     <message>
-        <location filename="../../wntrqgis_processing/run_simulation.py" line="380"/>
+        <location filename="../../gusnet_processing/run_simulation.py" line="375"/>
         <source>Export Inp File</source>
         <translation>Exportar archivo Inp</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="74"/>
+        <source>Gusnet</source>
+        <translation>Gusnet</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="226"/>
+        <source>Gusnet upgraded successfully</source>
+        <translation>Gusnet actualizado correctamente</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="226"/>
+        <source>Gusnet installed successfully</source>
+        <translation>Gusnet instalado correctamente</translation>
+    </message>
+    <message>
+        <location filename="../../plugin.py" line="471"/>
+        <source>Load an example network</source>
+        <translation>Cargar una red de ejemplo</translation>
     </message>
 </context>
 </TS>
