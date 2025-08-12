@@ -70,27 +70,24 @@ class WntrInstaller:
                 timeout=60,
                 **kwargs,
             )
-        except TimeoutError:
+        except TimeoutError as e:
             msg = tr("Took too long to fetch and install.")
-            raise WntrInstallError(msg) from None
-        except FileNotFoundError:
+            raise WntrInstallError(msg) from e
+        except FileNotFoundError as e:
             msg = tr("Couldn't find Python")
-            raise WntrInstallError(msg) from None
+            raise WntrInstallError(msg) from e
         finally:
             cls._unpacking_wntr = False
 
         if process_result.returncode != 0:
             raise WntrInstallError(process_result.stderr)
 
-        if "wntr" in sys.modules:
-            del sys.modules["wntr"]
-
         invalidate_caches()
 
         try:
             import wntr  # type: ignore
         except ImportError as e:
-            raise WntrInstallError(e) from None
+            raise WntrInstallError(e) from e
 
         return wntr.__version__
 
