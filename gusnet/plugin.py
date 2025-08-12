@@ -51,7 +51,7 @@ from gusnet.settings import ProjectSettings, SettingKey
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
 CONSOLE_STATEMENTS = """
-import wntrqgis
+import gusnet
 try:
     import wntr
 except ModuleNotFoundError:
