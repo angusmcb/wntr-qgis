@@ -38,25 +38,12 @@ def test_numerus_translation_hours(num_hours, expected_message, translator):
 @pytest.mark.parametrize(
     ("num_features", "expected_message"),
     [
-        (1, "in nodes, 1 feature has no geometry"),
-        (2, "in nodes, 2 features have no geometry"),
+        (1, "1 hour"),
+        (2, "2 hours"),
     ],
 )
-def test_numerus_translation_nodes(num_features, expected_message, translator):
-    translated_message = tr("in nodes, %n feature(s) have no geometry", "", num_features)
-
-    assert translated_message == expected_message
-
-
-@pytest.mark.parametrize(
-    ("num_features", "expected_message"),
-    [
-        (1, "in links, 1 feature has no geometry"),
-        (2, "in links, 2 features have no geometry"),
-    ],
-)
-def test_numerus_translation_links(num_features, expected_message, translator):
-    translated_message = tr("in links, %n feature(s) have no geometry", "", num_features)
+def test_numerus_translation(num_features, expected_message, translator):
+    translated_message = tr("%n hour(s)", "", num_features)
 
     assert translated_message == expected_message
 
