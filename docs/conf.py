@@ -5,16 +5,23 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+from __future__ import annotations
 
 import sys
-from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 sys.path.insert(0, str(Path("..").resolve()))
 
 import wntrqgis
+
+if TYPE_CHECKING:
+    from wntrqgis.elements import (
+        Field,
+        FieldType,
+    )
 
 project = "Water Network Tools for Resiliance - QGIS Integration"
 project_copyright = "2024, Angus McBride"
@@ -120,8 +127,8 @@ def generate_attributes_table(_):
                 (
                     field.value + ("*" if field.field_group & FieldGroup.REQUIRED else ""),
                     field.friendly_name,
-                    field_type_str(field),
-                    field_value(field, layer),
+                    field_type_str(field.type),
+                    field_value(field),
                     field_analysis_type(field),
                 )
                 for field in layer.wq_fields()
@@ -131,46 +138,39 @@ def generate_attributes_table(_):
         table.to_csv(output_dir / (layer.name.lower() + ".csv"), index=False)
 
 
-def field_type_str(field):
-    from wntrqgis.elements import PatternType
+def field_type_str(field_type: FieldType) -> str:
+    from wntrqgis.elements import MapFieldType, Parameter, SimpleFieldType
 
-    python_type = field.python_type
-
-    if issubclass(python_type, PatternType):
+    if field_type is SimpleFieldType.PATTERN:
         return "Text (string) *or* Decimal list"
-
-    if issubclass(python_type, (str, Enum)):
+    if field_type in [SimpleFieldType.CURVE, SimpleFieldType.STR] or field_type in MapFieldType:
         return "Text (string)"
-    if python_type is float:
+    if isinstance(field_type, Parameter):
         return "Decimal (double)"
-    if python_type is bool:
+    if field_type is SimpleFieldType.BOOL:
         return "Boolean"
-    return python_type.__name__
+
+    raise KeyError(field_type)
 
 
-def field_value(field, layer) -> str:
-    from wntrqgis.elements import CurveType, InitialStatus, ModelLayer, PatternType
+def field_value(field: Field) -> str:
+    from wntrqgis.elements import Field, MapFieldType, SimpleFieldType
 
-    python_type = field.python_type
-    if issubclass(python_type, Enum):
-        if python_type is InitialStatus and layer in [ModelLayer.PIPES, ModelLayer.PUMPS]:
-            enum_list = [InitialStatus.OPEN, InitialStatus.CLOSED]
-        else:
-            enum_list = python_type
-        return ", ".join(["`" + enum.value + "`" for enum in enum_list])
-    if issubclass(python_type, PatternType):
+    if isinstance(field.type, MapFieldType):
+        return ", ".join(["`" + enum.value + "`" for enum in field.type.value])
+    if field.type is SimpleFieldType.PATTERN:
         return "Pattern"
-    if issubclass(python_type, CurveType):
+    if field.type is SimpleFieldType.CURVE:
         return "Curve"
-    if field.name == "NAME":
+    if field is Field.NAME:
         return "Will generate automatically if blank"
-    if field.name == "LENGTH":
+    if field is Field.LENGTH:
         return "Will calculate if blank"
 
     return ""
 
 
-def field_analysis_type(field):
+def field_analysis_type(field: Field) -> str:
     from wntrqgis.elements import FieldGroup
 
     analysis_types_of_interest = [
@@ -178,7 +178,9 @@ def field_analysis_type(field):
         FieldGroup.ENERGY,
         FieldGroup.WATER_QUALITY_ANALYSIS,
     ]
-    return ", ".join([g.name.title().replace("_", " ") for g in analysis_types_of_interest if g in field.field_group])
+    return ", ".join(
+        [str(g.name).title().replace("_", " ") for g in analysis_types_of_interest if g in field.field_group]
+    )
 
 
 def setup(app):
