@@ -13,7 +13,7 @@ from qgis_plugin_tools.infrastructure.plugin_maker import PluginMaker
 """
 
 locales = ["en", "fr", "es", "de", "pt", "it", "ar", "nl"]
-py_files = [fil for fil in glob.glob("wntrqgis/**/*.py", recursive=True) if "packages" not in fil]  # noqa: PTH207
+py_files = [fil for fil in glob.glob("gusnet/**/*.py", recursive=True) if "packages" not in fil]  # noqa: PTH207
 ui_files = list(glob.glob("**/*.ui", recursive=True))  # noqa: PTH207
 resources = list(glob.glob("**/*.qrc", recursive=True))  # noqa: PTH207
 extra_dirs = ["resources"]
@@ -28,10 +28,10 @@ compiled_resources = ["resources.py"]
 # print(pm.PLUGIN_PACKAGE_NAME)
 # print(pm.ROOT_DIR)
 
-r.plugin_path = lambda: str((Path(__file__).parent / "wntrqgis").resolve())
+r.plugin_path = lambda: str((Path(__file__).parent / "gusnet").resolve())
 
-pm.PLUGIN_PACKAGE_NAME = "wntrqgis"
-pm.ROOT_DIR = str((Path(__file__).parent / "wntrqgis").resolve())
+pm.PLUGIN_PACKAGE_NAME = "gusnet"
+pm.ROOT_DIR = str((Path(__file__).parent / "gusnet").resolve())
 PluginMaker(
     py_files=py_files,
     ui_files=ui_files,
