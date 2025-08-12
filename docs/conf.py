@@ -60,7 +60,7 @@ html_theme_options = {
             # Label for this link
             "name": "GitHub",
             # URL where the link will redirect
-            "url": "https://github.com/angusmcb/wntr-qgis",  # required
+            "url": "https://github.com/angusmcb/gusnet",  # required
             # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
             "icon": "fa-brands fa-github",
             # The type of image to be used (see below for details)

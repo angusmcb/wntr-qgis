@@ -1,9 +1,9 @@
 <img src="https://raw.githubusercontent.com/usepa/wntr/main/documentation/_static/logo.jpg" width="375"> <img src="https://raw.githubusercontent.com/qgis/QGIS/master/images/README-md/main_logo.png" width="300">
 
 
-![tests](https://github.com/angusmcb/wntr-qgis/workflows/Tests/badge.svg)
-[![codecov.io](https://codecov.io/github/angusmcb/wntr-qgis/coverage.svg?branch=main)](https://codecov.io/github/angusmcb/wntr-qgis?branch=main)
-![release](https://github.com/angusmcb/wntr-qgis/workflows/Release/badge.svg)
+![tests](https://github.com/angusmcb/gusnet/workflows/Tests/badge.svg)
+[![codecov.io](https://codecov.io/github/angusmcb/gusnet/coverage.svg?branch=main)](https://codecov.io/github/angusmcb/gusnet?branch=main)
+![release](https://github.com/angusmcb/gusnet/workflows/Release/badge.svg)
 
 [![GPLv2 license](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)

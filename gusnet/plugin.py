@@ -186,7 +186,7 @@ class Plugin:
     def warm_up_wntr(self) -> None:
         """wntr is slow to load so start warming it up now !"""
         task: QgsTask = QgsTask.fromFunction(
-            "Set up wntr-qgis",
+            "Set up wntr",
             import_wntr,
             flags=QgsTask.Hidden | QgsTask.Silent,
         )
@@ -468,7 +468,7 @@ class LoadExampleAction(LoadInpAction):
         super().__init__()
         self.setText(tr("Load Example"))
         self.setIcon(QIcon())
-        self.setToolTip(tr("Load an example network from the WNTR-QGIS examples."))
+        self.setToolTip(tr("Load an example network"))
         self.success_message = tr("Example loaded with Open Street Map background")
 
     def get_crs(self) -> QgsCoordinateReferenceSystem:
