@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from wntrqgis import interface
+from gusnet import interface
 
 
 @pytest.fixture(scope="module")

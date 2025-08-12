@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 import pytest
 from qgis.core import QgsDefaultValue, QgsEditorWidgetSetup, QgsField, QgsVectorLayer
 
-from wntrqgis.elements import Field, ModelLayer
-from wntrqgis.style import _FieldStyler, style
-from wntrqgis.units import UnitNames
+from gusnet.elements import Field, ModelLayer
+from gusnet.style import _FieldStyler, style
+from gusnet.units import UnitNames
 
 
 @pytest.fixture

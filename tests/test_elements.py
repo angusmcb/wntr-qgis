@@ -1,6 +1,6 @@
 import pytest
 
-from wntrqgis.elements import (
+from gusnet.elements import (
     DemandType,
     Field,
     FieldType,
@@ -52,7 +52,7 @@ def test_friendly_name(enum):
 )
 def test_translated_name(enum, monkeypatch: pytest.MonkeyPatch):
     translated_string = "xxx"
-    monkeypatch.setattr("wntrqgis.elements.tr", lambda *args: translated_string)
+    monkeypatch.setattr("gusnet.elements.tr", lambda *args: translated_string)
     for member in enum:
         assert member.friendly_name == translated_string, f"{member.name}.friendly_name is not translated"
 

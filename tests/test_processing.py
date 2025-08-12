@@ -5,15 +5,15 @@ import pytest
 from pandas.testing import assert_frame_equal
 from qgis.core import QgsProcessingException, QgsProcessingFeedback, QgsProject, QgsVectorLayer
 
-from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
-from wntrqgis.wntrqgis_processing.import_inp import ImportInp
-from wntrqgis.wntrqgis_processing.run_simulation import ExportInpFile, RunSimulation
+from gusnet.gusnet_processing.empty_model import TemplateLayers
+from gusnet.gusnet_processing.import_inp import ImportInp
+from gusnet.gusnet_processing.run_simulation import ExportInpFile, RunSimulation
 
 
 # the examples are store in the plugin folder as they are used in the plugin
 @pytest.fixture(scope="module")
 def example_dir():
-    return Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples"
+    return Path(__file__).parent.parent / "gusnet" / "resources" / "examples"
 
 
 @pytest.fixture
@@ -525,7 +525,7 @@ def test_epanet_warning(run_result, feedback):
 def test_pipe_length_warning(run_result, feedback):
     expected_warning = r"1 pipe.*3618 metres vs 305 metres"
 
-    assert any(re.search(expected_warning, s) for s in feedback.warnings)
+    assert any(re.search(expected_warning, s) for s in feedback.warnings), list(feedback.warnings)
 
 
 @pytest.mark.parametrize(("inp", "duration"), [("Net3.simplified.inp", 24), ("valves.inp", 0)])

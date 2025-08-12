@@ -26,7 +26,7 @@ from qgis.core import (
     QgsVectorLayerTemporalProperties,
 )
 
-from wntrqgis.elements import (
+from gusnet.elements import (
     Field,
     FieldGroup,
     MapFieldType,
@@ -35,8 +35,8 @@ from wntrqgis.elements import (
     ResultLayer,
     SimpleFieldType,
 )
-from wntrqgis.i18n import tr
-from wntrqgis.units import SpecificUnitNames, UnitNames
+from gusnet.i18n import tr
+from gusnet.units import SpecificUnitNames, UnitNames
 
 
 def style(

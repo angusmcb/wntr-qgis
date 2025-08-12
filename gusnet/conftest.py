@@ -3,7 +3,7 @@ import pytest
 
 @pytest.fixture(autouse=True, scope="session")
 def check_wntr():
-    from wntrqgis.dependency_management import WntrInstaller
+    from gusnet.dependency_management import WntrInstaller
 
     try:
         import wntr  # type: ignore # noqa F401

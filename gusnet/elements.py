@@ -11,7 +11,7 @@ from enum import Enum, Flag, auto
 
 from qgis.core import QgsProcessing, QgsWkbTypes
 
-from wntrqgis.i18n import tr
+from gusnet.i18n import tr
 
 
 class FlowUnit(Enum):

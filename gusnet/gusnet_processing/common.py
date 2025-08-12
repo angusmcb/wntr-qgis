@@ -17,15 +17,15 @@ from qgis.core import (
 )
 
 from qgis.PyQt.QtCore import QCoreApplication, QThread
-from wntrqgis.elements import ModelLayer, ResultLayer
-from wntrqgis.settings import SettingKey, ProjectSettings
-from wntrqgis.style import style
-from wntrqgis.i18n import tr
-from wntrqgis.units import SpecificUnitNames
+from gusnet.elements import ModelLayer, ResultLayer
+from gusnet.settings import SettingKey, ProjectSettings
+from gusnet.style import style
+from gusnet.i18n import tr
+from gusnet.units import SpecificUnitNames
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr
-LOGGER = logging.getLogger("wntrqgis")
+LOGGER = logging.getLogger("gusnet")
 
 SHOW_TIMING = False
 

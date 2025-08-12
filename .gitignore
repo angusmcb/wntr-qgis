@@ -1,12 +1,12 @@
-wntr-qgis/i18n
+gusnet/i18n
 venv/
 .venv*
 start_ide.bat
 .vscode
 */.pytest_cache
 __pycache__
-wntrqgis/packages/*
-!wntrqgis/packages/.gitkeep
+gusnet/packages/*
+!gusnet/packages/.gitkeep
 .ipynb_checkpoints
 temp.bin
 temp.inp

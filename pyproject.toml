@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
-addopts = "--doctest-glob='*.rst' --ignore=wntrqgis/packages --doctest-modules -vv"
-testpaths = ['tests/','docs/','wntrqgis/']
+addopts = "--doctest-glob='*.rst' --ignore=gusnet/packages --doctest-modules -vv"
+testpaths = ['tests/','docs/','gusnet/']
 filterwarnings = [
     'ignore: .*pkg_resources',
     'ignore:Use of .. or absolute path in a resource path is not allowed:DeprecationWarning'

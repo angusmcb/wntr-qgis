@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from qgis.core import QgsGeometry, QgsPointXY, QgsSpatialIndex
 
-from wntrqgis.i18n import tr
+from gusnet.i18n import tr
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd

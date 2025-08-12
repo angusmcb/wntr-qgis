@@ -3,8 +3,8 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from wntrqgis.elements import FlowUnit, HeadlossFormula, Parameter
-from wntrqgis.i18n import tr
+from gusnet.elements import FlowUnit, HeadlossFormula, Parameter
+from gusnet.i18n import tr
 
 if TYPE_CHECKING:
     import numpy as np

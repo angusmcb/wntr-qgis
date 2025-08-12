@@ -11,7 +11,7 @@
 
 <!-- sphinx content start -->
 
-# Water Network Tools for Resilience - QGIS Integration
+# Gusnet Piped Water Network Modelling
 
 This QGIS plugin integrates the US EPA's [Water Network Tools for Resilience (WNTR)](https://usepa.github.io/WNTR/) with [QGIS](https://qgis.org/).
 

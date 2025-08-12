@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from qgis.PyQt.QtCore import QCoreApplication, QLocale, QTranslator
 
-from wntrqgis.i18n import tr
+from gusnet.i18n import tr
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def locale():
 @pytest.fixture
 def translator(locale):
     qgis_locale = QLocale(locale)
-    locale_path = str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "i18n")
+    locale_path = str(Path(__file__).parent.parent / "gusnet" / "resources" / "i18n")
     translator = QTranslator()
     translator.load(qgis_locale, "", "", locale_path)
     QCoreApplication.installTranslator(translator)

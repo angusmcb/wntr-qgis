@@ -34,8 +34,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QMetaType, QVariant
 
-import wntrqgis.style
-from wntrqgis.elements import (
+import gusnet.style
+from gusnet.elements import (
     Field,
     FieldGroup,
     FlowUnit,
@@ -49,9 +49,9 @@ from wntrqgis.elements import (
     ValveType,
     _AbstractLayer,
 )
-from wntrqgis.i18n import tr
-from wntrqgis.spatial_index import SnapError, SpatialIndex
-from wntrqgis.units import Converter, SpecificUnitNames
+from gusnet.i18n import tr
+from gusnet.spatial_index import SnapError, SpatialIndex
+from gusnet.units import Converter, SpecificUnitNames
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr  # noqa
@@ -154,7 +154,7 @@ def to_qgis(
 
         layer.updateFields()
         layer.updateExtents()
-        wntrqgis.style.style(
+        gusnet.style.style(
             layer, model_layer, theme="extended" if results and wn.options.time.duration else None, units=unit_names
         )
         QgsProject.instance().addMapLayer(layer)
@@ -1271,7 +1271,7 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
         >>> check_network(wn)
         Traceback (most recent call last):
         ...
-        wntrqgis.interface.NetworkModelError: At least one tank or reservoir is required
+        gusnet.interface.NetworkModelError: At least one tank or reservoir is required
 
         >>> wn = wntr.network.WaterNetworkModel()
         >>> wn.add_junction("j1")
@@ -1281,7 +1281,7 @@ def check_network(wn: wntr.network.WaterNetworkModel) -> None:
         >>> check_network(wn)
         Traceback (most recent call last):
         ...
-        wntrqgis.interface.NetworkModelError: the following nodes are not connected to any links: t1
+        gusnet.interface.NetworkModelError: the following nodes are not connected to any links: t1
 
 
     """

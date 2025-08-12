@@ -1,8 +1,8 @@
 import pytest
 from qgis.core import QgsFields, QgsVectorLayer
 
-import wntrqgis.elements
-from wntrqgis.interface import (
+import gusnet.elements
+from gusnet.interface import (
     NetworkModelError,
     Writer,
     check_network,
@@ -23,7 +23,7 @@ def qgs_layer():
 
 def test_writer_get_qgsfields(wn):
     writer = Writer(wn)
-    fields = writer.get_qgsfields(wntrqgis.elements.ModelLayer.JUNCTIONS)
+    fields = writer.get_qgsfields(gusnet.elements.ModelLayer.JUNCTIONS)
     assert isinstance(fields, QgsFields)
 
 
@@ -34,14 +34,14 @@ def test_writer_write(wn, qgs_layer):
 
     writer = Writer(wn)
     sink = qgs_layer.dataProvider()
-    writer.write(wntrqgis.elements.ModelLayer.JUNCTIONS, sink)
+    writer.write(gusnet.elements.ModelLayer.JUNCTIONS, sink)
     assert sink.featureCount() > 0
 
 
 def test_writer_write_no_features(wn, qgs_layer):
     writer = Writer(wn)
     sink = qgs_layer.dataProvider()
-    writer.write(wntrqgis.elements.ModelLayer.JUNCTIONS, sink)
+    writer.write(gusnet.elements.ModelLayer.JUNCTIONS, sink)
     assert sink.featureCount() == 0
 
 
@@ -95,14 +95,14 @@ def test_check_network_valid(wn):
 
 
 def test_get_field_groups(wn):
-    from wntrqgis.elements import FieldGroup
+    from gusnet.elements import FieldGroup
 
-    assert wntrqgis.interface._get_field_groups(wn) == FieldGroup(0)
+    assert gusnet.interface._get_field_groups(wn) == FieldGroup(0)
 
     wn.options.quality.parameter = "CHEMICAL"
     wn.options.report.energy = "YES"
     wn.options.hydraulic.demand_model = "PDD"
     assert (
-        wntrqgis.interface._get_field_groups(wn)
+        gusnet.interface._get_field_groups(wn)
         == FieldGroup.PRESSURE_DEPENDENT_DEMAND | FieldGroup.ENERGY | FieldGroup.WATER_QUALITY_ANALYSIS
     )
