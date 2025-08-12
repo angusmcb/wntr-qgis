@@ -2,8 +2,8 @@ import sys
 
 import pytest
 
-import wntrqgis.elements
-from wntrqgis.interface import Converter, CurveReadError, _Curves
+import gusnet.elements
+from gusnet.interface import Converter, CurveReadError, _Curves
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def wn():
 
 @pytest.fixture
 def converter():
-    return Converter(wntrqgis.elements.FlowUnit.LPS, wntrqgis.elements.HeadlossFormula.HAZEN_WILLIAMS)
+    return Converter(gusnet.elements.FlowUnit.LPS, gusnet.elements.HeadlossFormula.HAZEN_WILLIAMS)
 
 
 @pytest.mark.parametrize(
@@ -96,5 +96,5 @@ def test_curves_get(wn, converter):
 
 def test_curves_add_invalid(wn, converter):
     curves = _Curves(wn, converter)
-    with pytest.raises(wntrqgis.interface.CurveError):
+    with pytest.raises(gusnet.interface.CurveError):
         curves._add_one(None, _Curves.Type.HEAD)

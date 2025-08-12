@@ -6,7 +6,7 @@ from typing import Any
 
 from qgis.core import QgsExpressionContextUtils, QgsProject
 
-from wntrqgis.elements import DemandType, FlowUnit, HeadlossFormula
+from gusnet.elements import DemandType, FlowUnit, HeadlossFormula
 
 
 class SettingKey(str, Enum):

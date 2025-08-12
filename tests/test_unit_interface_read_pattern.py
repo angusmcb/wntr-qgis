@@ -1,6 +1,6 @@
 import pytest
 
-from wntrqgis.interface import _Patterns
+from gusnet.interface import _Patterns
 
 
 @pytest.fixture

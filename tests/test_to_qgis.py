@@ -1,7 +1,7 @@
 import pytest
 from qgis.core import NULL, QgsCoordinateReferenceSystem, QgsProject, QgsVectorLayer
 
-import wntrqgis
+import gusnet
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def check_values(layer: QgsVectorLayer, field_name: str, expected_values: list):
 
 
 def test_basic_wn(qgis_new_project, wn):
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
     assert isinstance(layers, dict)
     assert isinstance(layers["JUNCTIONS"], QgsVectorLayer)
     assert isinstance(layers["PIPES"], QgsVectorLayer)
@@ -66,7 +66,7 @@ def test_empty_wn(qgis_new_project):
     import wntr
 
     wn = wntr.network.WaterNetworkModel()
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
     assert isinstance(layers, dict)
     assert isinstance(layers["JUNCTIONS"], QgsVectorLayer)
     assert len(QgsProject.instance().mapLayers()) == 6
@@ -74,20 +74,20 @@ def test_empty_wn(qgis_new_project):
 
 
 def test_demand_conversion(wn):
-    layers = wntrqgis.to_qgis(wn, units="LPS")
+    layers = gusnet.to_qgis(wn, units="LPS")
 
     check_values(layers["JUNCTIONS"], "base_demand", [10, 20])
 
 
 def test_results(qgis_new_project, wn, results):
-    layers = wntrqgis.to_qgis(wn, results=results, units="LPS")
+    layers = gusnet.to_qgis(wn, results=results, units="LPS")
     assert len(QgsProject.instance().mapLayers()) == 2
     check_values(layers["NODES"], "demand", [10.0, 20.0, -30.0])
     check_values(layers["LINKS"], "flowrate", [-10.0, -30.0])
 
 
 def test_eps_results(qgis_new_project, wn, eps, results):
-    layers = wntrqgis.to_qgis(wn, results=results, units="LPS")
+    layers = gusnet.to_qgis(wn, results=results, units="LPS")
     assert len(QgsProject.instance().mapLayers()) == 2
     check_values(layers["NODES"], "demand", [[10.0, 10.0], [20.0, 20.0], [-30.0, -30.0]])
     check_values(layers["LINKS"], "flowrate", [[-10.0, -10.0], [-30.0, -30.0]])
@@ -95,14 +95,14 @@ def test_eps_results(qgis_new_project, wn, eps, results):
 
 def test_custom_attr_str(wn):
     wn.nodes["J1"].custom_str = "Custom String"
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["JUNCTIONS"], "custom_str", ["Custom String", NULL])
 
 
 def test_custom_attr_int(wn):
     wn.nodes["J2"].custom_int = 42
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["JUNCTIONS"], "custom_int", [NULL, 42])
 
@@ -112,28 +112,28 @@ def test_custom_attr_int(wn):
 
 def test_custom_attr_float(wn):
     wn.nodes["J1"].custom_float = 3.14
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["JUNCTIONS"], "custom_float", [3.14, NULL])
 
 
 def test_custom_attr_bool(wn):
     wn.links["P1"].custom_bool = True
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["PIPES"], "custom_bool", [True, NULL])
 
 
 def test_valid_crs_string(wn):
     crs = "EPSG:3857"
-    layers = wntrqgis.to_qgis(wn, crs=crs)
+    layers = gusnet.to_qgis(wn, crs=crs)
 
     assert layers["JUNCTIONS"].crs().authid() == crs
 
 
 def test_valid_crs_object(wn):
     crs = QgsCoordinateReferenceSystem("EPSG:3857")
-    layers = wntrqgis.to_qgis(wn, crs=crs)
+    layers = gusnet.to_qgis(wn, crs=crs)
     assert isinstance(layers, dict)
     assert "JUNCTIONS" in layers
     assert layers["JUNCTIONS"].crs().authid() == crs.authid()
@@ -142,24 +142,24 @@ def test_valid_crs_object(wn):
 def test_invalid_crs_string(wn):
     crs = "INVALID_CRS"
     with pytest.raises(ValueError, match=f"CRS {crs} is not valid."):
-        wntrqgis.to_qgis(wn, crs=crs)
+        gusnet.to_qgis(wn, crs=crs)
 
 
 def test_invalid_crs_object(wn):
     crs = QgsCoordinateReferenceSystem("INVALID_CRS")
     with pytest.raises(ValueError, match="is not valid."):
-        wntrqgis.to_qgis(wn, crs=crs)
+        gusnet.to_qgis(wn, crs=crs)
 
 
 def test_default_crs(wn):
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
     assert isinstance(layers, dict)
     assert "JUNCTIONS" in layers
     assert layers["JUNCTIONS"].crs().isValid() is False
 
 
 def test_no_crs(wn):
-    layers = wntrqgis.to_qgis(wn, crs=None)
+    layers = gusnet.to_qgis(wn, crs=None)
     assert isinstance(layers, dict)
     assert "JUNCTIONS" in layers
     assert layers["JUNCTIONS"].crs().isValid() is False
@@ -169,7 +169,7 @@ def test_demand_pattern(wn):
     wn.add_pattern("P1", [0.5, 1.0, 1.5])
     wn.add_junction("J3", base_demand=0.01, demand_pattern="P1")
 
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["JUNCTIONS"], "demand_pattern", [NULL, NULL, "0.5 1.0 1.5"])
 
@@ -177,7 +177,7 @@ def test_demand_pattern(wn):
 def test_head_pattern(wn):
     wn.add_pattern("H1", [10, 20, 30])
     wn.add_reservoir("R2", base_head=10, head_pattern="H1")
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["RESERVOIRS"], "head_pattern", [NULL, "10.0 20.0 30.0"])
 
@@ -185,7 +185,7 @@ def test_head_pattern(wn):
 def test_vol_curve(wn):
     wn.add_curve("C1", "VOLUME", [(0, 0), (10, 10), (20, 20)])
     wn.add_tank("T1", vol_curve="C1")
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(
         layers["TANKS"],
@@ -197,7 +197,7 @@ def test_vol_curve(wn):
 def test_pump_curve(wn):
     wn.add_curve("C1", "HEAD", [(0, 0), (10, 10), (20, 20)])
     wn.add_pump("PUMP1", "J1", "J2", pump_type="head", pump_parameter="C1")
-    layers = wntrqgis.to_qgis(wn, units="LPS")
+    layers = gusnet.to_qgis(wn, units="LPS")
 
     check_values(layers["PUMPS"], "pump_curve", ["[(0.0, 0.0), (10000.0, 10.0), (20000.0, 20.0)]"])
 
@@ -205,7 +205,7 @@ def test_pump_curve(wn):
 def test_speed_pattern(wn):
     wn.add_pattern("S1", [0.5, 1.0, 1.5])
     wn.add_pump("PUMP1", "J1", "J2", pattern="S1")
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["PUMPS"], "speed_pattern", ["0.5 1.0 1.5"])
 
@@ -215,7 +215,7 @@ def test_energy_pattern(wn):
     wn.add_pump("PUMP1", "J1", "J2")
     wn.links["PUMP1"].energy_pattern = "E1"
 
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["PUMPS"], "energy_pattern", ["0.5 1.0 1.5"])
 
@@ -225,14 +225,14 @@ def test_efficiency_curve(wn):
     wn.add_pump("PUMP1", "J1", "J2")
     wn.links["PUMP1"].efficiency = wn.curves["C1"]
 
-    layers = wntrqgis.to_qgis(wn, units="LPS")
+    layers = gusnet.to_qgis(wn, units="LPS")
 
     check_values(layers["PUMPS"], "efficiency", ["[(0.0, 0), (10000.0, 0.5), (20000.0, 1)]"])
 
 
 def test_valve_active(wn):
     wn.add_valve("v1", "J1", "J2")
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["VALVES"], "valve_status", ["Active"])
 
@@ -241,7 +241,7 @@ def test_valve_active(wn):
 def test_p_valve_setting(wn, valve_type):
     wn.add_valve("v1", "J1", "J2", valve_type=valve_type, initial_setting=10)
 
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["VALVES"], "pressure_setting", [14.21588])
 
@@ -249,7 +249,7 @@ def test_p_valve_setting(wn, valve_type):
 def test_flow_valve_setting(wn):
     wn.add_valve("v1", "J1", "J2", valve_type="FCV", initial_setting=10)
 
-    layers = wntrqgis.to_qgis(wn, units="CMH")
+    layers = gusnet.to_qgis(wn, units="CMH")
 
     check_values(layers["VALVES"], "flow_setting", [10.0 * 3600])
 
@@ -258,7 +258,7 @@ def test_gpv_curve(wn):
     wn.add_curve("C1", "HEADLOSS", [(0, 0), (10, 10), (20, 20)])
     wn.add_valve("v1", "J1", "J2", valve_type="GPV", initial_setting="C1")
 
-    layers = wntrqgis.to_qgis(wn, units="lps")
+    layers = gusnet.to_qgis(wn, units="lps")
 
     check_values(layers["VALVES"], "headloss_curve", ["[(0.0, 0.0), (10000.0, 10.0), (20000.0, 20.0)]"])
 
@@ -266,13 +266,13 @@ def test_gpv_curve(wn):
 def test_tcv_setting(wn):
     wn.add_valve("v1", "J1", "J2", valve_type="TCV", initial_setting=10)
 
-    layers = wntrqgis.to_qgis(wn)
+    layers = gusnet.to_qgis(wn)
 
     check_values(layers["VALVES"], "throttle_setting", [10.0])
 
 
 def test_unit_warning(wn, caplog):
-    wntrqgis.to_qgis(wn)
+    gusnet.to_qgis(wn)
 
     expected_warning = "No units specified. Will use the value from wn: Gallons per Minute"
     assert expected_warning in caplog.messages

@@ -2,10 +2,10 @@ from unittest.mock import patch
 
 import pytest
 
-from wntrqgis import interface
+from gusnet import interface
 
 
-@patch("wntrqgis.interface.tr", lambda x: x)
+@patch("gusnet.interface.tr", lambda x: x)
 def test_describe_network_counts():
     from wntr.network import WaterNetworkModel
 
@@ -34,7 +34,7 @@ def test_describe_network_counts():
     assert isinstance(html, str)
 
 
-@patch("wntrqgis.interface.tr", lambda x: x)
+@patch("gusnet.interface.tr", lambda x: x)
 def test_describe_network_all_zero():
     from wntr.network import WaterNetworkModel
 
@@ -45,7 +45,7 @@ def test_describe_network_all_zero():
     assert isinstance(html, str)
 
 
-@patch("wntrqgis.interface.tr", lambda x: x)
+@patch("gusnet.interface.tr", lambda x: x)
 def test_describe_network_all_types():
     from wntr.network import WaterNetworkModel
 
@@ -83,7 +83,7 @@ def test_describe_network_all_types():
     assert isinstance(html, str)
 
 
-@patch("wntrqgis.interface.tr", lambda x: x)
+@patch("gusnet.interface.tr", lambda x: x)
 def test_describe_pipes_basic():
     from wntr.network import WaterNetworkModel
 
@@ -106,7 +106,7 @@ def test_describe_pipes_basic():
 
 
 @pytest.mark.filterwarnings("ignore:Changing the headloss formula")
-@patch("wntrqgis.interface.tr", lambda x: x)
+@patch("gusnet.interface.tr", lambda x: x)
 def test_describe_pipes_conv():
     import wntr
 
@@ -133,7 +133,7 @@ def test_describe_pipes_conv():
     assert "3 281" in html  # roughness in 1/1000 feeet - doesn't work in wntr 1.2.0
 
 
-@patch("wntrqgis.interface.tr", lambda x: x)
+@patch("gusnet.interface.tr", lambda x: x)
 def test_describe_pipes_empty():
     from wntr.network import WaterNetworkModel
 

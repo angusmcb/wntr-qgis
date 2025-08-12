@@ -35,14 +35,14 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication, QThread
 from qgis.PyQt.QtGui import QIcon
 
-import wntrqgis
-from wntrqgis.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
-from wntrqgis.i18n import tr
-from wntrqgis.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
-from wntrqgis.settings import ProjectSettings, SettingKey
-from wntrqgis.style import style
-from wntrqgis.units import SpecificUnitNames
-from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase, profile
+import gusnet
+from gusnet.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
+from gusnet.gusnet_processing.common import WntrQgisProcessingBase, profile
+from gusnet.i18n import tr
+from gusnet.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
+from gusnet.settings import ProjectSettings, SettingKey
+from gusnet.style import style
+from gusnet.units import SpecificUnitNames
 
 if TYPE_CHECKING:
     import wntr
@@ -178,8 +178,8 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
         crs = self._get_crs(parameters, context)
 
         try:
-            with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
-                wn = wntrqgis.from_qgis(sources, flow_unit.name, headloss, project=context.project(), crs=crs)
+            with logger_to_feedback("gusnet", feedback), logger_to_feedback("wntr", feedback):
+                wn = gusnet.from_qgis(sources, flow_unit.name, headloss, project=context.project(), crs=crs)
             check_network(wn)
         except NetworkModelError as e:
             raise QgsProcessingException(tr("Error preparing model: {exception}").format(exception=e)) from None
@@ -244,7 +244,7 @@ class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
     ) -> dict[str, str]:
         outputs: dict[str, str] = {}
 
-        with logger_to_feedback("wntr", feedback), logger_to_feedback("wntrqgis", feedback):
+        with logger_to_feedback("wntr", feedback), logger_to_feedback("gusnet", feedback):
             result_writer = Writer(wn, sim_results)  # type: ignore
 
         crs = self._get_crs(parameters, context)

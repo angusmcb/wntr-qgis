@@ -37,16 +37,16 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-import wntrqgis
-import wntrqgis.expressions
-from wntrqgis.dependency_management import WntrInstaller
-from wntrqgis.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
-from wntrqgis.i18n import tr
-from wntrqgis.settings import ProjectSettings, SettingKey
-from wntrqgis.wntrqgis_processing.empty_model import TemplateLayers
-from wntrqgis.wntrqgis_processing.import_inp import ImportInp
-from wntrqgis.wntrqgis_processing.provider import Provider
-from wntrqgis.wntrqgis_processing.run_simulation import RunSimulation
+import gusnet
+import gusnet.expressions
+from gusnet.dependency_management import WntrInstaller
+from gusnet.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
+from gusnet.gusnet_processing.empty_model import TemplateLayers
+from gusnet.gusnet_processing.import_inp import ImportInp
+from gusnet.gusnet_processing.provider import Provider
+from gusnet.gusnet_processing.run_simulation import RunSimulation
+from gusnet.i18n import tr
+from gusnet.settings import ProjectSettings, SettingKey
 
 MESSAGE_CATEGORY = "WNTR-QGIS"
 WNTR_SETTING_VERSION = "wntrqgis/version"
@@ -218,9 +218,9 @@ class Plugin:
 
     def show_welcome_message(self):
         old_version = QgsSettings().value(WNTR_SETTING_VERSION, None)
-        QgsSettings().setValue(WNTR_SETTING_VERSION, wntrqgis.__version__)
+        QgsSettings().setValue(WNTR_SETTING_VERSION, gusnet.__version__)
 
-        if old_version == wntrqgis.__version__:
+        if old_version == gusnet.__version__:
             return
 
         title = tr("Gusnet upgraded successfully") if old_version else tr("Gusnet installed successfully")
@@ -475,7 +475,7 @@ class LoadExampleAction(LoadInpAction):
         return QgsCoordinateReferenceSystem("EPSG:3089")
 
     def get_filepath(self) -> str:
-        return wntrqgis.examples["KY10"]
+        return gusnet.examples["KY10"]
 
     def set_transform_context(self) -> None:
         transform_context = QgsProject.instance().transformContext()

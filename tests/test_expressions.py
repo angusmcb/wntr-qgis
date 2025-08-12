@@ -9,7 +9,7 @@ from qgis.core import (
     QgsTemporalNavigationObject,
 )
 
-import wntrqgis.expressions  # noqa: F401
+import gusnet.expressions  # noqa: F401
 
 
 def test_curve_ok():

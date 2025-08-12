@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from wntrqgis.elements import FlowUnit, HeadlossFormula, Parameter
-from wntrqgis.units import Converter, SpecificUnitNames, UnitNames
+from gusnet.elements import FlowUnit, HeadlossFormula, Parameter
+from gusnet.units import Converter, SpecificUnitNames, UnitNames
 
 
 @pytest.fixture

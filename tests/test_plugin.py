@@ -6,9 +6,9 @@ from qgis.core import (
 )
 from qgis.PyQt import QtWidgets
 
-import wntrqgis
-from wntrqgis.elements import FlowUnit, HeadlossFormula
-from wntrqgis.plugin import (
+import gusnet
+from gusnet.elements import FlowUnit, HeadlossFormula
+from gusnet.plugin import (
     DurationSettingMenu,
     LoadExampleAction,
     LoadInpAction,
@@ -18,7 +18,7 @@ from wntrqgis.plugin import (
     RunAction,
     SettingMenu,
 )
-from wntrqgis.settings import ProjectSettings, SettingKey
+from gusnet.settings import ProjectSettings, SettingKey
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def loaded_plugin():
 
 
 def test_class_factory(qgis_iface):
-    plugin_class = wntrqgis.classFactory(qgis_iface)
+    plugin_class = gusnet.classFactory(qgis_iface)
     assert isinstance(plugin_class, Plugin)
 
 
@@ -43,7 +43,7 @@ def test_plugin_load_unload():
 
 
 def test_processing_provider_registered(qgis_app, loaded_plugin):
-    assert qgis_app.processingRegistry().providerById("wntr")
+    assert qgis_app.processingRegistry().providerById("gusnet")
 
 
 def test_create_template_layers(qgis_new_project):
@@ -68,7 +68,7 @@ def list_layers_in_geopackage(geopackage_path):
 
 def test_create_template_geopackage(mocker, tmp_path):
     geopackage_path = str(tmp_path / "template.gpkg")
-    mocker.patch("wntrqgis.plugin.QFileDialog.getSaveFileName", return_value=(geopackage_path, ""))
+    mocker.patch("gusnet.plugin.QFileDialog.getSaveFileName", return_value=(geopackage_path, ""))
 
     action = LoadTemplateToGeopackageAction()
     action.trigger()
@@ -83,9 +83,9 @@ def test_create_template_geopackage(mocker, tmp_path):
 
 
 def patch_dialogs(mocker, file, crs):
-    mocker.patch("wntrqgis.plugin.QFileDialog", autospec=True).getOpenFileName.return_value = (file, "")
+    mocker.patch("gusnet.plugin.QFileDialog", autospec=True).getOpenFileName.return_value = (file, "")
 
-    qpsd = mocker.patch("wntrqgis.plugin.QgsProjectionSelectionDialog", autospec=True)
+    qpsd = mocker.patch("gusnet.plugin.QgsProjectionSelectionDialog", autospec=True)
     qpsd.return_value.exec.return_value = bool(crs)
     qpsd.return_value.crs.return_value = QgsCoordinateReferenceSystem(crs)
 
@@ -95,7 +95,7 @@ def patch_dialogs(mocker, file, crs):
 )
 @pytest.mark.qgis_show_map(timeout=3, zoom_to_common_extent=True)
 def test_load_inp_file_visual_check(qgis_iface, mocker, qgis_new_project, clean_message_bar):
-    patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
+    patch_dialogs(mocker, gusnet.examples["KY10"], "EPSG:32629")
 
     action = LoadInpAction()
     action.trigger()
@@ -105,7 +105,7 @@ def test_load_inp_file_visual_check(qgis_iface, mocker, qgis_new_project, clean_
 
 
 def test_load_inp_file(qgis_iface, mocker, qgis_new_project, clean_message_bar):
-    patch_dialogs(mocker, wntrqgis.examples["KY10"], "EPSG:32629")
+    patch_dialogs(mocker, gusnet.examples["KY10"], "EPSG:32629")
 
     action = LoadInpAction()
     action.trigger()
@@ -141,7 +141,7 @@ def test_load_inp_file_no_file_selected(mocker, qgis_new_project):
 
 
 def test_load_inp_file_no_crs_selected(mocker, qgis_new_project):
-    patch_dialogs(mocker, wntrqgis.examples["KY10"], "")
+    patch_dialogs(mocker, gusnet.examples["KY10"], "")
 
     action = LoadInpAction()
     action.trigger()

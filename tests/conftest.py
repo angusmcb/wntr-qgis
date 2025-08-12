@@ -51,7 +51,7 @@ def processing(qgis_processing):
 
 @pytest.fixture(autouse=True, scope="session")
 def check_wntr():
-    from wntrqgis.dependency_management import WntrInstaller
+    from gusnet.dependency_management import WntrInstaller
 
     try:
         import wntr  # noqa F401
@@ -72,7 +72,7 @@ def bad_inp(test_inp_dir):
 @pytest.fixture
 def get_example():
     def _(file_name: str):
-        return str(Path(__file__).parent.parent / "wntrqgis" / "resources" / "examples" / file_name)
+        return str(Path(__file__).parent.parent / "gusnet" / "resources" / "examples" / file_name)
 
     return _
 

@@ -4,7 +4,7 @@ import pytest
 from PyQt5.QtGui import QIcon
 from qgis.core import QgsProcessingProvider, QgsProcessingRegistry
 
-from wntrqgis.wntrqgis_processing.provider import Provider
+from gusnet.gusnet_processing.provider import Provider
 
 
 @pytest.fixture(scope="module")
@@ -24,11 +24,11 @@ def test_processing_provider_icon(provider: Provider, assert_valid_qicon: Callab
 
 
 def test_processing_provider_name(provider: Provider) -> None:
-    assert provider.name() == "WNTR"
+    assert provider.name() == "Gusnet"
 
 
 def test_processing_provider_id(provider: Provider) -> None:
-    assert provider.id() == "wntr"
+    assert provider.id() == "gusnet"
 
 
 @pytest.mark.parametrize("algorithm", ["importinp", "run", "templatelayers", "export"])

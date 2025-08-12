@@ -1,8 +1,8 @@
 import pytest
 from qgis.core import QgsExpressionContextUtils, QgsProject
 
-from wntrqgis.elements import FlowUnit, HeadlossFormula
-from wntrqgis.settings import ProjectSettings, SettingKey
+from gusnet.elements import FlowUnit, HeadlossFormula
+from gusnet.settings import ProjectSettings, SettingKey
 
 
 def write(var, value=None):

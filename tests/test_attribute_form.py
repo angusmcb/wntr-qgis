@@ -2,8 +2,8 @@ import pytest
 from pytest_qgis import QgisBot
 from qgis.core import QgsGeometry
 
-import wntrqgis.expressions  # noqa: F401
-from wntrqgis import from_qgis, to_qgis
+import gusnet.expressions  # noqa: F401
+from gusnet import from_qgis, to_qgis
 
 
 @pytest.fixture(scope="class")

@@ -26,16 +26,16 @@ from qgis.core import (
 )
 from qgis.PyQt.QtGui import QIcon
 
-from wntrqgis.elements import (
+from gusnet.elements import (
     FlowUnit,
     HeadlossFormula,
     ModelLayer,
 )
-from wntrqgis.i18n import tr
-from wntrqgis.interface import Writer
-from wntrqgis.settings import SettingKey
-from wntrqgis.units import SpecificUnitNames, UnitNames
-from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase, profile
+from gusnet.gusnet_processing.common import WntrQgisProcessingBase, profile
+from gusnet.i18n import tr
+from gusnet.interface import Writer
+from gusnet.settings import SettingKey
+from gusnet.units import SpecificUnitNames, UnitNames
 
 if TYPE_CHECKING:  # pragma: no cover
     import wntr

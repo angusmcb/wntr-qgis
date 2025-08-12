@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 from qgis.PyQt import QtCore
 
-import wntrqgis.dependency_management
-from wntrqgis.interface import from_qgis, to_qgis
+import gusnet.dependency_management
+from gusnet.interface import from_qgis, to_qgis
 
-_packages_path = wntrqgis.dependency_management.WntrInstaller.package_directory()
+_packages_path = gusnet.dependency_management.WntrInstaller.package_directory()
 if _packages_path not in sys.path:
     sys.path.append(_packages_path)
 
@@ -41,6 +41,6 @@ QtCore.QDir.addSearchPath("wntrqgis", str(Path(__file__).resolve().parent / "res
 
 
 def classFactory(iface: "QgisInterface"):  # noqa N802
-    from wntrqgis.plugin import Plugin
+    from gusnet.plugin import Plugin
 
     return Plugin()

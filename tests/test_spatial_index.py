@@ -1,7 +1,7 @@
 import pytest
 from qgis.core import QgsGeometry, QgsPoint, QgsPointXY
 
-from wntrqgis.spatial_index import SnapError, SnapSameNodeError, SnapTooFarError, SpatialIndex
+from gusnet.spatial_index import SnapError, SnapSameNodeError, SnapTooFarError, SpatialIndex
 
 
 def test_spatial_index_add_node():

@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 from qgis.core import QgsExpression, QgsExpressionContext, QgsFeature, qgsfunction
 
-import wntrqgis.interface
-from wntrqgis.i18n import tr
+import gusnet.interface
+from gusnet.i18n import tr
 
 if TYPE_CHECKING:  # pragma: no cover
     from qgis.PyQt.QtCore import QDateTime
@@ -94,7 +94,7 @@ def wntr_check_pattern(pattern, feature, parent, context):  # noqa ARG001
     """
 
     try:
-        pattern = wntrqgis.interface._Patterns.read_pattern(pattern)  # noqa: SLF001
+        pattern = gusnet.interface._Patterns.read_pattern(pattern)  # noqa: SLF001
     except ValueError:
         return False
 
@@ -121,8 +121,8 @@ def wntr_check_curve(curve):
     </ul>
     """
     try:
-        curve = wntrqgis.interface._Curves.read_curve(curve)  # noqa: SLF001
-    except wntrqgis.interface.CurveReadError:
+        curve = gusnet.interface._Curves.read_curve(curve)  # noqa: SLF001
+    except gusnet.interface.CurveReadError:
         return False
 
     if curve is None:

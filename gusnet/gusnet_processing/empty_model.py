@@ -13,10 +13,10 @@ from qgis.core import (
 )
 from qgis.PyQt.QtGui import QIcon
 
-from wntrqgis.elements import Field, FieldGroup, ModelLayer
-from wntrqgis.i18n import tr
-from wntrqgis.interface import Writer
-from wntrqgis.wntrqgis_processing.common import WntrQgisProcessingBase, profile
+from gusnet.elements import Field, FieldGroup, ModelLayer
+from gusnet.gusnet_processing.common import WntrQgisProcessingBase, profile
+from gusnet.i18n import tr
+from gusnet.interface import Writer
 
 
 class TemplateLayers(WntrQgisProcessingBase):
