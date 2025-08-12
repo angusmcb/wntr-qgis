@@ -49,14 +49,9 @@ from gusnet.i18n import tr
 from gusnet.settings import ProjectSettings, SettingKey
 
 MESSAGE_CATEGORY = "Gusnet"
+
 VERSION_SETTING = "gusnet/version"
-CONSOLE_STATEMENTS = """
-import gusnet
-try:
-    import wntr
-except ModuleNotFoundError:
-    pass
-"""
+
 LOGO_ICON = QIcon("gusnet:logo.png")
 
 iface = typing.cast(QgisInterface, iface)
@@ -242,7 +237,7 @@ class Plugin:
         with contextlib.suppress(ModuleNotFoundError, AttributeError):
             import console
 
-            console.console_sci._init_statements.append(CONSOLE_STATEMENTS)  # noqa: SLF001
+            console.console_sci._init_statements.extend(["import gusnet", "import wntr"])  # noqa: SLF001
 
 
 class ProcessingRunnerAction(QAction):
