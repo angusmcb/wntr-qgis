@@ -2,7 +2,7 @@
 myst:
   html_meta:
     "description lang=en": |
-        Documentation of the WNTR plugin for QGIS
+        Documentation of the Gusnet plugin for QGIS
 html_theme.sidebar_secondary.remove: true
 ---
 
