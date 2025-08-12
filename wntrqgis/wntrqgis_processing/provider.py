@@ -8,10 +8,10 @@ from wntrqgis.wntrqgis_processing.run_simulation import ExportInpFile, RunSimula
 
 class Provider(QgsProcessingProvider):
     def id(self) -> str:
-        return "wntr"
+        return "gusnet"
 
     def name(self) -> str:
-        return "WNTR"
+        return "Gusnet"
 
     def icon(self):
         return QIcon("wntrqgis:logo.png")

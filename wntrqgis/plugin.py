@@ -71,7 +71,7 @@ class Plugin:
 
         self.init_translation()
 
-        self.menu = tr("Water Network Tools for Resilience")
+        self.menu = tr("Gusnet")
 
     def init_translation(self):
         lang_code = QSettings().value("locale/userLocale", "en")
@@ -223,7 +223,7 @@ class Plugin:
         if old_version == wntrqgis.__version__:
             return
 
-        title = tr("WNTR QGIS upgraded successfully") if old_version else tr("WNTR QGIS installed successfully")
+        title = tr("Gusnet upgraded successfully") if old_version else tr("Gusnet installed successfully")
         text = tr("Load an example to try me out")
 
         message_item = iface.messageBar().createMessage(title, text)
