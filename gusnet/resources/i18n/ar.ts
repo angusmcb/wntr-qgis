@@ -802,12 +802,12 @@ Optionally, you can also output an EPANET &apos;.inp&apos; file which can be run
     <message>
         <location filename="../../elements.py" line="582"/>
         <source>Pump Curve (for &apos;head&apos; pumps)</source>
-        <translation>منحنى المضخة (لمضخات "الرأس")</translation>
+        <translation>منحنى المضخة (لمضخات &quot;الرأس&quot;)</translation>
     </message>
     <message>
         <location filename="../../elements.py" line="584"/>
         <source>Power (for &apos;power&apos; pumps)</source>
-        <translation>القدرة (لمضخات "القدرة")</translation>
+        <translation>القدرة (لمضخات &quot;القدرة&quot;)</translation>
     </message>
     <message>
         <location filename="../../elements.py" line="592"/>
@@ -1172,7 +1172,7 @@ Optionally, you can also output an EPANET &apos;.inp&apos; file which can be run
     <message>
         <location filename="../../interface.py" line="1453"/>
         <source>problem reading {curve_name} curve &quot;{curve_string}&quot;. {error_detail} Curves should be of the form: (1, 2), (3.6, 4.7)</source>
-        <translation>مشكلة في قراءة منحنى {curve_name} "{curve_string}". {error_detail} يجب أن تكون المنحنيات بالشكل: (1, 2), (3.6, 4.7)</translation>
+        <translation>مشكلة في قراءة منحنى {curve_name} &quot;{curve_string}&quot;. {error_detail} يجب أن تكون المنحنيات بالشكل: (1, 2), (3.6, 4.7)</translation>
     </message>
     <message>
         <location filename="../../interface.py" line="1487"/>
