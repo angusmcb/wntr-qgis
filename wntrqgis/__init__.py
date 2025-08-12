@@ -16,18 +16,8 @@ if _packages_path not in sys.path:
     sys.path.append(_packages_path)
 
 
-# from wntrqgis.qgis_plugin_tools.infrastructure.debugging import (
-#     setup_debugpy,
-#     setup_ptvsd,
-#     setup_pydevd,
-# )
-
 if TYPE_CHECKING:  # pragma: no cover
     from qgis.gui import QgisInterface
-
-# debugger = os.environ.get("QGIS_PLUGIN_USE_DEBUGGER", "").lower()
-# if debugger in {"debugpy", "ptvsd", "pydevd"}:
-#     locals()["setup_" + debugger]()
 
 
 _cp = configparser.ConfigParser()
