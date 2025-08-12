@@ -14,12 +14,12 @@ from qgis.core import (
 from qgis.PyQt.QtGui import QIcon
 
 from gusnet.elements import Field, FieldGroup, ModelLayer
-from gusnet.gusnet_processing.common import WntrQgisProcessingBase, profile
+from gusnet.gusnet_processing.common import CommonProcessingBase, profile
 from gusnet.i18n import tr
 from gusnet.interface import Writer
 
 
-class TemplateLayers(WntrQgisProcessingBase):
+class TemplateLayers(CommonProcessingBase):
     CRS = "CRS"
 
     def __init__(self) -> None:

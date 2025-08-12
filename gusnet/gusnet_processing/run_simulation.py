@@ -37,7 +37,7 @@ from qgis.PyQt.QtGui import QIcon
 
 import gusnet
 from gusnet.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
-from gusnet.gusnet_processing.common import WntrQgisProcessingBase, profile
+from gusnet.gusnet_processing.common import CommonProcessingBase, profile
 from gusnet.i18n import tr
 from gusnet.interface import NetworkModelError, Writer, check_network, describe_network, describe_pipes
 from gusnet.settings import ProjectSettings, SettingKey
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     import wntr
 
 
-class _ModelCreatorAlgorithm(WntrQgisProcessingBase):
+class _ModelCreatorAlgorithm(CommonProcessingBase):
     UNITS = "UNITS"
     DURATION = "DURATION"
     HEADLOSS_FORMULA = "HEADLOSS_FORMULA"

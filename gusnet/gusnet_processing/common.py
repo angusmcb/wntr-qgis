@@ -58,7 +58,7 @@ class Progression(Enum):
         raise ValueError
 
 
-class WntrQgisProcessingBase(QgsProcessingAlgorithm):
+class CommonProcessingBase(QgsProcessingAlgorithm):
     post_processors: ClassVar[dict[str, QgsProcessingLayerPostProcessorInterface]] = {}
 
     def helpUrl(self) -> str:  # noqa: N802

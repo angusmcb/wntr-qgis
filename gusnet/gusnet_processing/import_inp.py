@@ -31,7 +31,7 @@ from gusnet.elements import (
     HeadlossFormula,
     ModelLayer,
 )
-from gusnet.gusnet_processing.common import WntrQgisProcessingBase, profile
+from gusnet.gusnet_processing.common import CommonProcessingBase, profile
 from gusnet.i18n import tr
 from gusnet.interface import Writer
 from gusnet.settings import SettingKey
@@ -41,7 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import wntr
 
 
-class ImportInp(WntrQgisProcessingBase):
+class ImportInp(CommonProcessingBase):
     INPUT = "INPUT"
     CRS = "CRS"
     UNITS = "UNITS"
