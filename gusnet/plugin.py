@@ -57,7 +57,7 @@ try:
 except ModuleNotFoundError:
     pass
 """
-LOGO_ICON = QIcon("wntrqgis:logo.png")
+LOGO_ICON = QIcon("gusnet:logo.png")
 
 iface = typing.cast(QgisInterface, iface)
 

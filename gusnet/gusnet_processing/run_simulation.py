@@ -317,7 +317,7 @@ in other software.
             """)
 
     def icon(self):
-        return QIcon("wntrqgis:run.svg")
+        return QIcon("gusnet:run.svg")
 
     def init_output_parameters(self):
         self.init_output_files_parameters()

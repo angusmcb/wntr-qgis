@@ -14,7 +14,7 @@ class Provider(QgsProcessingProvider):
         return "Gusnet"
 
     def icon(self):
-        return QIcon("wntrqgis:logo.png")
+        return QIcon("gusnet:logo.png")
 
     def loadAlgorithms(self) -> None:  # noqa N802
         self.addAlgorithm(RunSimulation())

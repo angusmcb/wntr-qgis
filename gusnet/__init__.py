@@ -37,7 +37,7 @@ examples = {
 }
 
 
-QtCore.QDir.addSearchPath("wntrqgis", str(Path(__file__).resolve().parent / "resources" / "icons"))
+QtCore.QDir.addSearchPath("gusnet", str(Path(__file__).resolve().parent / "resources" / "icons"))
 
 
 def classFactory(iface: "QgisInterface"):  # noqa N802
