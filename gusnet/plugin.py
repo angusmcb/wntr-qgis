@@ -48,8 +48,8 @@ from gusnet.gusnet_processing.run_simulation import RunSimulation
 from gusnet.i18n import tr
 from gusnet.settings import ProjectSettings, SettingKey
 
-MESSAGE_CATEGORY = "WNTR-QGIS"
-WNTR_SETTING_VERSION = "wntrqgis/version"
+MESSAGE_CATEGORY = "Gusnet"
+VERSION_SETTING = "gusnet/version"
 CONSOLE_STATEMENTS = """
 import gusnet
 try:
@@ -217,8 +217,8 @@ class Plugin:
             assert task.waitForFinished()  # noqa: S101
 
     def show_welcome_message(self):
-        old_version = QgsSettings().value(WNTR_SETTING_VERSION, None)
-        QgsSettings().setValue(WNTR_SETTING_VERSION, gusnet.__version__)
+        old_version = QgsSettings().value(VERSION_SETTING, None)
+        QgsSettings().setValue(VERSION_SETTING, gusnet.__version__)
 
         if old_version == gusnet.__version__:
             return
