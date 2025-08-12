@@ -67,6 +67,20 @@ class WntrQgisProcessingBase(QgsProcessingAlgorithm):
 
         return super().postProcessAlgorithm(context, feedback)
 
+    def canExecute(self):  # noqa: N802
+        try:
+            import wntr  # noqa: F401
+        except ImportError:
+            msg = tr("WNTR cannot be loaded. Please wait a minute then try again, or consult our help site.")
+            return False, msg
+
+        return True, ""
+
+    def _check_wntr(self) -> None:
+        can_execute, message = self.canExecute()
+        if not can_execute:
+            raise QgsProcessingException(message)
+
     def _describe_model(self, wn: wntr.network.model.WaterNetworkModel, feedback: QgsProcessingFeedback) -> None:
         feedback.pushInfo(tr("WNTR model created. Model contains:"))
         feedback.pushInfo(str(wn.describe(level=0)))
