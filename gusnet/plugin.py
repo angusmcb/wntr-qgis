@@ -39,7 +39,7 @@ from qgis.utils import iface
 
 import gusnet
 import gusnet.expressions
-from gusnet.dependency_management import WntrInstaller
+from gusnet.dependencies import WntrInstaller
 from gusnet.elements import DemandType, FlowUnit, HeadlossFormula, ModelLayer, ResultLayer
 from gusnet.gusnet_processing.empty_model import TemplateLayers
 from gusnet.gusnet_processing.import_inp import ImportInp

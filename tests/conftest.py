@@ -51,7 +51,7 @@ def processing(qgis_processing):
 
 @pytest.fixture(autouse=True, scope="session")
 def check_wntr():
-    from gusnet.dependency_management import WntrInstaller
+    from gusnet.dependencies import WntrInstaller
 
     try:
         import wntr  # noqa F401

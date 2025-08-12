@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 from qgis.PyQt import QtCore
 
-import gusnet.dependency_management
+import gusnet.dependencies
 from gusnet.interface import from_qgis, to_qgis
 
-_packages_path = gusnet.dependency_management.WntrInstaller.package_directory()
+_packages_path = gusnet.dependencies.WntrInstaller.package_directory()
 if _packages_path not in sys.path:
     sys.path.append(_packages_path)
 
