@@ -61,6 +61,9 @@ class Progression(Enum):
 class WntrQgisProcessingBase(QgsProcessingAlgorithm):
     post_processors: ClassVar[dict[str, QgsProcessingLayerPostProcessorInterface]] = {}
 
+    def helpUrl(self) -> str:  # noqa: N802
+        return "https://www.gusnet.org"
+
     def postProcessAlgorithm(self, context, feedback):  # noqa: N802
         if QThread.currentThread() == QCoreApplication.instance().thread() and hasattr(self, "_settings"):
             project_settings = ProjectSettings()
