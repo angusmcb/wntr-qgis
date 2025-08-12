@@ -25,7 +25,7 @@ from qgis.gui import QgisInterface, QgsLayerTreeViewIndicator, QgsProjectionSele
 from qgis.PyQt.QtCore import QCoreApplication, QLocale, QObject, QSettings, QTranslator, pyqtSlot
 
 # from qgis.processing import execAlgorithmDialog for qgis 3.40 onwards
-from qgis.PyQt.QtGui import QIcon, QPainter, QPixmap
+from qgis.PyQt.QtGui import QIcon, QPainter
 from qgis.PyQt.QtWidgets import (
     QAction,
     QActionGroup,
@@ -57,6 +57,7 @@ try:
 except ModuleNotFoundError:
     pass
 """
+LOGO_ICON = QIcon("wntrqgis:logo.png")
 
 iface = typing.cast(QgisInterface, iface)
 
@@ -139,7 +140,7 @@ class Plugin:
         iface.addPluginToMenu(self.menu, self.load_example_action)
         try:
             our_menu_action = next(action for action in iface.pluginMenu().actions() if action.text() == self.menu)
-            our_menu_action.setIcon(QIcon("wntrqgis:logo.png"))
+            our_menu_action.setIcon(LOGO_ICON)
         except StopIteration:
             pass
 
@@ -547,13 +548,14 @@ def import_wntr(_: QgsTask):
 
 
 class IconWithLogo(QIcon):
-    _logo = QPixmap("wntrqgis:logo.png")
+    _logo_pixmap = LOGO_ICON.pixmap(128, 128)
 
     def __init__(self, icon: QIcon):
         result_pixmap = icon.pixmap(256, 256)
         painter = QPainter(result_pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.drawPixmap(128, 128, 128, 128, self._logo)
+
+        painter.drawPixmap(128, 128, 128, 128, self._logo_pixmap)
         painter.end()
 
         super().__init__(result_pixmap)
@@ -671,12 +673,10 @@ class IndicatorRegistry(QObject):
 
 
 class ModelLayerIndicator(QgsLayerTreeViewIndicator):
-    _icon = QIcon("wntrqgis:logo.png")
-
     def __init__(self, parent: QObject, layer_type: ModelLayer):
         super().__init__(parent)
 
-        self.setIcon(self._icon)
+        self.setIcon(LOGO_ICON)
         self.setToolTip(layer_type.friendly_name)
 
 
