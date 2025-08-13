@@ -39,6 +39,7 @@ extensions = [
     "enum_tools.autoenum",
     "sphinx_autodoc_typehints",
     "sphinxcontrib.googleanalytics",
+    "sphinx_design",
 ]
 
 templates_path = ["_templates"]
@@ -72,7 +73,7 @@ html_theme_options = {
             # URL where the link will redirect
             "url": "https://plugins.qgis.org/plugins/wntrqgis/",  # required
             # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
-            "icon": "_static/qgis-32x32.png",
+            "icon": "_static/qgis_logo_minimal.svg",
             # The type of image to be used (see below for details)
             "type": "local",
         },
@@ -104,6 +105,7 @@ myst_url_schemes = [
     "https",
 ]
 
+myst_enable_extensions = ["colon_fence"]
 
 numfig = True
 numfig_format = {"figure": "Figure %s", "table": "Table %s", "code-block": "Listing %s"}
