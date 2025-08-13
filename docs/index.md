@@ -22,6 +22,18 @@ h2 {
 .key-features img {
   max-width: 20vw
 }
+
+.bd-container::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 50%; right: 0; bottom: 0;
+  background: url('_static/network.png') no-repeat right top;
+  background-size: contain;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: -1
+}
+
 </style>
 
 # Gusnet Water Network Modeller
@@ -44,13 +56,14 @@ h2 {
 
 :::{grid-item}
 :margin: auto
+:class: sd-fs-5
 
   <h1 style="font-size: 60px; font-weight: bold;margin: 0">Gusnet</h1>
   <h3 style="font-weight: bold; margin-top: 0;">Water Network Modeller</h3>
 
   Gusnet is a QGIS plugin for designing, editing, simulating, and visualizing water distribution networks using EPANET’s trusted modeling engine.
 
-  Create accurate hydraulic models in real-world locations and seamlessly integrate them with your geographic data.
+  Create accurate hydraulic models in real-world locations using geographic data.
 
 :::
 
@@ -61,10 +74,10 @@ h2 {
 ## Key Features
 
 
-::::::{grid} 1 2 2 2
+::::::{grid} 1 1 2 2
 :gutter: 5
 :margin: 5 5 0 0
-:class-container: key-features
+:class-container: key-features sd-fs-5
 
 
 :::::{grid-item}
