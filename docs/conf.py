@@ -73,7 +73,7 @@ html_theme_options = {
             # URL where the link will redirect
             "url": "https://plugins.qgis.org/plugins/wntrqgis/",  # required
             # Icon class (if "type": "fontawesome"), or path to local image (if "type": "local")
-            "icon": "_static/qgis_logo_minimal.svg",
+            "icon": "_static/QGIS_logo_minimal.svg",
             # The type of image to be used (see below for details)
             "type": "local",
         },

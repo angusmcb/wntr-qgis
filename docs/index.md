@@ -14,7 +14,7 @@ h2 {
 }
 
 .big-section {
-  min-height: 90vh
+  min-height: 80vh
 }
 .bd-main .bd-content .bd-article-container {
   max-width: 100%;  /* default is 60em */
