@@ -3,15 +3,8 @@
 Units
 ================
 
-The plugin uses the same sets of units as Epanet, including both SI-based units and US customary units. Some units also depend on the equation used.
-For reference, :numref:`table-epanet-units` includes unit conversions.
-
-
-.. note::
-    Within the WNTR python module all units are in pure SI. This plugin automatically translates units to and from SI when reading and writing QGIS Layers.
-
-
-
+Gusnet uses the same sets of units as Epanet, including both SI-based units and US customary units.
+The below table, :numref:`table-epanet-units`, shows the units that will be used.
 
 
 
