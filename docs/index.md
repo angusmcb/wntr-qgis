@@ -45,6 +45,7 @@ h2 {
 
 :::{grid-item}
 :margin: auto
+:padding: 4
 :child-direction: row
 :child-align: center
 
@@ -58,7 +59,8 @@ h2 {
 :margin: auto
 :class: sd-fs-5
 
-  <h1 style="font-size: 60px; font-weight: bold;margin: 0">Gusnet</h1>
+
+  <h1 style="font-size: 80px; font-weight: bold;margin: 0">Gusnet</h1>
   <h3 style="font-weight: bold; margin-top: 0;">Water Network Modeller</h3>
 
   Gusnet is a QGIS plugin for designing, editing, simulating, and visualizing water distribution networks using EPANET’s trusted modeling engine.
