@@ -1,13 +1,13 @@
 Installation
 ============
 
-This plugin requires QGIS 3.34 or greater. If not already installed QGIS installers are [downloadable from their website](https://www.qgis.org/download/).
+Gusnet is a plugin for QGIS, so you need to have QGIS installed.  If you haven't already you can get it [from their website](https://www.qgis.org/download/) (it's free and open source). If you already have it, check that it's version 3.34 or greater.
 
-Install the plugin from the plugin repository within QGIS in the normal way. See the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary.
+Once you have QGIS installed you can get Gusnet from the regular plugins repository. Go to the 'Plugins' menu, select 'Manage and Install Plugins', and search for 'Gusnet'. See the [QGIS Manual](https://docs.qgis.org/latest/en/docs/training_manual/qgis_plugins/fetching_plugins.html) if necessary.
 
-If the WNTR python package is not already installed in the QGIS python environment, it will be installed within the plugin directory when first running the tools.
+If the WNTR python package is not already installed in the QGIS python environment, it will be installed within the plugin directory automatically.
 
-WNTR itself has some python dependencies. A warning will appear when running any of the algorithms from the 'processing toolbox' if there are missing dependencies.
+WNTR itself has some python dependencies. A warning will appear if any are missing.
 * On *Windows* all dependencies are already included within QGIS.
 * For *Linux / Mac* you will need to ensure that the following python packages are installed: Numpy, Scipy, Pandas, NetworkX,  Matplotlib and Geopandas. Exactly how to do this depends on your system and how you have installed QGIS.
 
